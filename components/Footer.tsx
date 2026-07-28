@@ -1,13 +1,21 @@
+import { OPERATOR_WA_NUMBER } from "@/lib/whatsapp";
+
 export default function Footer() {
   return (
     <footer className="border-t border-line bg-ink text-white/70">
       <div className="mx-auto max-w-6xl px-6 py-14 lg:px-8">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-3">
           <div>
-            <p className="font-display text-lg font-semibold text-white">Kerjakuclick</p>
+            <p className="font-display text-lg font-semibold text-white">
+              kerjaku<span className="text-bay-light">.click</span>
+            </p>
             <p className="mt-2 text-sm">Jasa tenaga kerja ke rumah Anda. Sekali klik.</p>
             <p className="mt-4 text-xs text-white/50">
               PT. Kerjaku Bangun Negeri
+              <br />
+              Jalan Muhammadiyah 2, Kelurahan Tondo,
+              <br />
+              Kecamatan Mantikulore, Kota Palu
               <br />
               Sertifikat PT, NIB &amp; Izin Tata Ruang lengkap
             </p>
@@ -17,13 +25,13 @@ export default function Footer() {
             <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Hubungi Kami</p>
             <ul className="mt-3 space-y-2 text-sm">
               <li>
-                <a href="https://wa.me/6288245185778" className="hover:text-bridge">
-                  Customer Service (WA): +62 882-4518-5778
+                <a href={`https://wa.me/${OPERATOR_WA_NUMBER}`} className="hover:text-bridge">
+                  Customer Service (WA): +62 811-4550-4178
                 </a>
               </li>
               <li>
-                <a href="https://wa.me/6288245185778" className="hover:text-bridge">
-                  Kemitraan (WA): +62 882-4518-5778
+                <a href={`https://wa.me/${OPERATOR_WA_NUMBER}`} className="hover:text-bridge">
+                  Kemitraan (WA): +62 811-4550-4178
                 </a>
               </li>
               <li>
@@ -37,6 +45,11 @@ export default function Footer() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Tautan</p>
             <ul className="mt-3 space-y-2 text-sm">
+              <li>
+                <a href="https://facebook.com/kerjakuclick" className="hover:text-bridge">
+                  Facebook @kerjakuclick
+                </a>
+              </li>
               <li>
                 <a href="https://instagram.com/kerjaku.click" className="hover:text-bridge">
                   Instagram @kerjaku.click

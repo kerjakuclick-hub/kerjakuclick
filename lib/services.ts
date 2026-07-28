@@ -69,6 +69,21 @@ export const serviceCategories = Array.from(
   new Set(services.map((s) => s.category))
 );
 
+/**
+ * Mencocokkan teks bebas (misalnya dari pesan WhatsApp: "Cleaning Fast",
+ * atau "cleaning-fast") ke salah satu varian layanan yang terdaftar.
+ * Dipakai oleh webhook Fonnte untuk menentukan total_price.
+ */
+export function findServiceByLabel(label: string): ServiceVariant | undefined {
+  const normalized = label.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  return services.find(
+    (s) =>
+      s.id === normalized ||
+      s.name.toLowerCase() === label.trim().toLowerCase() ||
+      s.name.toLowerCase().replace(/\s+/g, "-") === normalized
+  );
+}
+
 export function formatRupiah(value: number): string {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",

@@ -6,6 +6,8 @@ const sampleMessage = buildOrderMessage({
   noHp: "0812xxxxxxx",
   alamat: "Jl. Cumi-Cumi No. 12, Palu",
   jasa: "Cleaning Fast",
+  waktu: "09.00-12.00",
+  preferensi: "Bebas",
 });
 
 export default function Hero() {
@@ -30,7 +32,7 @@ export default function Hero() {
       <div className="relative mx-auto grid max-w-6xl grid-cols-1 gap-12 px-6 pb-24 pt-16 sm:pt-24 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-8">
         <div>
           <p className="eyebrow font-mono text-xs uppercase text-bay-deep/70">
-            Kota Palu · Pesan via WhatsApp
+            Area Layanan Kota Palu
           </p>
           <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] text-ink sm:text-5xl lg:text-6xl">
             Jasa Tenaga Kerja
@@ -59,20 +61,53 @@ export default function Hero() {
             </a>
           </div>
 
-          <dl className="mt-10 grid max-w-md grid-cols-3 gap-4 border-t border-line pt-6">
-            <div>
-              <dt className="font-display text-2xl font-semibold text-ink">3</dt>
-              <dd className="text-xs text-ink/60">Kategori jasa inti</dd>
-            </div>
-            <div>
-              <dt className="font-display text-2xl font-semibold text-ink">80%</dt>
-              <dd className="text-xs text-ink/60">Pendapatan langsung ke mitra</dd>
-            </div>
-            <div>
-              <dt className="font-display text-2xl font-semibold text-ink">PT</dt>
-              <dd className="text-xs text-ink/60">Berbadan hukum resmi</dd>
-            </div>
-          </dl>
+          <ul className="mt-10 max-w-lg space-y-5 border-t border-line pt-7">
+            <li className="flex gap-3.5">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bridge/25 text-bay-deep">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M12 3 4 6v6c0 4.4 3.4 8.5 8 9.5 4.6-1 8-5.1 8-9.5V6l-8-3Z" />
+                  <path d="m9 12 2 2 4-4" />
+                </svg>
+              </span>
+              <div>
+                <p className="font-display text-sm font-semibold text-ink">Mitra Profesional</p>
+                <p className="mt-0.5 text-sm text-ink/65">
+                  Mitra telah melalui verifikasi ketat &amp; pelatihan keahlian standar bintang 5.
+                </p>
+              </div>
+            </li>
+            <li className="flex gap-3.5">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bridge/25 text-bay-deep">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <circle cx="9" cy="8" r="3.2" />
+                  <path d="M3.5 19c.6-3 2.8-5 5.5-5s4.9 2 5.5 5" />
+                  <circle cx="17.5" cy="8.5" r="2.4" />
+                  <path d="M14.8 19c.4-2.4 1.9-4 3.9-4.4" />
+                </svg>
+              </span>
+              <div>
+                <p className="font-display text-sm font-semibold text-ink">Pilih Preferensi Mitra</p>
+                <p className="mt-0.5 text-sm text-ink/65">
+                  Bisa pilih preferensi mitra laki-laki/wanita untuk ke rumah Anda.
+                </p>
+              </div>
+            </li>
+            <li className="flex gap-3.5">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-bridge/25 text-bay-deep">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <rect x="2.5" y="6" width="19" height="12" rx="2" />
+                  <circle cx="12" cy="12" r="2.6" />
+                  <path d="M5.5 9v0M18.5 15v0" strokeLinecap="round" />
+                </svg>
+              </span>
+              <div>
+                <p className="font-display text-sm font-semibold text-ink">Sistem Pembayaran</p>
+                <p className="mt-0.5 text-sm text-ink/65">
+                  Bayar tunai ke mitra setelah pekerjaan selesai.
+                </p>
+              </div>
+            </li>
+          </ul>
         </div>
 
         <div className="flex justify-center lg:justify-end">

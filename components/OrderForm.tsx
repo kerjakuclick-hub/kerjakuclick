@@ -5,19 +5,24 @@ import { services } from "@/lib/services";
 import { buildOrderMessage, buildWaLink } from "@/lib/whatsapp";
 import WhatsAppPreview from "./WhatsAppPreview";
 
+const TIME_SLOTS = ["09.00-12.00", "12.00-15.00", "15.00-17.00"];
+const PREFERENSI_OPTIONS = ["Pria", "Wanita", "Bebas"];
+
 export default function OrderForm() {
   const [nama, setNama] = useState("");
   const [noHp, setNoHp] = useState("");
   const [alamat, setAlamat] = useState("");
   const [jasa, setJasa] = useState("");
+  const [waktu, setWaktu] = useState("");
+  const [preferensi, setPreferensi] = useState("Bebas");
   const [touched, setTouched] = useState(false);
 
   const message = useMemo(
-    () => buildOrderMessage({ nama, noHp, alamat, jasa }),
-    [nama, noHp, alamat, jasa]
+    () => buildOrderMessage({ nama, noHp, alamat, jasa, waktu, preferensi }),
+    [nama, noHp, alamat, jasa, waktu, preferensi]
   );
 
-  const isValid = nama.trim() && noHp.trim() && alamat.trim() && jasa.trim();
+  const isValid = nama.trim() && noHp.trim() && alamat.trim() && jasa.trim() && waktu.trim();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -113,6 +118,55 @@ export default function OrderForm() {
               {touched && !jasa.trim() && (
                 <p className="mt-1 text-xs text-bridge">Pilih salah satu jasa.</p>
               )}
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-white/90">
+                Slot Waktu
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {TIME_SLOTS.map((slot) => (
+                  <button
+                    key={slot}
+                    type="button"
+                    onClick={() => setWaktu(slot)}
+                    aria-pressed={waktu === slot}
+                    className={`rounded-lg border px-2 py-2.5 text-xs font-medium transition ${
+                      waktu === slot
+                        ? "border-bridge bg-bridge text-ink"
+                        : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
+                    }`}
+                  >
+                    {slot}
+                  </button>
+                ))}
+              </div>
+              {touched && !waktu.trim() && (
+                <p className="mt-1 text-xs text-bridge">Pilih slot waktu pengerjaan.</p>
+              )}
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-white/90">
+                Preferensi Mitra
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {PREFERENSI_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setPreferensi(opt)}
+                    aria-pressed={preferensi === opt}
+                    className={`rounded-lg border px-2 py-2.5 text-xs font-medium transition ${
+                      preferensi === opt
+                        ? "border-bridge bg-bridge text-ink"
+                        : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
+                    }`}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <button
