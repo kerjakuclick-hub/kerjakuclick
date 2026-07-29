@@ -21,6 +21,7 @@ create table orders (
   address text not null,
   service_type text not null,
   total_price bigint not null,
+  scheduled_date date,
   preferred_time text,
   mitra_gender_preference text check (
     mitra_gender_preference in ('Pria', 'Wanita', 'Bebas')

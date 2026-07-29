@@ -10,6 +10,7 @@ export type OrderInput = {
   noHp: string;
   alamat: string;
   jasa: string;
+  tanggal: string;
   waktu: string;
   preferensi: string;
 };
@@ -24,6 +25,7 @@ export function buildOrderMessage({
   noHp,
   alamat,
   jasa,
+  tanggal,
   waktu,
   preferensi,
 }: OrderInput): string {
@@ -33,6 +35,7 @@ export function buildOrderMessage({
     `NoHP:${noHp || "-"}`,
     `Alamat:${alamat || "-"}`,
     `Jasa:${jasa || "-"}`,
+    `Tanggal:${tanggal || "-"}`,
     `Waktu:${waktu || "-"}`,
     `Preferensi:${preferensi || "-"}`,
   ].join("\n");

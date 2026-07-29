@@ -35,6 +35,7 @@ function parseOrderMessage(raw: string) {
   const noHp = fields["nohp"];
   const alamat = fields["alamat"];
   const jasa = fields["jasa"];
+  const tanggal = fields["tanggal"];
   const waktu = fields["waktu"];
   const preferensi = fields["preferensi"];
 
@@ -42,7 +43,7 @@ function parseOrderMessage(raw: string) {
     return null;
   }
 
-  return { nama, noHp, alamat, jasa, waktu, preferensi };
+  return { nama, noHp, alamat, jasa, tanggal, waktu, preferensi };
 }
 
 export async function POST(req: NextRequest) {
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
       address: parsed.alamat,
       service_type: matchedService?.name ?? parsed.jasa,
       total_price: matchedService?.price ?? 0,
+      scheduled_date: parsed.tanggal ?? null,
       preferred_time: parsed.waktu ?? null,
       mitra_gender_preference: parsed.preferensi ?? null,
       status: "unassigned",

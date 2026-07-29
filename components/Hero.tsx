@@ -6,6 +6,7 @@ const sampleMessage = buildOrderMessage({
   noHp: "0812xxxxxxx",
   alamat: "Jl. Cumi-Cumi No. 12, Palu",
   jasa: "Cleaning Fast",
+  tanggal: "2026-08-02",
   waktu: "09.00-12.00",
   preferensi: "Bebas",
 });

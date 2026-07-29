@@ -8,21 +8,27 @@ import WhatsAppPreview from "./WhatsAppPreview";
 const TIME_SLOTS = ["09.00-12.00", "12.00-15.00", "15.00-17.00"];
 const PREFERENSI_OPTIONS = ["Pria", "Wanita", "Bebas"];
 
+function todayIso() {
+  return new Date().toISOString().split("T")[0];
+}
+
 export default function OrderForm() {
   const [nama, setNama] = useState("");
   const [noHp, setNoHp] = useState("");
   const [alamat, setAlamat] = useState("");
   const [jasa, setJasa] = useState("");
+  const [tanggal, setTanggal] = useState("");
   const [waktu, setWaktu] = useState("");
   const [preferensi, setPreferensi] = useState("Bebas");
   const [touched, setTouched] = useState(false);
 
   const message = useMemo(
-    () => buildOrderMessage({ nama, noHp, alamat, jasa, waktu, preferensi }),
-    [nama, noHp, alamat, jasa, waktu, preferensi]
+    () => buildOrderMessage({ nama, noHp, alamat, jasa, tanggal, waktu, preferensi }),
+    [nama, noHp, alamat, jasa, tanggal, waktu, preferensi]
   );
 
-  const isValid = nama.trim() && noHp.trim() && alamat.trim() && jasa.trim() && waktu.trim();
+  const isValid =
+    nama.trim() && noHp.trim() && alamat.trim() && jasa.trim() && tanggal.trim() && waktu.trim();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -117,6 +123,23 @@ export default function OrderForm() {
               </select>
               {touched && !jasa.trim() && (
                 <p className="mt-1 text-xs text-bridge">Pilih salah satu jasa.</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="tanggal" className="mb-1.5 block text-sm font-medium text-white/90">
+                Tanggal Pengerjaan
+              </label>
+              <input
+                id="tanggal"
+                type="date"
+                value={tanggal}
+                min={todayIso()}
+                onChange={(e) => setTanggal(e.target.value)}
+                className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-white [color-scheme:dark] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bridge"
+              />
+              {touched && !tanggal.trim() && (
+                <p className="mt-1 text-xs text-bridge">Pilih tanggal pengerjaan.</p>
               )}
             </div>
 
