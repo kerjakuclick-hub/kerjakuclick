@@ -2,15 +2,15 @@ import WhatsAppPreview from "./WhatsAppPreview";
 import { buildOrderMessage } from "@/lib/whatsapp";
 
 const sampleMessage = buildOrderMessage({
-  nama: "Bu Anita",
-  noHp: "0812xxxxxxx",
-  alamat: "Jl. Cumi-Cumi No. 12, Palu",
-  jasa: "Cleaning Fast",
-  tanggal: "2026-08-02",
-  waktu: "09.00-12.00",
-  preferensi: "Bebas",
-});
-
+     nama: "Bu Anita",
+     noHp: "0812xxxxxxx",
+     alamat: "Jl. Cumi-Cumi No. 12, Palu",
+     jasa: "Cleaning Fast",
+     tanggal: "2026-08-02",
+     waktu: "09.00-12.00",
+     preferensi: "Bebas",
+   });
+   
 export default function Hero() {
   return (
     <section className="relative overflow-hidden bg-paper">
