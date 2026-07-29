@@ -34,12 +34,23 @@ create table orders (
 alter table profiles enable row level security;
 alter table orders enable row level security;
 
-create policy "profiles_self_read" on profiles for select using (auth.uid() = id);
-create policy "profiles_admin_all" on profiles for all using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
+-- Fungsi SECURITY DEFINER ini melewati RLS saat mengecek role admin,
+-- supaya kebijakan di bawah tidak query ulang dirinya sendiri
+-- (infinite recursion).
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role = 'admin'
+  );
+$$;
 
-create policy "orders_admin_all" on orders for all using (
-  exists (select 1 from profiles where id = auth.uid() and role = 'admin')
-);
+create policy "profiles_self_read" on profiles for select using (auth.uid() = id);
+create policy "profiles_admin_all" on profiles for all using (public.is_admin());
+
+create policy "orders_admin_all" on orders for all using (public.is_admin());
 create policy "orders_mitra_own" on orders for select using (mitra_id = auth.uid());
