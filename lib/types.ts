@@ -32,3 +32,14 @@ export type MitraProfile = {
 };
 
 export type MitraSelfProfile = MitraProfile;
+
+export type Transaction = {
+  id: number;
+  order_id: number;
+  mitra_id: string;
+  gross_amount: number;
+  mitra_share: number;
+  platform_share: number;
+  type: "order_completion" | "adjustment";
+  created_at: string;
+};

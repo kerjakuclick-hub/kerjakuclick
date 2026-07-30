@@ -23,6 +23,11 @@ export default async function MitraDashboardPage() {
     .eq("mitra_id", user!.id)
     .order("created_at", { ascending: false });
 
+  const { data: transactions } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("mitra_id", user!.id);
+
   return (
     <div className="space-y-8">
       <div>
@@ -64,7 +69,7 @@ export default async function MitraDashboardPage() {
           Daftar ini otomatis diperbarui saat admin menugaskan pesanan baru untuk Anda.
         </p>
         <div className="mt-4">
-          <TaskList initialOrders={orders ?? []} mitraId={user!.id} />
+          <TaskList initialOrders={orders ?? []} mitraId={user!.id} transactions={transactions ?? []} />
         </div>
       </div>
     </div>

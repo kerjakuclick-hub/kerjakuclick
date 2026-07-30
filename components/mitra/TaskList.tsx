@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah } from "@/lib/services";
-import type { Order, OrderStatus } from "@/lib/types";
+import type { Order, OrderStatus, Transaction } from "@/lib/types";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   unassigned: "Belum Ditugaskan",
@@ -24,12 +25,15 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 export default function TaskList({
   initialOrders,
   mitraId,
+  transactions,
 }: {
   initialOrders: Order[];
   mitraId: string;
+  transactions: Transaction[];
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [savingId, setSavingId] = useState<number | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -75,6 +79,11 @@ export default function TaskList({
       if (res.ok) {
         const { order } = await res.json();
         setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
+        if (nextStatus === "completed") {
+          // Saldo & total pendapatan di kartu atas dihitung server-side lewat
+          // trigger database — refresh supaya angkanya langsung ter-update.
+          router.refresh();
+        }
       }
     } finally {
       setSavingId(null);
@@ -155,26 +164,33 @@ export default function TaskList({
                   <th className="px-4 py-3">Layanan</th>
                   <th className="px-4 py-3">Pelanggan</th>
                   <th className="px-4 py-3">Nilai</th>
+                  <th className="px-4 py-3">Pendapatan Anda</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {history.map((o) => (
-                  <tr key={o.id} className="border-b border-line last:border-0">
-                    <td className="px-4 py-3 text-ink">{o.service_type}</td>
-                    <td className="px-4 py-3 text-ink/70">{o.customer_name}</td>
-                    <td className="px-4 py-3 font-mono text-ink/70">
-                      {formatRupiah(o.total_price)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLOR[o.status]}`}
-                      >
-                        {STATUS_LABEL[o.status]}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {history.map((o) => {
+                  const tx = transactions.find((t) => t.order_id === o.id);
+                  return (
+                    <tr key={o.id} className="border-b border-line last:border-0">
+                      <td className="px-4 py-3 text-ink">{o.service_type}</td>
+                      <td className="px-4 py-3 text-ink/70">{o.customer_name}</td>
+                      <td className="px-4 py-3 font-mono text-ink/70">
+                        {formatRupiah(o.total_price)}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-wa">
+                        {tx ? formatRupiah(tx.mitra_share) : "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLOR[o.status]}`}
+                        >
+                          {STATUS_LABEL[o.status]}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

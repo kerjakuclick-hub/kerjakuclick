@@ -16,6 +16,9 @@ export default function AdminNav({ adminName }: { adminName: string }) {
             <Link href="/admin/mitra" className="hover:text-white">
               Mitra
             </Link>
+            <Link href="/admin/transaksi" className="hover:text-white">
+              Transaksi
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">
