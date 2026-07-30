@@ -30,3 +30,5 @@ export type MitraProfile = {
   status: "training" | "ahli";
   is_active: boolean;
 };
+
+export type MitraSelfProfile = MitraProfile;

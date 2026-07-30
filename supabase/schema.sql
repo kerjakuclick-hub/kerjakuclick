@@ -54,3 +54,6 @@ create policy "profiles_admin_all" on profiles for all using (public.is_admin())
 
 create policy "orders_admin_all" on orders for all using (public.is_admin());
 create policy "orders_mitra_own" on orders for select using (mitra_id = auth.uid());
+create policy "orders_mitra_update_own" on orders for update
+  using (mitra_id = auth.uid())
+  with check (mitra_id = auth.uid() and status in ('working', 'completed'));

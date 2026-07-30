@@ -30,8 +30,9 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
+  const isMitraRoute = request.nextUrl.pathname.startsWith("/mitra");
 
-  if (isAdminRoute) {
+  if (isAdminRoute || isMitraRoute) {
     if (!user) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("next", request.nextUrl.pathname);
@@ -44,7 +45,11 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    if (isAdminRoute && profile?.role !== "admin") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    if (isMitraRoute && profile?.role !== "mitra") {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }
@@ -53,5 +58,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/mitra/:path*"],
 };

@@ -18,19 +18,27 @@ function LoginForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    setLoading(false);
-
-    if (signInError) {
+    if (signInError || !signInData.user) {
+      setLoading(false);
       setError("Email atau password salah.");
       return;
     }
 
-    const next = searchParams.get("next") || "/admin";
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", signInData.user.id)
+      .single();
+
+    setLoading(false);
+
+    const fallback = profile?.role === "mitra" ? "/mitra" : "/admin";
+    const next = searchParams.get("next") || fallback;
     router.push(next);
     router.refresh();
   }
@@ -42,7 +50,7 @@ function LoginForm() {
           <span className="text-ink">kerjaku</span>
           <span className="text-bay-light">.click</span>
         </p>
-        <p className="mt-1 text-sm text-ink/60">Masuk ke Dasbor Admin</p>
+        <p className="mt-1 text-sm text-ink/60">Masuk ke Dasbor Kerjakuclick</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
