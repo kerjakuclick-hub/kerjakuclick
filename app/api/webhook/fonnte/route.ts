@@ -47,6 +47,21 @@ function parseOrderMessage(raw: string) {
 }
 
 export async function POST(req: NextRequest) {
+  // Verifikasi token rahasia di URL — tanpa ini, siapa pun di internet yang
+  // tahu alamat endpoint ini bisa mengirim data order palsu langsung ke
+  // database. Fonnte tidak menandatangani webhook-nya, jadi kita yang
+  // menambahkan lapisan verifikasi sendiri lewat query param di URL.
+  const expectedSecret = process.env.FONNTE_WEBHOOK_SECRET;
+  const providedSecret = req.nextUrl.searchParams.get("secret");
+
+  if (!expectedSecret) {
+    console.error("FONNTE_WEBHOOK_SECRET belum diset di environment variables.");
+    return NextResponse.json({ ok: false, reason: "server_misconfigured" }, { status: 500 });
+  }
+  if (providedSecret !== expectedSecret) {
+    return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
+  }
+
   let body: FonnteWebhookBody;
   try {
     body = await req.json();

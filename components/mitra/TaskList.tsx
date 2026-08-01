@@ -1,10 +1,18 @@
+// GANTI ISI components/mitra/TaskList.tsx Anda dengan file ini.
+//
+// Perubahan: menerima prop baru `earnings` (model baru, per order). Untuk
+// tiap baris riwayat, cek dulu di `earnings` (model baru) — kalau order itu
+// completed SEBELUM migrasi 008 dan tidak ada di earnings, fallback ke
+// `transactions.mitra_share` (model lama) supaya riwayat lama tetap tampil
+// dengan benar, tidak mendadak kosong.
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah } from "@/lib/services";
-import type { Order, OrderStatus, Transaction } from "@/lib/types";
+import type { Order, OrderStatus, Transaction, Earning } from "@/lib/types";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   unassigned: "Belum Ditugaskan",
@@ -26,10 +34,12 @@ export default function TaskList({
   initialOrders,
   mitraId,
   transactions,
+  earnings,
 }: {
   initialOrders: Order[];
   mitraId: string;
   transactions: Transaction[];
+  earnings: Earning[];
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [savingId, setSavingId] = useState<number | null>(null);
@@ -80,7 +90,7 @@ export default function TaskList({
         const { order } = await res.json();
         setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
         if (nextStatus === "completed") {
-          // Saldo & total pendapatan di kartu atas dihitung server-side lewat
+          // Saldo & pendapatan di kartu atas dihitung server-side lewat
           // trigger database — refresh supaya angkanya langsung ter-update.
           router.refresh();
         }
@@ -88,6 +98,16 @@ export default function TaskList({
     } finally {
       setSavingId(null);
     }
+  }
+
+  // Cek model baru (earnings) dulu, fallback ke model lama (transactions)
+  // untuk order yang completed sebelum migrasi 008.
+  function pendapatanUntukOrder(orderId: number): number | null {
+    const earning = earnings.find((e) => e.order_id === orderId);
+    if (earning) return earning.amount;
+    const legacy = transactions.find((t) => t.order_id === orderId);
+    if (legacy) return legacy.mitra_share;
+    return null;
   }
 
   const active = orders.filter((o) => o.status === "assigned" || o.status === "working");
@@ -170,7 +190,7 @@ export default function TaskList({
               </thead>
               <tbody>
                 {history.map((o) => {
-                  const tx = transactions.find((t) => t.order_id === o.id);
+                  const pendapatan = pendapatanUntukOrder(o.id);
                   return (
                     <tr key={o.id} className="border-b border-line last:border-0">
                       <td className="px-4 py-3 text-ink">{o.service_type}</td>
@@ -179,7 +199,7 @@ export default function TaskList({
                         {formatRupiah(o.total_price)}
                       </td>
                       <td className="px-4 py-3 font-mono text-wa">
-                        {tx ? formatRupiah(tx.mitra_share) : "-"}
+                        {pendapatan !== null ? formatRupiah(pendapatan) : "-"}
                       </td>
                       <td className="px-4 py-3">
                         <span
