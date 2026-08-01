@@ -13,6 +13,8 @@ manual path per file.
    dimaksudkan untuk MENIMPA versi lama).
 3. File yang **baru dibuat** (belum ada sebelumnya di project Anda):
    - `app/api/admin/mitra/update-attributes/route.ts`
+   - `app/api/admin/orders/generate-invoice/route.ts` (generate ulang invoice manual)
+   - `app/api/admin/invoices/mark-sent/route.ts` (tandai invoice sudah dikirim)
    - `lib/pdf/invoice-templates.tsx`
    - `lib/pdf/generate-invoice.tsx`
    - Semua isi `supabase/migrations/007`, `008`, `009` dan `supabase/scripts/`
@@ -55,24 +57,28 @@ mereset ke 0, dengan snapshot arsip untuk jaga-jaga.
 
 1. **Backup** database production (Supabase Dashboard → Database → Backups).
 2. SQL Editor → jalankan `supabase/scripts/pre_migration_audit_saldo.sql`
-   (read-only). Cek terutama bagian 4 (mitra aktif yang gender-nya kosong)
-   dan bagian 3 (mitra yang bakal gagal ambang baru).
+   **bagian #1, #2, #3, dan #5 saja dulu** (read-only, tidak butuh kolom
+   baru). Cek terutama bagian #3 (mitra yang bakal gagal ambang baru).
+   **Lewati dulu bagian #4** — query itu butuh kolom `gender` yang baru
+   ditambahkan di langkah 3 berikut, akan error kalau dijalankan sekarang.
 3. SQL Editor → jalankan `supabase/migrations/007_addendum_fase_1_1_schema.sql`.
-4. SQL Editor → jalankan `supabase/migrations/008_switch_to_deposit_model.sql`
+4. Kembali ke `pre_migration_audit_saldo.sql`, jalankan **bagian #4** (yang
+   tadi dilewati) untuk cek mitra aktif yang gender-nya masih kosong.
+5. SQL Editor → jalankan `supabase/migrations/008_switch_to_deposit_model.sql`
    — **titik ini yang mematikan trigger lama**.
-5. **Pilih rencana rollout** sebelum lanjut ke langkah 6:
+6. **Pilih rencana rollout** sebelum lanjut ke langkah berikutnya:
    - **Opsi A**: broadcast WA ke semua mitra aktif dulu, kasih jeda 1-2 hari
-     untuk top up, baru lanjut ke langkah 6.
-   - **Opsi B**: langsung lanjut langkah 6, lalu SEGERA seed top up kecil
-     untuk semua mitra aktif lewat Kelola Mitra (poin 9 di bawah) sebelum ada
-     pesanan baru masuk — supaya tidak ada jeda operasional.
-6. SQL Editor → jalankan `supabase/migrations/009_reset_legacy_wallet_balance.sql`.
-7. Deploy kode (lihat bagian "VS Code & Vercel" di bawah).
-8. Buka **Kelola Mitra** (`/admin/mitra`) → isi kolom **Gender** untuk semua
+     untuk top up, baru lanjut.
+   - **Opsi B**: langsung lanjut, lalu SEGERA seed top up kecil untuk semua
+     mitra aktif lewat Kelola Mitra (poin 10 di bawah) sebelum ada pesanan
+     baru masuk — supaya tidak ada jeda operasional.
+7. SQL Editor → jalankan `supabase/migrations/009_reset_legacy_wallet_balance.sql`.
+8. Deploy kode (lihat bagian "VS Code & Vercel" di bawah).
+9. Buka **Kelola Mitra** (`/admin/mitra`) → isi kolom **Gender** untuk semua
    mitra aktif (dropdown sudah tersedia langsung di tabel).
-9. (Kalau pilih Opsi B) → top up saldo awal tiap mitra aktif lewat kolom
-   "Top Up" di halaman yang sama.
-10. Test end-to-end: buat 1 order percobaan → tugaskan mitra → cek invoice
+10. (Kalau pilih Opsi B) → top up saldo awal tiap mitra aktif lewat kolom
+    "Top Up" di halaman yang sama.
+11. Test end-to-end: buat 1 order percobaan → tugaskan mitra → cek invoice
     PDF ter-generate → selesaikan order → cek `wallet_balance` berkurang 20%
     dan muncul baris baru di `earnings` + `wallet_transactions`.
 
@@ -125,3 +131,8 @@ sebelumnya.
   `eligible_mitra_for_order`
 - ❌ Halaman Transaksi akan beku setelah trigger lama mati → ✅ dipecah jadi
   arsip lama + laporan baru
+- ❌ **Bug**: kolom Invoice (link PDF, tombol "Tandai Terkirim", generate
+  ulang manual) kehapus dari `OrdersFeed.tsx` saat penyesuaian ke repo asli
+  Anda → ✅ dikembalikan + ditambah 2 route baru (`generate-invoice`,
+  `mark-sent`) supaya admin bisa lihat/kirim invoice dari UI, bukan cuma
+  ter-generate diam-diam di backend
