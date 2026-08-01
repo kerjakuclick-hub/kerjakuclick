@@ -1,8 +1,18 @@
+// GANTI ISI app/mitra/page.tsx Anda dengan file ini.
+//
+// Perubahan: teks peringatan saldo tidak lagi menyebut angka tetap Rp50.000;
+// menambah fetch dari `earnings` (model baru) di samping `transactions`
+// (model lama) — dikirim keduanya ke TaskList supaya riwayat pekerjaan lama
+// & baru sama-sama bisa ditampilkan dengan benar.
+
 import { createClient } from "@/lib/supabase/server";
 import TaskList from "@/components/mitra/TaskList";
-import { formatRupiah } from "@/lib/services";
+import { formatRupiah, services } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
+
+const MIN_TARIF = Math.min(...services.map((s) => s.price));
+const SALDO_WARNING_THRESHOLD = Math.round(MIN_TARIF * 0.2);
 
 export default async function MitraDashboardPage() {
   const supabase = createClient();
@@ -28,13 +38,18 @@ export default async function MitraDashboardPage() {
     .select("*")
     .eq("mitra_id", user!.id);
 
+  const { data: earnings } = await supabase
+    .from("earnings")
+    .select("*")
+    .eq("mitra_id", user!.id);
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="font-display text-2xl font-semibold text-ink">
           Halo, {profile?.name ?? "Mitra"}
         </h1>
-        <p className="mt-1 text-sm text-ink/60">Ringkasan e-wallet dan tugas Anda hari ini.</p>
+        <p className="mt-1 text-sm text-ink/60">Ringkasan dompet dan tugas Anda hari ini.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -43,9 +58,10 @@ export default async function MitraDashboardPage() {
           <p className="mt-1 font-display text-xl font-semibold text-ink">
             {formatRupiah(profile?.wallet_balance ?? 0)}
           </p>
-          {(profile?.wallet_balance ?? 0) < 50000 && (
+          {(profile?.wallet_balance ?? 0) < SALDO_WARNING_THRESHOLD && (
             <p className="mt-1 text-xs text-red-600">
-              Saldo di bawah Rp50.000 — Anda tidak akan muncul di penugasan baru.
+              Saldo di bawah {formatRupiah(SALDO_WARNING_THRESHOLD)} — Anda mungkin tidak muncul di
+              penugasan untuk sebagian pesanan (ambang bervariasi, 20% dari nilai layanan).
             </p>
           )}
         </div>
@@ -69,7 +85,12 @@ export default async function MitraDashboardPage() {
           Daftar ini otomatis diperbarui saat admin menugaskan pesanan baru untuk Anda.
         </p>
         <div className="mt-4">
-          <TaskList initialOrders={orders ?? []} mitraId={user!.id} transactions={transactions ?? []} />
+          <TaskList
+            initialOrders={orders ?? []}
+            mitraId={user!.id}
+            transactions={transactions ?? []}
+            earnings={earnings ?? []}
+          />
         </div>
       </div>
     </div>

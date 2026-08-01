@@ -1,3 +1,11 @@
+// GANTI ISI app/api/admin/mitra/topup/route.ts Anda dengan file ini.
+//
+// Perubahan dari versi asli: update wallet_balance sebelumnya langsung
+// lewat .update(), tanpa jejak audit. Sekarang dipanggil lewat RPC
+// topup_wallet() (migrasi 008) supaya SETIAP top up otomatis tercatat di
+// wallet_transactions (AC9) — update saldo & pencatatan audit selalu satu
+// paket, tidak mungkin salah satu tertinggal.
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -28,26 +36,24 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin();
 
-  const { data: current, error: fetchError } = await admin
+  const { data: newBalance, error: rpcError } = await admin.rpc("topup_wallet", {
+    p_mitra_id: mitraId,
+    p_amount: Number(amount),
+  });
+
+  if (rpcError) {
+    return NextResponse.json({ error: rpcError.message }, { status: 500 });
+  }
+
+  const { data: updated, error: fetchError } = await admin
     .from("profiles")
-    .select("wallet_balance")
+    .select("*")
     .eq("id", mitraId)
     .single();
 
-  if (fetchError || !current) {
-    return NextResponse.json({ error: "Mitra tidak ditemukan." }, { status: 404 });
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
   }
 
-  const { data: updated, error: updateError } = await admin
-    .from("profiles")
-    .update({ wallet_balance: current.wallet_balance + Number(amount) })
-    .eq("id", mitraId)
-    .select()
-    .single();
-
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ profile: updated });
+  return NextResponse.json({ profile: updated, newBalance });
 }

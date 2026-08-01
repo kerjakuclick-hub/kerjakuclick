@@ -1,0 +1,139 @@
+]633;E;echo "=== STRUKTUR FOLDER ===";492d45f4-e6a6-48c2-9fd3-35757512ef0b]633;C=== STRUKTUR FOLDER ===
+.
+./app
+./app/admin
+./app/admin/layout.tsx
+./app/admin/mitra
+./app/admin/mitra/page.tsx
+./app/admin/page.tsx
+./app/admin/transaksi
+./app/admin/transaksi/page.tsx
+./app/api
+./app/api/admin
+./app/api/admin/mitra
+./app/api/admin/mitra/route.ts
+./app/api/admin/mitra/toggle
+./app/api/admin/mitra/toggle/route.ts
+./app/api/admin/mitra/topup
+./app/api/admin/mitra/topup/route.ts
+./app/api/admin/orders
+./app/api/admin/orders/assign
+./app/api/admin/orders/assign/route.ts
+./app/api/mitra
+./app/api/mitra/orders
+./app/api/mitra/orders/update
+./app/api/mitra/orders/update/route.ts
+./app/api/webhook
+./app/api/webhook/fonnte
+./app/api/webhook/fonnte/route.ts
+./app/auth
+./app/auth/signout
+./app/auth/signout/route.ts
+./app/globals.css
+./app/layout.tsx
+./app/login
+./app/login/page.tsx
+./app/mitra
+./app/mitra/layout.tsx
+./app/mitra/page.tsx
+./app/page.tsx
+./audit-project.txt
+./CHECKLIST_KEAMANAN_TAHAP5.md
+./components
+./components/admin
+./components/admin/AdminNav.tsx
+./components/admin/MitraTable.tsx
+./components/admin/OrdersFeed.tsx
+./components/Footer.tsx
+./components/Header.tsx
+./components/Hero.tsx
+./components/HowItWorks.tsx
+./components/mitra
+./components/mitra/MitraNav.tsx
+./components/mitra/TaskList.tsx
+./components/OrderForm.tsx
+./components/Promo.tsx
+./components/ServicesGrid.tsx
+./components/WhatsAppPreview.tsx
+./.env.local
+./.gitignore
+./lib
+./lib/services.ts
+./lib/supabase
+./lib/supabaseAdmin.ts
+./lib/supabase/client.ts
+./lib/supabase/server.ts
+./lib/types.ts
+./lib/whatsapp.ts
+./middleware.ts
+./next.config.mjs
+./next-env.d.ts
+./package.json
+./package-lock.json
+./postcss.config.mjs
+./public
+./README.md
+./ROADMAP.md
+./supabase
+./supabase/migrations
+./supabase/migrations/001_add_waktu_preferensi.sql
+./supabase/migrations/002_add_tanggal.sql
+./supabase/migrations/003_enable_realtime.sql
+./supabase/migrations/004_fix_profiles_rls_recursion.sql
+./supabase/migrations/005_mitra_update_own_orders.sql
+./supabase/migrations/006_bagi_hasil_otomatis.sql
+./supabase/schema.sql
+./tailwind.config.ts
+./tsconfig.json
+
+=== PACKAGE.JSON ===
+{
+  "name": "kerjakuclick",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@supabase/supabase-js": "^2.45.4",
+    "@supabase/ssr": "^0.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/node": "^20.14.15",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "tailwindcss": "^3.4.7",
+    "postcss": "^8.4.40",
+    "autoprefixer": "^10.4.19"
+  }
+}
+
+=== FILE SUPABASE/MIDDLEWARE YANG SUDAH ADA ===
+./.next/server/vendor-chunks/@supabase.js
+./middleware.ts
+./supabase
+./lib/supabaseAdmin.ts
+./lib/supabase
+
+=== MIGRASI SUPABASE YANG SUDAH ADA ===
+total 32
+drwxrwxr-x 2 idn idn 4096 Jul 30 19:22 .
+drwxrwxr-x 3 idn idn 4096 Jul 30 19:22 ..
+-rw-r--r-- 1 idn idn  341 Jul 28 20:27 001_add_waktu_preferensi.sql
+-rw-r--r-- 1 idn idn  189 Jul 28 21:14 002_add_tanggal.sql
+-rw-r--r-- 1 idn idn  194 Jul 29 03:06 003_enable_realtime.sql
+-rw-r--r-- 1 idn idn  948 Jul 29 03:58 004_fix_profiles_rls_recursion.sql
+-rw-r--r-- 1 idn idn  586 Jul 30 00:10 005_mitra_update_own_orders.sql
+-rw-r--r-- 1 idn idn 2688 Jul 30 00:58 006_bagi_hasil_otomatis.sql
+
+=== NAMA VARIABEL ENV (bukan isinya) ===
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY

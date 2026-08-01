@@ -1,0 +1,953 @@
+]633;E;echo "=== schema.sql ===";492d45f4-e6a6-48c2-9fd3-35757512ef0b]633;C=== schema.sql ===
+-- Kerjakuclick — Schema Supabase (Tahap 1)
+-- Jalankan ini di SQL Editor pada project Supabase baru.
+-- Jika tabel `orders` sudah pernah dibuat sebelumnya, jangan jalankan file
+-- ini lagi — lihat migrations/001_add_waktu_preferensi.sql sebagai gantinya.
+
+create table profiles (
+  id uuid references auth.users on delete cascade primary key,
+  name text not null,
+  phone text not null,
+  role text check (role in ('admin', 'mitra')) default 'mitra',
+  wallet_balance bigint default 0,
+  total_earnings bigint default 0,
+  status text check (status in ('training','ahli')) default 'training',
+  is_active boolean default true
+);
+
+create table orders (
+  id bigserial primary key,
+  customer_name text not null,
+  customer_phone text not null,
+  address text not null,
+  service_type text not null,
+  total_price bigint not null,
+  scheduled_date date,
+  preferred_time text,
+  mitra_gender_preference text check (
+    mitra_gender_preference in ('Pria', 'Wanita', 'Bebas')
+  ),
+  mitra_id uuid references profiles(id) default null,
+  status text check (status in ('unassigned','assigned','working','completed','cancelled')) default 'unassigned',
+  created_at timestamptz default now()
+);
+
+alter table profiles enable row level security;
+alter table orders enable row level security;
+
+-- Fungsi SECURITY DEFINER ini melewati RLS saat mengecek role admin,
+-- supaya kebijakan di bawah tidak query ulang dirinya sendiri
+-- (infinite recursion).
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role = 'admin'
+  );
+$$;
+
+create policy "profiles_self_read" on profiles for select using (auth.uid() = id);
+create policy "profiles_admin_all" on profiles for all using (public.is_admin());
+
+create policy "orders_admin_all" on orders for all using (public.is_admin());
+create policy "orders_mitra_own" on orders for select using (mitra_id = auth.uid());
+create policy "orders_mitra_update_own" on orders for update
+  using (mitra_id = auth.uid())
+  with check (mitra_id = auth.uid() and status in ('working', 'completed'));
+
+-- Tahap 4: pembukuan bagi hasil 80/20, diproses otomatis lewat trigger
+-- setiap kali status order berubah jadi 'completed'.
+create table transactions (
+  id bigserial primary key,
+  order_id bigint references orders(id) not null,
+  mitra_id uuid references profiles(id) not null,
+  gross_amount bigint not null,
+  mitra_share bigint not null,
+  platform_share bigint not null,
+  type text check (type in ('order_completion', 'adjustment')) default 'order_completion',
+  created_at timestamptz default now()
+);
+
+alter table transactions enable row level security;
+
+create policy "transactions_admin_all" on transactions for select using (public.is_admin());
+create policy "transactions_mitra_own" on transactions for select using (mitra_id = auth.uid());
+
+create or replace function public.handle_order_completion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_mitra_share bigint;
+  v_platform_share bigint;
+begin
+  if NEW.status = 'completed'
+     and OLD.status is distinct from 'completed'
+     and NEW.mitra_id is not null then
+
+    if not exists (select 1 from public.transactions where order_id = NEW.id) then
+      v_mitra_share := floor(NEW.total_price * 0.8);
+      v_platform_share := NEW.total_price - v_mitra_share;
+
+      insert into public.transactions (order_id, mitra_id, gross_amount, mitra_share, platform_share, type)
+      values (NEW.id, NEW.mitra_id, NEW.total_price, v_mitra_share, v_platform_share, 'order_completion');
+
+      update public.profiles
+      set wallet_balance = wallet_balance + v_mitra_share,
+          total_earnings = total_earnings + v_mitra_share
+      where id = NEW.mitra_id;
+    end if;
+  end if;
+
+  return NEW;
+end;
+$$;
+
+create trigger on_order_completed
+  after update on orders
+  for each row
+  execute function public.handle_order_completion();
+
+=== migration 004 ===
+-- Perbaikan bug: "infinite recursion detected in policy for relation profiles".
+--
+-- Penyebab: kebijakan lama profiles_admin_all mengecek role admin dengan
+-- query "select ... from profiles where id = auth.uid()" — tapi query itu
+-- sendiri kena kebijakan yang sama, jadi Postgres mengecek dirinya sendiri
+-- tanpa henti.
+--
+-- Perbaikan: pakai fungsi SECURITY DEFINER yang melewati RLS saat mengecek
+-- role, sehingga tidak memicu rekursi.
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role = 'admin'
+  );
+$$;
+
+drop policy if exists "profiles_admin_all" on profiles;
+create policy "profiles_admin_all" on profiles for all using (public.is_admin());
+
+drop policy if exists "orders_admin_all" on orders;
+create policy "orders_admin_all" on orders for all using (public.is_admin());
+
+=== migration 005 ===
+-- Mitra perlu bisa update status order miliknya sendiri (misalnya dari
+-- "assigned" ke "working" lalu "completed") lewat Dasbor Mitra.
+-- Kebijakan ini membatasi: hanya baris yang mitra_id-nya cocok dengan
+-- dirinya sendiri, dan hanya boleh set status ke 'working' atau 'completed'
+-- (tidak bisa reassign ke mitra lain atau ubah ke status admin-only).
+
+drop policy if exists "orders_mitra_update_own" on orders;
+create policy "orders_mitra_update_own" on orders for update
+  using (mitra_id = auth.uid())
+  with check (mitra_id = auth.uid() and status in ('working', 'completed'));
+
+=== migration 006 (bagi hasil otomatis) ===
+-- Tahap 4: Bagi Hasil Otomatis (80% mitra / 20% platform)
+--
+-- Dipicu otomatis oleh database trigger setiap kali status order berubah
+-- jadi 'completed' — baik itu diubah dari Dasbor Mitra maupun Dasbor Admin.
+-- Trigger dipilih (bukan logika di API route) supaya satu-satunya sumber
+-- kebenaran, dan tidak mungkin diproses dua kali dari dua jalur berbeda.
+
+create table if not exists transactions (
+  id bigserial primary key,
+  order_id bigint references orders(id) not null,
+  mitra_id uuid references profiles(id) not null,
+  gross_amount bigint not null,
+  mitra_share bigint not null,
+  platform_share bigint not null,
+  type text check (type in ('order_completion', 'adjustment')) default 'order_completion',
+  created_at timestamptz default now()
+);
+
+alter table transactions enable row level security;
+
+drop policy if exists "transactions_admin_all" on transactions;
+create policy "transactions_admin_all" on transactions for select using (public.is_admin());
+
+drop policy if exists "transactions_mitra_own" on transactions;
+create policy "transactions_mitra_own" on transactions for select using (mitra_id = auth.uid());
+
+-- Fungsi pemroses bagi hasil. SECURITY DEFINER supaya bisa menulis ke
+-- transactions & profiles terlepas dari siapa yang memicu update order
+-- (mitra hanya boleh update status order sendiri, tidak boleh langsung
+-- mengubah saldo — trigger inilah yang melakukannya atas nama sistem).
+create or replace function public.handle_order_completion()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_mitra_share bigint;
+  v_platform_share bigint;
+begin
+  if NEW.status = 'completed'
+     and OLD.status is distinct from 'completed'
+     and NEW.mitra_id is not null then
+
+    -- Jaga-jaga: jangan proses dua kali kalau trigger ini sempat jalan
+    -- lebih dari sekali untuk order yang sama.
+    if not exists (select 1 from public.transactions where order_id = NEW.id) then
+      v_mitra_share := floor(NEW.total_price * 0.8);
+      v_platform_share := NEW.total_price - v_mitra_share;
+
+      insert into public.transactions (order_id, mitra_id, gross_amount, mitra_share, platform_share, type)
+      values (NEW.id, NEW.mitra_id, NEW.total_price, v_mitra_share, v_platform_share, 'order_completion');
+
+      update public.profiles
+      set wallet_balance = wallet_balance + v_mitra_share,
+          total_earnings = total_earnings + v_mitra_share
+      where id = NEW.mitra_id;
+    end if;
+  end if;
+
+  return NEW;
+end;
+$$;
+
+drop trigger if exists on_order_completed on orders;
+create trigger on_order_completed
+  after update on orders
+  for each row
+  execute function public.handle_order_completion();
+
+=== api/admin/orders/assign/route.ts ===
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export async function POST(req: NextRequest) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "admin") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  const body = await req.json();
+  const { orderId, mitra_id, status } = body as {
+    orderId: number;
+    mitra_id?: string | null;
+    status?: string;
+  };
+
+  if (!orderId) {
+    return NextResponse.json({ error: "orderId wajib diisi" }, { status: 400 });
+  }
+
+  const updateFields: Record<string, unknown> = {};
+  if (mitra_id !== undefined) updateFields.mitra_id = mitra_id;
+  if (status !== undefined) updateFields.status = status;
+
+  // Pakai client bersesi admin (bukan service role) supaya RLS
+  // "orders_admin_all" tetap yang menjadi penjaga akses sebenarnya.
+  const { data: order, error } = await supabase
+    .from("orders")
+    .update(updateFields)
+    .eq("id", orderId)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ order });
+}
+
+=== api/admin/mitra/topup/route.ts ===
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+
+export async function POST(req: NextRequest) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "admin") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  const { mitraId, amount } = await req.json();
+  if (!mitraId || !amount || Number(amount) <= 0) {
+    return NextResponse.json({ error: "Data top up tidak valid." }, { status: 400 });
+  }
+
+  const admin = getSupabaseAdmin();
+
+  const { data: current, error: fetchError } = await admin
+    .from("profiles")
+    .select("wallet_balance")
+    .eq("id", mitraId)
+    .single();
+
+  if (fetchError || !current) {
+    return NextResponse.json({ error: "Mitra tidak ditemukan." }, { status: 404 });
+  }
+
+  const { data: updated, error: updateError } = await admin
+    .from("profiles")
+    .update({ wallet_balance: current.wallet_balance + Number(amount) })
+    .eq("id", mitraId)
+    .select()
+    .single();
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ profile: updated });
+}
+
+=== api/admin/mitra/toggle/route.ts ===
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+
+export async function POST(req: NextRequest) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "admin") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  const { mitraId } = await req.json();
+  if (!mitraId) {
+    return NextResponse.json({ error: "mitraId wajib diisi." }, { status: 400 });
+  }
+
+  const admin = getSupabaseAdmin();
+
+  const { data: current, error: fetchError } = await admin
+    .from("profiles")
+    .select("is_active")
+    .eq("id", mitraId)
+    .single();
+
+  if (fetchError || !current) {
+    return NextResponse.json({ error: "Mitra tidak ditemukan." }, { status: 404 });
+  }
+
+  const { data: updated, error: updateError } = await admin
+    .from("profiles")
+    .update({ is_active: !current.is_active })
+    .eq("id", mitraId)
+    .select()
+    .single();
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ profile: updated });
+}
+
+=== api/mitra/orders/update/route.ts ===
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  assigned: ["working"],
+  working: ["completed"],
+};
+
+export async function POST(req: NextRequest) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "mitra") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  const { orderId, status } = await req.json();
+  if (!orderId || !status) {
+    return NextResponse.json({ error: "Data tidak lengkap." }, { status: 400 });
+  }
+
+  const { data: currentOrder, error: fetchError } = await supabase
+    .from("orders")
+    .select("status, mitra_id")
+    .eq("id", orderId)
+    .single();
+
+  if (fetchError || !currentOrder) {
+    return NextResponse.json({ error: "Order tidak ditemukan." }, { status: 404 });
+  }
+
+  if (currentOrder.mitra_id !== user.id) {
+    return NextResponse.json({ error: "Ini bukan tugas Anda." }, { status: 403 });
+  }
+
+  const allowedNext = ALLOWED_TRANSITIONS[currentOrder.status] ?? [];
+  if (!allowedNext.includes(status)) {
+    return NextResponse.json(
+      { error: `Tidak bisa mengubah status dari ${currentOrder.status} ke ${status}.` },
+      { status: 400 }
+    );
+  }
+
+  // Pakai client bersesi mitra sendiri (bukan service role) supaya RLS
+  // "orders_mitra_update_own" tetap jadi penjaga akses yang sesungguhnya.
+  const { data: order, error } = await supabase
+    .from("orders")
+    .update({ status })
+    .eq("id", orderId)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ order });
+}
+
+=== api/webhook/fonnte/route.ts ===
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { findServiceByLabel } from "@/lib/services";
+
+// Bentuk payload webhook Fonnte untuk pesan masuk (lihat docs.fonnte.com).
+// Field yang relevan buat kita: sender, message, name, device.
+type FonnteWebhookBody = {
+  device?: string;
+  sender?: string;
+  message?: string;
+  name?: string;
+  [key: string]: unknown;
+};
+
+function parseOrderMessage(raw: string) {
+  const lines = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0 || lines[0].toUpperCase() !== "#BARU") {
+    return null;
+  }
+
+  const fields: Record<string, string> = {};
+  for (const line of lines.slice(1)) {
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim().toLowerCase();
+    const value = line.slice(idx + 1).trim();
+    fields[key] = value;
+  }
+
+  const nama = fields["nama"];
+  const noHp = fields["nohp"];
+  const alamat = fields["alamat"];
+  const jasa = fields["jasa"];
+  const tanggal = fields["tanggal"];
+  const waktu = fields["waktu"];
+  const preferensi = fields["preferensi"];
+
+  if (!nama || !noHp || !alamat || !jasa) {
+    return null;
+  }
+
+  return { nama, noHp, alamat, jasa, tanggal, waktu, preferensi };
+}
+
+export async function POST(req: NextRequest) {
+  // Verifikasi token rahasia di URL — tanpa ini, siapa pun di internet yang
+  // tahu alamat endpoint ini bisa mengirim data order palsu langsung ke
+  // database. Fonnte tidak menandatangani webhook-nya, jadi kita yang
+  // menambahkan lapisan verifikasi sendiri lewat query param di URL.
+  const expectedSecret = process.env.FONNTE_WEBHOOK_SECRET;
+  const providedSecret = req.nextUrl.searchParams.get("secret");
+
+  if (!expectedSecret) {
+    console.error("FONNTE_WEBHOOK_SECRET belum diset di environment variables.");
+    return NextResponse.json({ ok: false, reason: "server_misconfigured" }, { status: 500 });
+  }
+  if (providedSecret !== expectedSecret) {
+    return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
+  }
+
+  let body: FonnteWebhookBody;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, reason: "invalid_json" }, { status: 400 });
+  }
+
+  const rawMessage = body.message ?? "";
+  const parsed = parseOrderMessage(rawMessage);
+
+  // Bukan format order (#BARU) — abaikan tanpa error, biar Fonnte tidak retry terus.
+  if (!parsed) {
+    return NextResponse.json({ ok: true, ignored: true });
+  }
+
+  const matchedService = findServiceByLabel(parsed.jasa);
+
+  try {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase.from("orders").insert({
+      customer_name: parsed.nama,
+      customer_phone: parsed.noHp,
+      address: parsed.alamat,
+      service_type: matchedService?.name ?? parsed.jasa,
+      total_price: matchedService?.price ?? 0,
+      scheduled_date: parsed.tanggal ?? null,
+      preferred_time: parsed.waktu ?? null,
+      mitra_gender_preference: parsed.preferensi ?? null,
+      status: "unassigned",
+    });
+
+    if (error) {
+      console.error("Gagal insert order:", error.message);
+      return NextResponse.json({ ok: false, reason: "db_error" }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("Webhook error:", err);
+    return NextResponse.json({ ok: false, reason: "server_error" }, { status: 500 });
+  }
+}
+
+// Fonnte / uptime checker kadang melakukan GET untuk cek endpoint hidup.
+export async function GET() {
+  return NextResponse.json({ ok: true, service: "kerjakuclick-fonnte-webhook" });
+}
+
+=== middleware.ts ===
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(
+          cookiesToSet: { name: string; value: string; options: CookieOptions }[]
+        ) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
+  const isMitraRoute = request.nextUrl.pathname.startsWith("/mitra");
+
+  if (isAdminRoute || isMitraRoute) {
+    if (!user) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (isAdminRoute && profile?.role !== "admin") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    if (isMitraRoute && profile?.role !== "mitra") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: ["/admin/:path*", "/mitra/:path*"],
+};
+
+=== lib/supabase/client.ts ===
+import { createBrowserClient } from "@supabase/ssr";
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
+
+=== lib/supabase/server.ts ===
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
+
+export function createClient() {
+  const cookieStore = cookies();
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(
+          cookiesToSet: { name: string; value: string; options: CookieOptions }[]
+        ) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Dipanggil dari Server Component — boleh diabaikan kalau
+            // middleware sudah menangani refresh sesi.
+          }
+        },
+      },
+    }
+  );
+}
+
+=== lib/supabaseAdmin.ts ===
+import { createClient } from "@supabase/supabase-js";
+
+// PENTING: file ini hanya boleh dipakai di server (API routes),
+// tidak pernah diimpor ke komponen client — service_role key
+// melewati RLS dan harus tetap rahasia.
+export function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    throw new Error(
+      "Supabase env vars belum diset (NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)"
+    );
+  }
+
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false },
+  });
+}
+
+=== lib/types.ts ===
+export type OrderStatus = "unassigned" | "assigned" | "working" | "completed" | "cancelled";
+
+export type Order = {
+  id: number;
+  customer_name: string;
+  customer_phone: string;
+  address: string;
+  service_type: string;
+  total_price: number;
+  scheduled_date: string | null;
+  preferred_time: string | null;
+  mitra_gender_preference: string | null;
+  mitra_id: string | null;
+  status: OrderStatus;
+  created_at: string;
+};
+
+export type MitraOption = {
+  id: string;
+  name: string;
+  wallet_balance: number;
+};
+
+export type MitraProfile = {
+  id: string;
+  name: string;
+  phone: string;
+  wallet_balance: number;
+  total_earnings: number;
+  status: "training" | "ahli";
+  is_active: boolean;
+};
+
+export type MitraSelfProfile = MitraProfile;
+
+export type Transaction = {
+  id: number;
+  order_id: number;
+  mitra_id: string;
+  gross_amount: number;
+  mitra_share: number;
+  platform_share: number;
+  type: "order_completion" | "adjustment";
+  created_at: string;
+};
+
+=== lib/whatsapp.ts ===
+// Nomor WA Operator (pesanan & CS) — +62 811-4550-4178
+export const OPERATOR_WA_NUMBER = "6281145504178";
+
+export function buildCsLink(text: string = "Halo cs"): string {
+  return `https://wa.me/${OPERATOR_WA_NUMBER}?text=${encodeURIComponent(text)}`;
+}
+
+export type OrderInput = {
+  nama: string;
+  noHp: string;
+  alamat: string;
+  jasa: string;
+  tanggal: string;
+  waktu: string;
+  preferensi: string;
+};
+
+/**
+ * Menghasilkan teks pesan sesuai format wajib parser (#BARU) di PRD.
+ * Baris ini yang nantinya dipotong oleh fungsi Node.js berdasarkan
+ * baris & tanda ":" lalu disimpan ke Supabase.
+ */
+export function buildOrderMessage({
+  nama,
+  noHp,
+  alamat,
+  jasa,
+  tanggal,
+  waktu,
+  preferensi,
+}: OrderInput): string {
+  return [
+    "#BARU",
+    `Nama:${nama || "-"}`,
+    `NoHP:${noHp || "-"}`,
+    `Alamat:${alamat || "-"}`,
+    `Jasa:${jasa || "-"}`,
+    `Tanggal:${tanggal || "-"}`,
+    `Waktu:${waktu || "-"}`,
+    `Preferensi:${preferensi || "-"}`,
+  ].join("\n");
+}
+
+export function buildWaLink(message: string, phone: string = OPERATOR_WA_NUMBER): string {
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+=== ROADMAP.md ===
+# Peta Jalan Eksekusi — Kerjakuclick MVP Fase 1
+
+Dokumen ini membagi pembangunan sistem menjadi tahap-tahap kerja. Ikuti urut,
+jangan lompat — setiap tahap adalah pondasi untuk tahap berikutnya.
+
+## Ringkasan Tahapan
+
+| Tahap | Isi | Status |
+|---|---|---|
+| **Tahap 1** | Landing Page + Supabase + Setup Fonnte (order WA otomatis masuk DB) | 👉 Dikerjakan sekarang |
+| Tahap 2 | Dasbor Admin (`/admin`) — live feed, tugaskan mitra, kelola saldo | Menyusul |
+| Tahap 3 | Dasbor Mitra (`/mitra`) — daftar tugas, progres kerja, e-wallet | Menyusul |
+| Tahap 4 | Logika bagi hasil otomatis (potong saldo 20%, proteksi saldo min.) | Menyusul |
+| Tahap 5 | Go-live: testing acceptance criteria, sambung domain, monitoring | Menyusul |
+
+---
+
+## TAHAP 1 — Landing Page + Supabase + Setup Fonnte
+
+Tujuan akhir tahap ini: **customer isi form di landing page → klik kirim di
+WhatsApp mereka → pesan otomatis tersimpan ke tabel `orders` di Supabase dalam
+hitungan detik**, tanpa Anda mengetik ulang manual.
+
+### 1.1 Supabase — buat project & schema
+
+1. [supabase.com](https://supabase.com) → **New Project**, region **Southeast Asia (Singapore)**.
+2. **SQL Editor** → jalankan schema `profiles` + `orders` + RLS (sudah saya berikan sebelumnya — simpan sebagai `supabase/schema.sql` di project Anda agar tidak hilang).
+3. **Authentication → Users → Add user** → buat akun admin pertama (Anda).
+4. Insert baris ke `profiles` dengan role `'admin'` memakai UUID user tadi.
+5. **Settings → API** → catat: `Project URL`, `anon public key`, `service_role key`.
+
+### 1.2 VS Code — jalankan project lokal
+
+1. Extract project, buka di VS Code, `npm install`.
+2. Buat `.env.local`:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJxxx...
+   SUPABASE_SERVICE_ROLE_KEY=eyJxxx...
+   ```
+3. `npm run dev`, cek `localhost:3000` — landing page & form harus tampil normal.
+
+### 1.3 GitHub — push kode
+
+```bash
+git init
+git add .
+git commit -m "Tahap 1: landing page + webhook fonnte"
+git branch -M main
+git remote add origin https://github.com/USERNAME/kerjakuclick.git
+git push -u origin main
+```
+
+### 1.4 Vercel — deploy
+
+1. Import repo `kerjakuclick` di Vercel.
+2. Isi 3 environment variable yang sama seperti `.env.local`.
+3. Deploy, lalu sambungkan domain `www.kerjaku.click` di **Settings → Domains**.
+4. Setelah live, catat URL webhook Anda: `https://www.kerjaku.click/api/webhook/fonnte`
+
+### 1.5 Setup Fonnte — jembatan WA ke Supabase
+
+1. Daftar di [fonnte.com](https://fonnte.com), tambah **Device** baru.
+2. Scan QR code memakai nomor WA operator (**+62 882-4518-5778**) — device berstatus "Connected".
+3. Buka menu **Device → Edit**:
+   - Aktifkan **Autoread**.
+   - Isi kolom **Webhook URL** dengan `https://www.kerjaku.click/api/webhook/fonnte`.
+   - Simpan.
+4. Ambil **API Token** device dari dashboard Fonnte (untuk keperluan Tahap 2 saat admin perlu membalas WA — belum dipakai di Tahap 1).
+5. **Uji coba nyata**: buka landing page → isi form → klik kirim → kirim pesan di WhatsApp Anda ke nomor operator (nomor sama dengan device Fonnte). Dalam beberapa detik, cek tabel `orders` di Supabase — baris baru harus muncul dengan `status = unassigned`.
+
+### 1.6 Kode yang sudah disiapkan untuk tahap ini
+
+Saya sudah menambahkan ke project:
+- `app/api/webhook/fonnte/route.ts` — endpoint yang menerima payload Fonnte, memvalidasi format `#BARU`, memotong per baris berdasarkan `:`, mencocokkan harga dari `lib/services.ts`, lalu insert ke Supabase. Kalau pesan bukan format order, endpoint mengabaikannya tanpa error (supaya Fonnte tidak retry terus untuk chat biasa).
+- `lib/supabaseAdmin.ts` — koneksi Supabase pakai `service_role key`, khusus dipakai di server (route ini), tidak pernah diekspos ke browser.
+- `lib/services.ts` — ditambah `findServiceByLabel()` untuk mencocokkan teks "Jasa" dari WhatsApp ke tarif yang benar.
+
+### 1.7 Checklist selesai Tahap 1
+
+- [ ] Tabel `profiles` & `orders` ada di Supabase, RLS aktif
+- [ ] Landing page live di `www.kerjaku.click`
+- [ ] Device Fonnte terhubung ke nomor operator, webhook URL terisi
+- [ ] Kirim 1 order uji coba end-to-end → muncul di tabel `orders` dalam < 3 detik (ini persis AC 1 di PRD)
+
+Begitu semua tercentang, kabari saya — kita lanjut **Tahap 2: Dasbor Admin**.
+
+=== CHECKLIST_KEAMANAN_TAHAP5.md ===
+# Checklist Keamanan & Kesiapan Production — Tahap 5
+
+## ✅ Sudah aman (bawaan dari tahap-tahap sebelumnya)
+- RLS (Row Level Security) aktif di tabel `profiles`, `orders`, `transactions`
+- Fungsi `is_admin()` pakai SECURITY DEFINER — tidak ada lagi bug infinite recursion
+- Mitra hanya bisa mengubah status order **miliknya sendiri**, dan hanya maju (assigned → working → completed) — tidak bisa reassign atau membatalkan order sendiri
+- `SUPABASE_SERVICE_ROLE_KEY` sudah dicek ulang — tidak pernah dipakai di kode sisi client, hanya di API routes server-side
+- `.env.local` ada di `.gitignore`, tidak ikut ter-commit ke GitHub
+
+## 🔧 Baru saja diperbaiki: webhook Fonnte sekarang dikunci token rahasia
+
+**Masalahnya:** endpoint `/api/webhook/fonnte` sebelumnya bisa dipanggil siapa saja yang tahu URL-nya (tanpa password/verifikasi apa pun), dan langsung menulis ke tabel `orders` menggunakan hak akses penuh (`service_role`). Orang iseng bisa mengirim ratusan order palsu ke database Anda.
+
+**Perbaikannya:** endpoint sekarang wajib menyertakan `?secret=...` di URL yang cocok dengan environment variable `FONNTE_WEBHOOK_SECRET`. Tanpa itu, ditolak dengan error 401.
+
+### Langkah aktivasi (wajib dilakukan, sistem tidak akan jalan tanpa ini):
+
+1. Generate token acak. Cara termudah — buka terminal VS Code, jalankan:
+   ```bash
+   openssl rand -hex 24
+   ```
+   (Kalau `openssl` tidak tersedia di Windows, pakai generator password online yang menghasilkan string acak minimal 32 karakter.)
+
+2. Buka **Vercel → Settings → Environment Variables** → tambah baru:
+   - Name: `FONNTE_WEBHOOK_SECRET`
+   - Value: token dari langkah 1
+   - Environment: Production
+   
+   Lalu **Redeploy**.
+
+3. Buka **Fonnte → Device → Edit**, ubah isi kolom **Webhook** dari:
+   ```
+   https://www.kerjaku.click/api/webhook/fonnte
+   ```
+   menjadi:
+   ```
+   https://www.kerjaku.click/api/webhook/fonnte?secret=TOKEN_ANDA_TADI
+   ```
+   (ganti `TOKEN_ANDA_TADI` dengan token yang sama persis dari langkah 1). **Save**.
+
+4. Kirim 1 order uji coba dari landing page seperti biasa — pastikan masih masuk normal ke tabel `orders`. Kalau gagal (tidak masuk), kemungkinan token di Vercel dan di URL Fonnte tidak persis sama — cek lagi keduanya.
+
+## 🔲 Perlu Anda cek manual di dashboard (bukan lewat kode)
+
+### Supabase
+- [ ] **Authentication → Rate Limits** — pastikan pembatasan percobaan login aktif (biasanya default sudah aktif, tinggal dikonfirmasi)
+- [ ] Pertimbangkan password admin yang lebih kuat dari sekadar 6 karakter — akun ini punya akses ke semua data keuangan
+
+### GitHub
+- [ ] Pastikan repo `kerjakuclick` berstatus **Private** (Settings → repo → General → Danger Zone bisa cek/ubah visibility). Kalau Public, siapa saja bisa membaca seluruh source code dan struktur database Anda.
+- [ ] Jalankan di terminal untuk memastikan `.env.local` **tidak pernah** ter-commit sebelumnya:
+  ```bash
+  git log --all --full-history -- .env.local
+  ```
+  Kalau perintah ini menampilkan hasil apa pun (bukan kosong), berarti file itu pernah masuk riwayat git — **semua kunci Supabase harus dianggap bocor** dan wajib di-generate ulang (rotate) di Supabase. Kabari saya kalau ini terjadi, supaya saya bantu langkah rotasinya.
+
+### Vercel
+- [ ] **Settings → Environment Variables** — pastikan `SUPABASE_SERVICE_ROLE_KEY` dan `FONNTE_WEBHOOK_SECRET` hanya aktif untuk environment **Production**, tidak perlu di Preview/Development kecuali Anda memang testing di situ.
+
+### Data & backup
+- [ ] Supabase paket gratis **tidak** menyediakan backup otomatis jangka panjang. Karena sekarang ada data saldo & transaksi keuangan mitra, sebaiknya sesekali export manual (Table Editor → pilih tabel → Export → CSV) atau pertimbangkan upgrade paket berbayar yang termasuk automated daily backup.
+
+## Ringkasan prioritas
+1. **Wajib segera**: aktifkan `FONNTE_WEBHOOK_SECRET` (4 langkah di atas)
+2. **Wajib dicek sekali**: visibility repo GitHub + riwayat `.env.local`
+3. **Baik dilakukan**: rate limit login, password admin lebih kuat, backup berkala

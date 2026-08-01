@@ -1,3 +1,10 @@
+// GANTI ISI app/admin/page.tsx Anda dengan file ini.
+//
+// Perubahan (revisi ke-2): sekarang juga mengambil data `invoices` dan
+// mengirimkannya ke OrdersFeed, supaya admin bisa melihat & mengunduh file
+// invoice yang sudah ter-generate, serta menandainya "Sudah Dikirim".
+// Sebelumnya kolom ini kehapus saat penyesuaian ke struktur repo asli Anda.
+
 import { createClient } from "@/lib/supabase/server";
 import OrdersFeed from "@/components/admin/OrdersFeed";
 
@@ -12,13 +19,11 @@ export default async function AdminDashboardPage() {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  const { data: mitraOptions } = await supabase
-    .from("profiles")
-    .select("id, name, wallet_balance")
-    .eq("role", "mitra")
-    .eq("is_active", true)
-    .gte("wallet_balance", 50000)
-    .order("name");
+  const { data: invoices } = await supabase
+    .from("invoices")
+    .select("*")
+    .order("generated_at", { ascending: false })
+    .limit(300);
 
   return (
     <div>
@@ -28,7 +33,7 @@ export default async function AdminDashboardPage() {
         refresh manual.
       </p>
       <div className="mt-6">
-        <OrdersFeed initialOrders={orders ?? []} mitraOptions={mitraOptions ?? []} />
+        <OrdersFeed initialOrders={orders ?? []} initialInvoices={invoices ?? []} />
       </div>
     </div>
   );
