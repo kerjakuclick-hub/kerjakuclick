@@ -1,138 +1,70 @@
-# Kerjaku.click — Addendum Fase 1.1 (Paket Final, Siap Paste)
-
-Paket ini disusun **persis meniru struktur folder project Anda** — extract
-lalu timpa/gabung langsung ke root project, tidak perlu lagi mencocokkan
-manual path per file.
+# Landing Page v2 — Kerjaku.click (Redesign via Google Stitch)
 
 ## Cara pakai
 
-1. Extract zip ini.
-2. Salin (copy-paste) seluruh isi folder `app/`, `components/`, `lib/`,
-   `supabase/` ke root project Anda — pilih **overwrite/merge** saat file
-   API/komponen yang namanya sama sudah ada (file baru di paket ini memang
-   dimaksudkan untuk MENIMPA versi lama).
-3. File yang **baru dibuat** (belum ada sebelumnya di project Anda):
-   - `app/api/admin/mitra/update-attributes/route.ts`
-   - `app/api/admin/orders/generate-invoice/route.ts` (generate ulang invoice manual)
-   - `app/api/admin/invoices/mark-sent/route.ts` (tandai invoice sudah dikirim)
-   - `lib/pdf/invoice-templates.tsx`
-   - `lib/pdf/generate-invoice.tsx`
-   - Semua isi `supabase/migrations/007`, `008`, `009` dan `supabase/scripts/`
-4. File yang **menimpa** yang sudah ada:
-   - `lib/types.ts` (sudah termasuk semua field lama + field baru)
-   - `app/admin/page.tsx`, `app/admin/mitra/page.tsx`, `app/admin/transaksi/page.tsx`
-   - `app/mitra/page.tsx`
-   - `app/api/admin/orders/assign/route.ts`, `app/api/admin/mitra/topup/route.ts`
-   - `components/admin/OrdersFeed.tsx`, `components/admin/MitraTable.tsx`
-   - `components/mitra/TaskList.tsx`
+Timpa file-file berikut di project Anda dengan isi yang ada di paket ini:
 
-Tidak ada file lain di project Anda yang perlu diubah — `middleware.ts`,
-`lib/supabase/client.ts`/`server.ts`, `lib/supabaseAdmin.ts`,
-`lib/whatsapp.ts`, `lib/services.ts`, dan seluruh landing page
-(`app/page.tsx`, `components/Hero.tsx`, `Footer.tsx`, `HowItWorks.tsx`,
-`Promo.tsx`, `ServicesGrid.tsx`, `WhatsAppPreview.tsx`, `OrderForm.tsx`)
-sudah benar apa adanya dan tidak tersentuh addendum ini.
-
-## Dependency baru
-
-```bash
-npm install @react-pdf/renderer
+```
+components/Header.tsx        ← timpa
+components/Hero.tsx          ← timpa (tetap pakai <WhatsAppPreview /> asli)
+components/ServicesGrid.tsx  ← timpa
+components/HowItWorks.tsx    ← timpa
+components/Footer.tsx        ← timpa
+app/page.tsx                 ← timpa (tetap pakai <OrderForm /> asli)
 ```
 
-Buat 1 Storage bucket bernama **`invoices`** di Supabase Dashboard → Storage.
+File **baru** (belum ada sebelumnya):
 
----
-
-## ⚠️ WAJIB DIBACA sebelum menjalankan migrasi Supabase
-
-Project Anda sudah punya trigger bagi hasil **80/20 model LAMA**
-(`006_bagi_hasil_otomatis.sql`), **sudah pernah diproses untuk order real**
-(dikonfirmasi). Migrasi `008` mengganti ke model **deposit addendum**
-(potong 20%, tunai langsung ke mitra). Sudah dikonfirmasi juga bahwa
-wallet_balance yang terakumulasi dari model lama **hanya angka pencatatan**
-(tidak pernah dicairkan ke mitra manapun) — jadi migrasi `009` aman
-mereset ke 0, dengan snapshot arsip untuk jaga-jaga.
-
-## Urutan eksekusi
-
-1. **Backup** database production (Supabase Dashboard → Database → Backups).
-2. SQL Editor → jalankan `supabase/scripts/pre_migration_audit_saldo.sql`
-   **bagian #1, #2, #3, dan #5 saja dulu** (read-only, tidak butuh kolom
-   baru). Cek terutama bagian #3 (mitra yang bakal gagal ambang baru).
-   **Lewati dulu bagian #4** — query itu butuh kolom `gender` yang baru
-   ditambahkan di langkah 3 berikut, akan error kalau dijalankan sekarang.
-3. SQL Editor → jalankan `supabase/migrations/007_addendum_fase_1_1_schema.sql`.
-4. Kembali ke `pre_migration_audit_saldo.sql`, jalankan **bagian #4** (yang
-   tadi dilewati) untuk cek mitra aktif yang gender-nya masih kosong.
-5. SQL Editor → jalankan `supabase/migrations/008_switch_to_deposit_model.sql`
-   — **titik ini yang mematikan trigger lama**.
-6. **Pilih rencana rollout** sebelum lanjut ke langkah berikutnya:
-   - **Opsi A**: broadcast WA ke semua mitra aktif dulu, kasih jeda 1-2 hari
-     untuk top up, baru lanjut.
-   - **Opsi B**: langsung lanjut, lalu SEGERA seed top up kecil untuk semua
-     mitra aktif lewat Kelola Mitra (poin 10 di bawah) sebelum ada pesanan
-     baru masuk — supaya tidak ada jeda operasional.
-7. SQL Editor → jalankan `supabase/migrations/009_reset_legacy_wallet_balance.sql`.
-8. Deploy kode (lihat bagian "VS Code & Vercel" di bawah).
-9. Buka **Kelola Mitra** (`/admin/mitra`) → isi kolom **Gender** untuk semua
-   mitra aktif (dropdown sudah tersedia langsung di tabel).
-10. (Kalau pilih Opsi B) → top up saldo awal tiap mitra aktif lewat kolom
-    "Top Up" di halaman yang sama.
-11. Test end-to-end: buat 1 order percobaan → tugaskan mitra → cek invoice
-    PDF ter-generate → selesaikan order → cek `wallet_balance` berkurang 20%
-    dan muncul baris baru di `earnings` + `wallet_transactions`.
-
-## VS Code & Vercel
-
-```bash
-# di root project, setelah file-file paket ini sudah ditempel
-git checkout -b feature/addendum-fase-1.1
-npm install @react-pdf/renderer
-npm run dev   # cek localhost:3000/admin dan /admin/mitra tidak error
-
-git add .
-git commit -m "feat: addendum fase 1.1 - dompet deposit, invoice, dashboard"
-git push -u origin feature/addendum-fase-1.1
+```
+components/TrustBar.tsx
+components/MitraShowcase.tsx   ← dynamic, ambil data mitra asli dari Supabase
+components/WhyChooseUs.tsx
 ```
 
-Buka GitHub → buat Pull Request → Vercel otomatis bikin **Preview
-Deployment**. Uji di URL preview itu dulu (bukan production):
-- `/admin` — dropdown penugasan mitra muncul sesuai saldo/gender/keahlian.
-- `/admin/mitra` — isi gender, coba top up.
-- Tugaskan 1 mitra ke order percobaan → cek invoice ter-generate.
-- Selesaikan order percobaan → cek saldo & laporan di `/admin/transaksi`
-  (bagian "Pendapatan & Fee Platform").
+**Tidak disentuh sama sekali**: `components/OrderForm.tsx`,
+`components/WhatsAppPreview.tsx` — logika form & pengiriman WA Anda yang
+sudah jalan tetap seperti semula, hanya dibungkus tampilan baru.
 
-Kalau semua lolos → merge PR ke `main`. Vercel deploy otomatis ke production.
+## Yang PERLU dicek sebelum deploy
 
-**Rollback**: `supabase/scripts/rollback_007_008.sql` — ada 2 skenario di
-dalamnya (kembali ke trigger lama sementara, atau rollback total). Untuk
-rollback kode, pakai **Vercel → Deployments → Promote** ke deployment
-sebelumnya.
+1. **`components/Hero.tsx` mengasumsikan `<WhatsAppPreview />` tidak butuh
+   props.** Kalau ternyata komponen itu butuh data (mis. dari state
+   `OrderForm`), akan muncul error TypeScript saat build. Kalau itu terjadi,
+   kirim isi `WhatsAppPreview.tsx` ke saya, saya sesuaikan pemanggilannya.
+2. **`components/MitraShowcase.tsx` query ke tabel `profiles`** — pastikan
+   sudah jalan di atas migrasi 007 (kolom `photo_url`, `skill_category`,
+   `rating` harus sudah ada). Kalau belum ada mitra yang `is_active = true`
+   dengan data lengkap, section ini otomatis tidak tampil (bukan error).
+3. **Font**: komponen pakai `var(--font-space-grotesk)` untuk heading,
+   sesuai variable yang sudah didefinisikan di `layout.tsx` Anda
+   (`Space_Grotesk({..., variable: "--font-space-grotesk"})`). Kalau nama
+   variable-nya beda, sesuaikan di semua file (cari `--font-space-grotesk`).
+4. **Foto layanan**: sengaja saya ganti dari URL sementara Google (hasil
+   Stitch) jadi placeholder gradient warna brand + emoji, supaya tidak
+   bergantung pada link yang bisa mati kapan saja. Kalau Anda punya foto
+   asli hasil kerja mitra, kirim ke saya — saya pasang lewat `next/image`.
 
----
+## Belum dimasukkan — menunggu konfirmasi Anda
 
-## Riwayat Koreksi (dari draf-draf sebelumnya)
+- **Section Testimoni** — hasil Stitch berisi nama & kutipan pelanggan
+  FIKTIF. Tidak dimasukkan ke `app/page.tsx` sampai ada testimoni asli
+  (dari chat WA pelanggan, review Instagram/Google) yang bisa saya pasang,
+  atau Anda putuskan untuk skip dulu section ini.
+- **Section FAQ** — berisi 3 klaim yang perlu dikonfirmasi:
+  1. Verifikasi KTP + pemeriksaan latar belakang mitra — sungguhan?
+  2. Pemantauan kesehatan/vaksinasi mitra rutin — sungguhan?
+  3. CS 24/7 — atau tetap 07.00–20.00 WIB sesuai SOP WA yang sudah dibuat?
+- **Panel "Kenapa Memilih Kerjaku"** (`WhyChooseUs.tsx`) — saya sudah
+  lunakkan klaim "verifikasi KTP" jadi "proses seleksi mitra" yang lebih
+  umum. Update ke kalimat yang lebih spesifik begitu proses seleksi mitra
+  yang sebenarnya dikonfirmasi.
 
-- ❌ `partner_status` (kolom baru) → ✅ pakai `profiles.status` yang sudah ada
-- ❌ `preferred_mitra_name` (asumsi klien pilih nama mitra) → ✅ ternyata
-  `orders.mitra_gender_preference` (preferensi gender), kolom `profiles.gender`
-  ditambahkan supaya bisa dicocokkan
-- ❌ Trigger baru ditambah begitu saja di atas trigger lama → ✅ trigger lama
-  (`on_order_completed`) di-drop dulu di migrasi 008
-- ❌ Kode pakai Server Actions & client Supabase baru → ✅ disesuaikan ke pola
-  API Route (`route.ts` + `getSupabaseAdmin()`) yang sudah dipakai project Anda
-- ❌ Tabel tarif di audit script pakai asumsi harga → ✅ diganti query yang
-  mengambil tarif nyata dari data `orders`
-- ❌ Ambang Rp50.000 dikira cuma di 1 tempat → ✅ ternyata di 4 tempat
-  (`admin/page.tsx`, `admin/mitra/page.tsx`, `MitraTable.tsx`, `mitra/page.tsx`)
-  — semua sudah diganti ke ambang dinamis 20%
-- ❌ Dropdown mitra pakai 1 daftar global → ✅ per-order lewat RPC
-  `eligible_mitra_for_order`
-- ❌ Halaman Transaksi akan beku setelah trigger lama mati → ✅ dipecah jadi
-  arsip lama + laporan baru
-- ❌ **Bug**: kolom Invoice (link PDF, tombol "Tandai Terkirim", generate
-  ulang manual) kehapus dari `OrdersFeed.tsx` saat penyesuaian ke repo asli
-  Anda → ✅ dikembalikan + ditambah 2 route baru (`generate-invoice`,
-  `mark-sent`) supaya admin bisa lihat/kirim invoice dari UI, bukan cuma
-  ter-generate diam-diam di backend
+## Setelah semua file ditempel
+
+```bash
+npm run dev
+# cek localhost:3000, pastikan tidak ada error, scroll semua section
+```
+
+Kalau lolos, lanjut commit & push seperti biasa (branch baru dulu, PR,
+cek di Preview, baru merge ke main).
