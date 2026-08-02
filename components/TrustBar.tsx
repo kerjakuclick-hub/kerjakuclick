@@ -5,7 +5,7 @@
 export default function TrustBar() {
   const items = [
     { icon: "✓", label: "Mitra Terverifikasi" },
-    { icon: "₨", label: "Bayar Tunai Setelah Selesai" },
+   { icon: "💵", label: "Bayar Tunai Setelah Selesai" },
     { icon: "📍", label: "Area Kota Palu" },
   ];
 
