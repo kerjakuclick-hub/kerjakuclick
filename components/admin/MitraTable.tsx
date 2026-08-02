@@ -1,20 +1,107 @@
 // GANTI ISI components/admin/MitraTable.tsx Anda dengan file ini.
 //
-// Perubahan dari versi asli:
-//   1. Warna merah saldo rendah tidak lagi hardcode < 50000 — dihitung dari
-//      tarif termurah di lib/services.ts x 20% (dinamis, ikut kalau tarif
-//      berubah nanti).
-//   2. Kolom baru: Gender & Keahlian (bisa diedit inline), dibutuhkan oleh
-//      eligible_mitra_for_order untuk mencocokkan preferensi klien.
+// Perubahan: menambahkan kolom "Foto" paling kiri — avatar bulat yang bisa
+// (a) diklik untuk buka file picker, atau (b) langsung drag & drop gambar
+// ke atasnya. Upload otomatis begitu file dipilih/di-drop, tidak perlu
+// tombol submit terpisah.
 
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { formatRupiah, services } from "@/lib/services";
 import type { MitraProfile } from "@/lib/types";
 
 const MIN_TARIF = Math.min(...services.map((s) => s.price));
 const SALDO_WARNING_THRESHOLD = Math.round(MIN_TARIF * 0.2);
+
+function PhotoUploadAvatar({
+  mitra,
+  onUploaded,
+}: {
+  mitra: MitraProfile;
+  onUploaded: (updated: MitraProfile) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function uploadFile(file: File) {
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("mitraId", mitra.id);
+
+      const res = await fetch("/api/admin/mitra/upload-photo", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Gagal upload foto.");
+        return;
+      }
+      onUploaded(data.profile as MitraProfile);
+    } catch {
+      setError("Gagal upload foto.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        className={`relative w-12 h-12 rounded-full overflow-hidden border-2 cursor-pointer flex items-center justify-center bg-slate-100 transition-colors ${
+          dragOver ? "border-bay-deep bg-bay-deep/10" : "border-line"
+        }`}
+        title="Klik atau drag & drop foto ke sini"
+      >
+        {mitra.photo_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={mitra.photo_url} alt={mitra.name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-sm font-bold text-slate-500">
+            {mitra.name?.charAt(0) ?? "M"}
+          </span>
+        )}
+        {uploading && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) uploadFile(file);
+          e.target.value = "";
+        }}
+      />
+      {error && <p className="text-[10px] text-red-600 max-w-[80px] text-center">{error}</p>}
+    </div>
+  );
+}
 
 export default function MitraTable({ initialMitra }: { initialMitra: MitraProfile[] }) {
   const [mitra, setMitra] = useState<MitraProfile[]>(initialMitra);
@@ -25,6 +112,10 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
   const [form, setForm] = useState({ name: "", phone: "", email: "", password: "" });
   const [addError, setAddError] = useState<string | null>(null);
   const [addLoading, setAddLoading] = useState(false);
+
+  function handlePhotoUploaded(updated: MitraProfile) {
+    setMitra((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+  }
 
   async function handleTopup(id: string) {
     const amount = Number(topupAmount[id]);
@@ -106,9 +197,9 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
   return (
     <div className="space-y-4">
       <p className="text-xs text-ink/50">
-        Ambang saldo minimum bervariasi per pesanan (20% dari nilai layanan). Peringatan merah di
-        bawah menandakan saldo di bawah {formatRupiah(SALDO_WARNING_THRESHOLD)} — ambang termurah
-        yang mungkin diminta (20% dari layanan termurah saat ini).
+        Ambang saldo minimum bervariasi per pesanan (20% dari nilai layanan). Klik atau drag &
+        drop gambar ke foto untuk mengubahnya — otomatis ter-upload dan langsung tampil di landing
+        page (section Mitra Showcase).
       </p>
 
       <div className="flex justify-end">
@@ -168,9 +259,10 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
       )}
 
       <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-        <table className="w-full min-w-[960px] text-left text-sm">
+        <table className="w-full min-w-[1020px] text-left text-sm">
           <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
             <tr>
+              <th className="px-4 py-3">Foto</th>
               <th className="px-4 py-3">Nama</th>
               <th className="px-4 py-3">No HP</th>
               <th className="px-4 py-3">Saldo</th>
@@ -184,6 +276,9 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
           <tbody>
             {mitra.map((m) => (
               <tr key={m.id} className="border-b border-line last:border-0">
+                <td className="px-4 py-3">
+                  <PhotoUploadAvatar mitra={m} onUploaded={handlePhotoUploaded} />
+                </td>
                 <td className="px-4 py-3 font-medium text-ink">{m.name}</td>
                 <td className="px-4 py-3 text-ink/70">{m.phone}</td>
                 <td className="px-4 py-3">
@@ -258,7 +353,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
             ))}
             {mitra.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-ink/50">
+                <td colSpan={9} className="px-4 py-8 text-center text-sm text-ink/50">
                   Belum ada mitra terdaftar.
                 </td>
               </tr>
