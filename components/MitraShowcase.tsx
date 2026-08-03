@@ -1,29 +1,32 @@
-// FILE BARU: components/MitraShowcase.tsx
+// GANTI ISI components/MitraShowcase.tsx Anda dengan file ini.
 //
-// Menggantikan 3 kartu mitra FIKTIF ("Budi S.", "Siti Aminah", "Agus R.")
-// dari hasil Stitch dengan data MITRA ASLI dari database — otomatis
-// menampilkan mitra aktif dengan rating tertinggi. Kalau mitra belum punya
-// rating, tetap ditampilkan (diurutkan berdasarkan yang punya foto/data
-// paling lengkap dulu).
-//
-// Ini Server Component (async) — TIDAK butuh "use client".
+// FIX PENTING: sebelumnya query langsung ke tabel `profiles`, yang RLS-nya
+// memblokir pengunjung publik (belum login) — section ini jadi kosong
+// untuk SEMUA pelanggan asli. Sekarang panggil RPC public_mitra_showcase()
+// (migrasi 013) yang boleh diakses publik, hanya kembalikan kolom aman.
 
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MitraShowcase() {
   const supabase = createClient();
 
-  const { data: mitraList } = await supabase
-    .from("profiles")
-    .select("id, name, photo_url, status, skill_category, rating")
-    .eq("role", "mitra")
-    .eq("is_active", true)
-    .order("rating", { ascending: false, nullsFirst: false })
-    .limit(3);
+  const { data: mitraList } = await supabase.rpc("public_mitra_showcase");
 
   if (!mitraList || mitraList.length === 0) {
-    return null; // jangan tampilkan section kalau belum ada mitra aktif
+    return null;
   }
+
+  const featured = [...mitraList]
+    .sort((a, b) => {
+      const aHasPhoto = a.photo_url ? 1 : 0;
+      const bHasPhoto = b.photo_url ? 1 : 0;
+      if (aHasPhoto !== bHasPhoto) return bHasPhoto - aHasPhoto;
+
+      const aRating = a.rating ?? -1;
+      const bRating = b.rating ?? -1;
+      return bRating - aRating;
+    })
+    .slice(0, 3);
 
   return (
     <section id="mitra" className="bg-[#EEF2EE] py-16 md:py-20">
@@ -38,7 +41,7 @@ export default async function MitraShowcase() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-3xl mx-auto">
-          {mitraList.map((m) => (
+          {featured.map((m) => (
             <div
               key={m.id}
               className="bg-white border-2 border-[#1D6F8C]/20 rounded-2xl overflow-hidden shadow-lg relative"
