@@ -1,14 +1,15 @@
 // GANTI ISI components/Header.tsx Anda dengan file ini.
-// Diadaptasi dari desain Stitch, warna brand dipakai eksplisit (hex) supaya
-// pasti cocok terlepas dari isi tailwind.config.ts Anda saat ini.
+// Perubahan: tambah link "Jadi Mitra" mengarah ke /daftar-mitra.
+
+import Link from "next/link";
 
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 bg-[#f6faf6]/95 backdrop-blur shadow-sm">
       <nav className="max-w-[1200px] mx-auto flex items-center justify-between px-6 py-3">
-        <div className="font-bold text-xl text-[#00566f]">
+        <Link href="/" className="font-bold text-xl text-[#00566f]">
           kerjaku<span className="text-[#1D6F8C]">.click</span>
-        </div>
+        </Link>
         <div className="hidden md:flex gap-8">
           <a
             href="#services"
@@ -28,6 +29,12 @@ export default function Header() {
           >
             Mitra Kami
           </a>
+          <Link
+            href="/daftar-mitra"
+            className="text-[#3f484d] hover:text-[#1D6F8C] transition-colors text-sm font-medium"
+          >
+            Jadi Mitra
+          </Link>
         </div>
         <a
           href="https://wa.me/6288245185778"

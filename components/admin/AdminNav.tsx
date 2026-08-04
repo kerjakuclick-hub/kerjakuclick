@@ -1,3 +1,6 @@
+// GANTI ISI components/admin/AdminNav.tsx Anda dengan file ini.
+// Perubahan: tambah link "Pendaftar" mengarah ke /admin/pendaftar.
+
 import Link from "next/link";
 
 export default function AdminNav({ adminName }: { adminName: string }) {
@@ -15,6 +18,9 @@ export default function AdminNav({ adminName }: { adminName: string }) {
             </Link>
             <Link href="/admin/mitra" className="hover:text-white">
               Mitra
+            </Link>
+            <Link href="/admin/pendaftar" className="hover:text-white">
+              Pendaftar
             </Link>
             <Link href="/admin/transaksi" className="hover:text-white">
               Transaksi
