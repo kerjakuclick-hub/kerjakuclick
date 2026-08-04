@@ -1,9 +1,8 @@
 // GANTI ISI components/admin/MitraTable.tsx Anda dengan file ini.
 //
-// Perubahan: menambahkan kolom "Foto" paling kiri — avatar bulat yang bisa
-// (a) diklik untuk buka file picker, atau (b) langsung drag & drop gambar
-// ke atasnya. Upload otomatis begitu file dipilih/di-drop, tidak perlu
-// tombol submit terpisah.
+// Perubahan dari versi sebelumnya: kolom Keahlian sekarang 3 CHECKBOX
+// (Setrika, Bersihkan Rumah, Cuci Kendaraan) — bisa dicentang lebih dari
+// satu, bukan lagi input teks bebas satu nilai.
 
 "use client";
 
@@ -13,6 +12,8 @@ import type { MitraProfile } from "@/lib/types";
 
 const MIN_TARIF = Math.min(...services.map((s) => s.price));
 const SALDO_WARNING_THRESHOLD = Math.round(MIN_TARIF * 0.2);
+
+const SKILL_OPTIONS = ["Setrika", "Bersihkan Rumah", "Cuci Kendaraan"];
 
 function PhotoUploadAvatar({
   mitra,
@@ -103,6 +104,42 @@ function PhotoUploadAvatar({
   );
 }
 
+function SkillCheckboxes({
+  mitra,
+  busy,
+  onChange,
+}: {
+  mitra: MitraProfile;
+  busy: boolean;
+  onChange: (skills: string[]) => void;
+}) {
+  const current: string[] = Array.isArray(mitra.skill_category) ? mitra.skill_category : [];
+
+  function toggle(skill: string) {
+    const next = current.includes(skill)
+      ? current.filter((s) => s !== skill)
+      : [...current, skill];
+    onChange(next);
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {SKILL_OPTIONS.map((skill) => (
+        <label key={skill} className="flex items-center gap-1.5 text-xs text-ink cursor-pointer">
+          <input
+            type="checkbox"
+            checked={current.includes(skill)}
+            disabled={busy}
+            onChange={() => toggle(skill)}
+            className="rounded border-line"
+          />
+          {skill}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export default function MitraTable({ initialMitra }: { initialMitra: MitraProfile[] }) {
   const [mitra, setMitra] = useState<MitraProfile[]>(initialMitra);
   const [topupAmount, setTopupAmount] = useState<Record<string, string>>({});
@@ -154,7 +191,10 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
     }
   }
 
-  async function handleUpdateAttributes(id: string, fields: { gender?: string; skill_category?: string }) {
+  async function handleUpdateAttributes(
+    id: string,
+    fields: { gender?: string; skill_category?: string[] }
+  ) {
     setBusyId(id);
     try {
       const res = await fetch("/api/admin/mitra/update-attributes", {
@@ -198,8 +238,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
     <div className="space-y-4">
       <p className="text-xs text-ink/50">
         Ambang saldo minimum bervariasi per pesanan (20% dari nilai layanan). Klik atau drag &
-        drop gambar ke foto untuk mengubahnya — otomatis ter-upload dan langsung tampil di landing
-        page (section Mitra Showcase).
+        drop gambar ke foto untuk mengubahnya. Mitra bisa punya lebih dari 1 keahlian sekaligus.
       </p>
 
       <div className="flex justify-end">
@@ -259,7 +298,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
       )}
 
       <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-        <table className="w-full min-w-[1020px] text-left text-sm">
+        <table className="w-full min-w-[1080px] text-left text-sm">
           <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
             <tr>
               <th className="px-4 py-3">Foto</th>
@@ -303,14 +342,10 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  <input
-                    defaultValue={m.skill_category ?? ""}
-                    placeholder="mis. Setrika"
-                    onBlur={(e) =>
-                      e.target.value !== (m.skill_category ?? "") &&
-                      handleUpdateAttributes(m.id, { skill_category: e.target.value })
-                    }
-                    className="w-28 rounded-lg border border-line px-2 py-1 text-xs"
+                  <SkillCheckboxes
+                    mitra={m}
+                    busy={busyId === m.id}
+                    onChange={(skills) => handleUpdateAttributes(m.id, { skill_category: skills })}
                   />
                 </td>
                 <td className="px-4 py-3">

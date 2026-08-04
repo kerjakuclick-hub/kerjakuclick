@@ -1,9 +1,6 @@
-// FILE BARU: app/api/admin/mitra/update-attributes/route.ts
+// GANTI ISI app/api/admin/mitra/update-attributes/route.ts Anda dengan file ini.
 //
-// Dibutuhkan supaya admin bisa mengisi kolom `gender` & `skill_category`
-// (ditambahkan migrasi 007) langsung dari Kelola Mitra, tanpa harus buka
-// SQL Editor manual. Polanya disamakan persis dengan
-// app/api/admin/mitra/toggle/route.ts yang sudah ada.
+// Perubahan: `skill_category` sekarang array of string, bukan 1 string.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -34,6 +31,12 @@ export async function POST(req: NextRequest) {
   }
   if (gender !== undefined && gender !== null && !["Pria", "Wanita"].includes(gender)) {
     return NextResponse.json({ error: "gender harus 'Pria' atau 'Wanita'." }, { status: 400 });
+  }
+  if (skill_category !== undefined && skill_category !== null && !Array.isArray(skill_category)) {
+    return NextResponse.json(
+      { error: "skill_category harus berupa array (bisa lebih dari 1 keahlian)." },
+      { status: 400 }
+    );
   }
 
   const admin = getSupabaseAdmin();
