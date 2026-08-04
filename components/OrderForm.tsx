@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { services } from "@/lib/services";
+import { services, formatRupiah } from "@/lib/services";
 import { buildOrderMessage, buildWaLink } from "@/lib/whatsapp";
 import WhatsAppPreview from "./WhatsAppPreview";
 
@@ -117,7 +117,7 @@ export default function OrderForm() {
                 </option>
                 {services.map((s) => (
                   <option key={s.id} value={s.name}>
-                    {s.category} — {s.name}
+                     {s.category} — {s.name} ({formatRupiah(s.price)})
                   </option>
                 ))}
               </select>
