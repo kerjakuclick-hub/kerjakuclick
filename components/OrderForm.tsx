@@ -117,7 +117,7 @@ export default function OrderForm() {
                 </option>
                 {services.map((s) => (
                   <option key={s.id} value={s.name}>
-                    {s.category} — ({formatRupiah(s.price)})
+                    {s.category} — {s.name} ({formatRupiah(s.price)})
                   </option>
                 ))}
               </select>
