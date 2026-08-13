@@ -1,4 +1,5 @@
-// FILE BARU: components/admin/MitraApplicationsList.tsx
+// GANTI ISI components/admin/MitraApplicationsList.tsx Anda dengan file ini.
+// Perubahan: tampilkan pendidikan terakhir + tombol lihat KTM (kalau ada).
 
 "use client";
 
@@ -10,10 +11,13 @@ interface MitraApplication {
   address: string;
   phone: string;
   social_media: string | null;
+  last_education: string | null;
+  is_student: boolean;
   skill_category: string[];
   photo_path: string | null;
   ktp_path: string | null;
   kk_path: string | null;
+  student_id_path: string | null;
   status: "pending" | "reviewed" | "accepted" | "rejected";
   admin_notes: string | null;
   submitted_at: string;
@@ -115,6 +119,14 @@ export default function MitraApplicationsList({
                   <p className="text-xs text-ink/50">{app.social_media}</p>
                 )}
                 <p className="text-xs text-ink/50 mt-1 max-w-md">{app.address}</p>
+                <p className="text-xs text-ink/60 mt-1">
+                  <span className="font-medium">Pendidikan:</span> {app.last_education ?? "-"}
+                  {app.is_student && (
+                    <span className="ml-1.5 rounded-full bg-bay-light/20 px-2 py-0.5 text-[10px] font-medium text-bay-deep">
+                      Masih Berkuliah
+                    </span>
+                  )}
+                </p>
                 <div className="flex gap-1.5 flex-wrap mt-2">
                   {app.skill_category.map((s) => (
                     <span
@@ -158,6 +170,15 @@ export default function MitraApplicationsList({
               >
                 {loadingDoc === `kk-${app.id}` ? "Membuka..." : "Lihat KK"}
               </button>
+              {app.student_id_path && (
+                <button
+                  onClick={() => viewDocument(app.student_id_path, `ktm-${app.id}`)}
+                  disabled={loadingDoc === `ktm-${app.id}`}
+                  className="text-xs rounded-lg border border-bay-deep/30 bg-bay-light/10 px-3 py-1.5 hover:bg-bay-light/20"
+                >
+                  {loadingDoc === `ktm-${app.id}` ? "Membuka..." : "Lihat KTM"}
+                </button>
+              )}
             </div>
 
             <div className="mt-3 flex gap-2 flex-wrap border-t border-line pt-3">

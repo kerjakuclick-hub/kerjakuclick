@@ -1,3 +1,15 @@
+// GANTI ISI lib/services.ts Anda dengan file ini.
+//
+// Perubahan: menambahkan 14 varian baru untuk kategori "Les Private" (7 mata
+// pelajaran x 2 paket harga). Tidak ada perubahan pada type, fungsi
+// findServiceByLabel, formatRupiah, atau serviceCategories — semuanya
+// otomatis ikut mendukung Les Private karena beroperasi generik di atas
+// array `services`.
+//
+// Skema tier: "Fast" dipakai untuk paket 1x pertemuan (Rp65.000), "PRO"
+// untuk paket 3x/minggu (Rp150.000) — konsisten dengan makna tier di 3
+// kategori rumah tangga yang sudah ada (Fast = sekali, PRO = lebih lengkap).
+
 export type ServiceVariant = {
   id: string;
   category: string;
@@ -7,6 +19,37 @@ export type ServiceVariant = {
   duration: string;
   tier: "Fast" | "PRO";
 };
+
+const LES_PRIVATE_SUBJECTS = [
+  { slug: "mengaji", label: "Mengaji" },
+  { slug: "bahasa-inggris", label: "Bahasa Inggris" },
+  { slug: "matematika", label: "Matematika" },
+  { slug: "fisika", label: "Fisika" },
+  { slug: "kimia", label: "Kimia" },
+  { slug: "biologi", label: "Biologi" },
+  { slug: "komputer", label: "Komputer" },
+];
+
+const lesPrivateVariants: ServiceVariant[] = LES_PRIVATE_SUBJECTS.flatMap(({ slug, label }) => [
+  {
+    id: `les-${slug}-fast`,
+    category: "Les Private",
+    name: `${label} — 1x Pertemuan`,
+    price: 65000,
+    unit: "1x Pertemuan",
+    duration: "2 Jam",
+    tier: "Fast" as const,
+  },
+  {
+    id: `les-${slug}-pro`,
+    category: "Les Private",
+    name: `${label} — Paket 3x/Minggu`,
+    price: 150000,
+    unit: "3x Pertemuan / Minggu",
+    duration: "2 Jam per sesi",
+    tier: "PRO" as const,
+  },
+]);
 
 export const services: ServiceVariant[] = [
   {
@@ -63,6 +106,7 @@ export const services: ServiceVariant[] = [
     duration: "2 Jam",
     tier: "PRO",
   },
+  ...lesPrivateVariants,
 ];
 
 export const serviceCategories = Array.from(

@@ -1,16 +1,32 @@
-// FILE BARU: components/MitraApplicationForm.tsx
+// GANTI ISI components/MitraApplicationForm.tsx Anda dengan file ini.
+//
+// Perubahan:
+// 1. Skill checkbox diperluas + dikelompokkan (Rumah Tangga / Les Private)
+// 2. Field baru: Pendidikan Terakhir
+// 3. Checkbox "Sedang berkuliah?" — kalau dicentang, upload KTM jadi WAJIB
+//    (sesuai SOP verifikasi mitra Les Private: mahasiswa semester akhir
+//    dibuktikan dengan kartu identitas mahasiswa)
 
 "use client";
 
 import { useState } from "react";
 
-const SKILL_OPTIONS = ["Setrika", "Bersihkan Rumah", "Cuci Kendaraan"];
+const SKILL_GROUPS: { label: string; options: string[] }[] = [
+  { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah", "Cuci Kendaraan"] },
+  {
+    label: "Les Private",
+    options: ["Mengaji", "Bahasa Inggris", "Matematika", "Fisika", "Kimia", "Biologi", "Komputer"],
+  },
+];
+
+const EDUCATION_OPTIONS = ["SMA/SMK/Sederajat", "D3", "S1", "S2", "Lainnya"];
 
 export default function MitraApplicationForm() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
+  const [isStudent, setIsStudent] = useState(false);
 
   function toggleSkill(skill: string) {
     setSkills((prev) =>
@@ -30,6 +46,12 @@ export default function MitraApplicationForm() {
     const formEl = e.currentTarget;
     const formData = new FormData(formEl);
     skills.forEach((s) => formData.append("skill_category", s));
+    formData.set("is_student", isStudent ? "true" : "false");
+
+    if (isStudent && !(formData.get("student_id") as File)?.size) {
+      setError("Karena masih berkuliah, foto KTM (Kartu Tanda Mahasiswa) wajib diunggah.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -45,6 +67,7 @@ export default function MitraApplicationForm() {
       setSuccess(true);
       formEl.reset();
       setSkills([]);
+      setIsStudent(false);
     } catch {
       setError("Gagal mengirim pendaftaran. Coba lagi.");
     } finally {
@@ -116,27 +139,83 @@ export default function MitraApplicationForm() {
       </div>
 
       <div>
+        <label className="text-sm font-medium text-[#12202A] block mb-1">
+          Pendidikan Terakhir *
+        </label>
+        <select
+          required
+          name="last_education"
+          defaultValue=""
+          className="w-full rounded-lg border border-[#dfe3e0] px-3 py-2.5 text-sm"
+        >
+          <option value="" disabled>
+            Pilih pendidikan terakhir
+          </option>
+          {EDUCATION_OPTIONS.map((e) => (
+            <option key={e} value={e}>
+              {e}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="rounded-lg border border-[#dfe3e0] p-3">
+        <label className="flex items-center gap-2 text-sm text-[#12202A] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isStudent}
+            onChange={(e) => setIsStudent(e.target.checked)}
+          />
+          Saya saat ini masih berkuliah (mis. mahasiswa semester akhir)
+        </label>
+        {isStudent && (
+          <div className="mt-3">
+            <label className="text-sm font-medium text-[#12202A] block mb-1">
+              Foto KTM (Kartu Tanda Mahasiswa) *
+            </label>
+            <input
+              required={isStudent}
+              type="file"
+              name="student_id"
+              accept="image/jpeg,image/png,image/webp"
+              className="w-full text-xs"
+            />
+            <p className="text-xs text-[#3f484d]/70 mt-1">
+              Wajib diisi untuk verifikasi status mahasiswa aktif.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div>
         <label className="text-sm font-medium text-[#12202A] block mb-2">
           Pilihan Keahlian * (boleh lebih dari 1)
         </label>
-        <div className="flex flex-wrap gap-3">
-          {SKILL_OPTIONS.map((skill) => (
-            <label
-              key={skill}
-              className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm cursor-pointer transition ${
-                skills.includes(skill)
-                  ? "border-[#1D6F8C] bg-[#1D6F8C]/10 text-[#1D6F8C] font-medium"
-                  : "border-[#dfe3e0] text-[#3f484d]"
-              }`}
-            >
-              <input
-                type="checkbox"
-                className="hidden"
-                checked={skills.includes(skill)}
-                onChange={() => toggleSkill(skill)}
-              />
-              {skill}
-            </label>
+        <div className="space-y-3">
+          {SKILL_GROUPS.map((group) => (
+            <div key={group.label}>
+              <p className="text-xs font-semibold text-[#3f484d] uppercase mb-1.5">{group.label}</p>
+              <div className="flex flex-wrap gap-2">
+                {group.options.map((skill) => (
+                  <label
+                    key={skill}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm cursor-pointer transition ${
+                      skills.includes(skill)
+                        ? "border-[#1D6F8C] bg-[#1D6F8C]/10 text-[#1D6F8C] font-medium"
+                        : "border-[#dfe3e0] text-[#3f484d]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={skills.includes(skill)}
+                      onChange={() => toggleSkill(skill)}
+                    />
+                    {skill}
+                  </label>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

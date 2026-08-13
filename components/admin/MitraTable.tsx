@@ -1,8 +1,8 @@
 // GANTI ISI components/admin/MitraTable.tsx Anda dengan file ini.
 //
-// Perubahan dari versi sebelumnya: kolom Keahlian sekarang 3 CHECKBOX
-// (Setrika, Bersihkan Rumah, Cuci Kendaraan) — bisa dicentang lebih dari
-// satu, bukan lagi input teks bebas satu nilai.
+// Perubahan: SKILL_OPTIONS diperluas dengan 7 mata pelajaran Les Private,
+// dikelompokkan visual jadi 2 bagian (Rumah Tangga / Les Private) supaya
+// tetap rapi meski sekarang ada 10 pilihan keahlian.
 
 "use client";
 
@@ -13,7 +13,13 @@ import type { MitraProfile } from "@/lib/types";
 const MIN_TARIF = Math.min(...services.map((s) => s.price));
 const SALDO_WARNING_THRESHOLD = Math.round(MIN_TARIF * 0.2);
 
-const SKILL_OPTIONS = ["Setrika", "Bersihkan Rumah", "Cuci Kendaraan"];
+const SKILL_GROUPS: { label: string; options: string[] }[] = [
+  { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah", "Cuci Kendaraan"] },
+  {
+    label: "Les Private",
+    options: ["Mengaji", "Bahasa Inggris", "Matematika", "Fisika", "Kimia", "Biologi", "Komputer"],
+  },
+];
 
 function PhotoUploadAvatar({
   mitra,
@@ -123,18 +129,25 @@ function SkillCheckboxes({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      {SKILL_OPTIONS.map((skill) => (
-        <label key={skill} className="flex items-center gap-1.5 text-xs text-ink cursor-pointer">
-          <input
-            type="checkbox"
-            checked={current.includes(skill)}
-            disabled={busy}
-            onChange={() => toggle(skill)}
-            className="rounded border-line"
-          />
-          {skill}
-        </label>
+    <div className="flex flex-col gap-2 min-w-[150px]">
+      {SKILL_GROUPS.map((group) => (
+        <div key={group.label}>
+          <p className="text-[9px] font-bold uppercase text-ink/40 mb-0.5">{group.label}</p>
+          <div className="flex flex-col gap-0.5">
+            {group.options.map((skill) => (
+              <label key={skill} className="flex items-center gap-1.5 text-xs text-ink cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={current.includes(skill)}
+                  disabled={busy}
+                  onChange={() => toggle(skill)}
+                  className="rounded border-line"
+                />
+                {skill}
+              </label>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -238,7 +251,8 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
     <div className="space-y-4">
       <p className="text-xs text-ink/50">
         Ambang saldo minimum bervariasi per pesanan (20% dari nilai layanan). Klik atau drag &
-        drop gambar ke foto untuk mengubahnya. Mitra bisa punya lebih dari 1 keahlian sekaligus.
+        drop gambar ke foto untuk mengubahnya. Mitra bisa punya lebih dari 1 keahlian sekaligus,
+        termasuk kategori Les Private.
       </p>
 
       <div className="flex justify-end">
@@ -298,7 +312,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
       )}
 
       <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-        <table className="w-full min-w-[1080px] text-left text-sm">
+        <table className="w-full min-w-[1140px] text-left text-sm">
           <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
             <tr>
               <th className="px-4 py-3">Foto</th>
@@ -318,14 +332,14 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                 <td className="px-4 py-3">
                   <PhotoUploadAvatar mitra={m} onUploaded={handlePhotoUploaded} />
                 </td>
-                <td className="px-4 py-3 font-medium text-ink">{m.name}</td>
-                <td className="px-4 py-3 text-ink/70">{m.phone}</td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 font-medium text-ink align-top">{m.name}</td>
+                <td className="px-4 py-3 text-ink/70 align-top">{m.phone}</td>
+                <td className="px-4 py-3 align-top">
                   <span className={m.wallet_balance < SALDO_WARNING_THRESHOLD ? "text-red-600" : "text-ink"}>
                     {formatRupiah(m.wallet_balance)}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 align-top">
                   <select
                     value={m.gender ?? ""}
                     disabled={busyId === m.id}
@@ -341,19 +355,19 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                     <option value="Wanita">Wanita</option>
                   </select>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 align-top">
                   <SkillCheckboxes
                     mitra={m}
                     busy={busyId === m.id}
                     onChange={(skills) => handleUpdateAttributes(m.id, { skill_category: skills })}
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 align-top">
                   <span className="rounded-full bg-bridge/25 px-2 py-1 text-xs font-medium text-bay-deep">
                     {m.status}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 align-top">
                   <button
                     onClick={() => handleToggleActive(m.id)}
                     disabled={busyId === m.id}
@@ -364,7 +378,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                     {m.is_active ? "Aktif" : "Nonaktif"}
                   </button>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 align-top">
                   <div className="flex gap-1.5">
                     <input
                       type="number"

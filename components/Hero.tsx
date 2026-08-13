@@ -27,11 +27,11 @@ export default function Hero() {
     <section className="max-w-[1200px] mx-auto px-6 py-12 md:py-20 grid md:grid-cols-2 gap-12 items-center">
       <div className="space-y-6">
         <h1 className="font-[family-name:var(--font-space-grotesk)] text-4xl md:text-5xl font-bold text-[#12202A] leading-tight">
-          Jasa Tenaga Kerja Ke Rumah Anda, Sekali Klik
+          Jasa Tenaga Kerja Ke Rumah Anda, Sekali Klik!.
         </h1>
         <p className="text-lg text-[#3f484d] leading-relaxed">
           Solusi praktis untuk kebutuhan rumah tangga di Kota Palu. Setrika,
-          bersih-bersih rumah, hingga cuci kendaraan dengan tenaga terpercaya
+          bersih-bersih rumah, cuci kendaraan, hingga les private untuk anak Anda dengan tenaga terpercaya
           dan profesional.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">

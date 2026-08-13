@@ -1,9 +1,5 @@
 // GANTI ISI components/ServicesGrid.tsx Anda dengan file ini.
-//
-// Perubahan dari versi redesign sebelumnya: sekarang Server Component
-// (async) yang mengambil gambar dari tabel site_media. Kalau admin belum
-// upload foto untuk slot tertentu, otomatis fallback ke gradient+emoji
-// (tidak pernah tampil rusak/kosong).
+// Perubahan: tambah kartu ke-4 untuk kategori "Les Private".
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,6 +32,15 @@ const services = [
     gradient: "from-[#12202A] to-[#1D6F8C]",
     icon: "🚗",
   },
+  {
+    slug: "service_les_private",
+    name: "Les Private",
+    desc: "Bantu anak selesaikan PR & pahami pelajaran sekolah — mengaji, matematika, IPA, hingga komputer.",
+    priceFrom: "Rp 65.000",
+    duration: "2 Jam / Sesi",
+    gradient: "from-[#1D6F8C] to-[#F5B324]",
+    icon: "📚",
+  },
 ];
 
 export default async function ServicesGrid() {
@@ -61,7 +66,7 @@ export default async function ServicesGrid() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         {services.map((s) => {
           const imageUrl = imageBySlug.get(s.slug);
           return (

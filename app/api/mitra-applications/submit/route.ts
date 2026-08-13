@@ -1,9 +1,7 @@
-// FILE BARU: app/api/mitra-applications/submit/route.ts
+// GANTI ISI app/api/mitra-applications/submit/route.ts Anda dengan file ini.
 //
-// Route PUBLIK (tanpa auth) — dipanggil dari form pendaftaran mitra di
-// /daftar-mitra. Upload dokumen ke bucket PRIVATE lewat service role
-// (bukan lewat sesi pengunjung), supaya tidak perlu policy INSERT/UPLOAD
-// terbuka untuk anon di Storage.
+// Perubahan: terima field baru last_education, is_student, dan file
+// student_id (KTM) yang WAJIB diupload kalau is_student = true.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -38,14 +36,33 @@ export async function POST(req: NextRequest) {
   const address = (formData.get("address") as string)?.trim();
   const phone = (formData.get("phone") as string)?.trim();
   const social_media = (formData.get("social_media") as string)?.trim() || null;
+  const last_education = (formData.get("last_education") as string)?.trim();
+  const is_student = formData.get("is_student") === "true";
   const skillCategory = formData.getAll("skill_category") as string[];
   const photo = formData.get("photo") as File | null;
   const ktp = formData.get("ktp") as File | null;
   const kk = formData.get("kk") as File | null;
+  const studentId = formData.get("student_id") as File | null;
 
-  if (!full_name || !address || !phone || skillCategory.length === 0 || !photo || !ktp || !kk) {
+  if (
+    !full_name ||
+    !address ||
+    !phone ||
+    !last_education ||
+    skillCategory.length === 0 ||
+    !photo ||
+    !ktp ||
+    !kk
+  ) {
     return NextResponse.json(
       { error: "Semua field wajib diisi, termasuk foto profil, KTP, dan KK." },
+      { status: 400 }
+    );
+  }
+
+  if (is_student && (!studentId || studentId.size === 0)) {
+    return NextResponse.json(
+      { error: "Karena masih berkuliah, foto KTM wajib diunggah." },
       { status: 400 }
     );
   }
@@ -53,21 +70,30 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
 
   try {
-    const [photoPath, ktpPath, kkPath] = await Promise.all([
+    const uploads: Promise<string>[] = [
       uploadDoc(admin, photo, "foto-profil"),
       uploadDoc(admin, ktp, "ktp"),
       uploadDoc(admin, kk, "kk"),
-    ]);
+    ];
+    if (is_student && studentId) {
+      uploads.push(uploadDoc(admin, studentId, "ktm"));
+    }
+
+    const results = await Promise.all(uploads);
+    const [photoPath, ktpPath, kkPath, studentIdPath] = results;
 
     const { error: insertError } = await admin.from("mitra_applications").insert({
       full_name,
       address,
       phone,
       social_media,
+      last_education,
+      is_student,
       skill_category: skillCategory,
       photo_path: photoPath,
       ktp_path: ktpPath,
       kk_path: kkPath,
+      student_id_path: studentIdPath ?? null,
     });
 
     if (insertError) throw new Error(insertError.message);

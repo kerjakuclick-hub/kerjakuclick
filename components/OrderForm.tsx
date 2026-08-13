@@ -1,11 +1,20 @@
+// GANTI ISI components/OrderForm.tsx Anda dengan file ini.
+//
+// Perubahan: <select id="jasa"> native diganti komponen <ServiceSelect />
+// custom — supaya tampilan dropdown (termasuk warna teks & shadow) sama
+// persis di semua browser, tidak lagi bergantung pada rendering native
+// masing-masing browser yang terbukti tidak konsisten (Chrome vs Firefox).
+
 "use client";
 
-import { useMemo, useState } from "react";
-import { services, formatRupiah } from "@/lib/services";
+import { useEffect, useMemo, useState } from "react";
+import { services } from "@/lib/services";
 import { buildOrderMessage, buildWaLink } from "@/lib/whatsapp";
 import WhatsAppPreview from "./WhatsAppPreview";
+import ServiceSelect from "./ServiceSelect";
 
-const TIME_SLOTS = ["09.00-12.00", "12.00-15.00", "15.00-17.00"];
+const HOUSEHOLD_TIME_SLOTS = ["09.00-12.00", "12.00-15.00", "15.00-17.00"];
+const LES_PRIVATE_TIME_SLOTS = ["15.00-17.00", "17.00-19.00", "19.00-21.00"];
 const PREFERENSI_OPTIONS = ["Pria", "Wanita", "Bebas"];
 
 function todayIso() {
@@ -21,6 +30,17 @@ export default function OrderForm() {
   const [waktu, setWaktu] = useState("");
   const [preferensi, setPreferensi] = useState("Bebas");
   const [touched, setTouched] = useState(false);
+
+  const selectedService = useMemo(() => services.find((s) => s.name === jasa), [jasa]);
+  const isLesPrivate = selectedService?.category === "Les Private";
+  const timeSlotOptions = isLesPrivate ? LES_PRIVATE_TIME_SLOTS : HOUSEHOLD_TIME_SLOTS;
+
+  useEffect(() => {
+    if (waktu && !timeSlotOptions.includes(waktu)) {
+      setWaktu("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jasa]);
 
   const message = useMemo(
     () => buildOrderMessage({ nama, noHp, alamat, jasa, tanggal, waktu, preferensi }),
@@ -106,23 +126,15 @@ export default function OrderForm() {
               <label htmlFor="jasa" className="mb-1.5 block text-sm font-medium text-white/90">
                 Pilihan Jasa
               </label>
-              <select
-                id="jasa"
-                value={jasa}
-                onChange={(e) => setJasa(e.target.value)}
-                className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bridge [&>option]:text-ink"
-              >
-                <option value="" disabled className="text-ink/50">
-                  Pilih jenis layanan
-                </option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.name}>
-                     {s.category} — {s.name} ({formatRupiah(s.price)})
-                  </option>
-                ))}
-              </select>
+              <ServiceSelect id="jasa" value={jasa} onChange={setJasa} />
               {touched && !jasa.trim() && (
                 <p className="mt-1 text-xs text-bridge">Pilih salah satu jasa.</p>
+              )}
+              {isLesPrivate && (
+                <p className="mt-1.5 text-xs text-white/50">
+                  Slot waktu untuk Les Private khusus sore/malam (15.00–21.00), menyesuaikan jam
+                  pulang sekolah.
+                </p>
               )}
             </div>
 
@@ -148,7 +160,7 @@ export default function OrderForm() {
                 Slot Waktu
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {TIME_SLOTS.map((slot) => (
+                {timeSlotOptions.map((slot) => (
                   <button
                     key={slot}
                     type="button"
