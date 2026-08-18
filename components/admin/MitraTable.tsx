@@ -1,8 +1,12 @@
 // GANTI ISI components/admin/MitraTable.tsx Anda dengan file ini.
 //
-// Perubahan: SKILL_OPTIONS diperluas dengan 7 mata pelajaran Les Private,
-// dikelompokkan visual jadi 2 bagian (Rumah Tangga / Les Private) supaya
-// tetap rapi meski sekarang ada 10 pilihan keahlian.
+// FIX: tombol "Isi" (Top Up) sebenarnya SUDAH ADA dari awal, cuma tabelnya
+// terlalu lebar dan scrollbar horizontal-nya ada di PALING BAWAH tabel yang
+// sudah sangat panjang (karena 10 checkbox keahlian disusun 1 kolom ke
+// bawah) -- jadi scrollbar itu di luar jangkauan tanpa scroll jauh ke bawah
+// dulu. Sekarang: (1) checkbox keahlian disusun 2 kolom supaya baris lebih
+// pendek, scrollbar jadi gampang dijangkau; (2) ditambah teks penunjuk di
+// atas tabel.
 
 "use client";
 
@@ -129,21 +133,22 @@ function SkillCheckboxes({
   }
 
   return (
-    <div className="flex flex-col gap-2 min-w-[150px]">
+    <div className="flex flex-col gap-2 min-w-[220px]">
       {SKILL_GROUPS.map((group) => (
         <div key={group.label}>
           <p className="text-[9px] font-bold uppercase text-ink/40 mb-0.5">{group.label}</p>
-          <div className="flex flex-col gap-0.5">
+          {/* 2 kolom, supaya baris tabel tidak terlalu tinggi memanjang ke bawah */}
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
             {group.options.map((skill) => (
-              <label key={skill} className="flex items-center gap-1.5 text-xs text-ink cursor-pointer">
+              <label key={skill} className="flex items-center gap-1 text-xs text-ink cursor-pointer">
                 <input
                   type="checkbox"
                   checked={current.includes(skill)}
                   disabled={busy}
                   onChange={() => toggle(skill)}
-                  className="rounded border-line"
+                  className="rounded border-line shrink-0"
                 />
-                {skill}
+                <span className="truncate">{skill}</span>
               </label>
             ))}
           </div>
@@ -254,6 +259,10 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
         drop gambar ke foto untuk mengubahnya. Mitra bisa punya lebih dari 1 keahlian sekaligus,
         termasuk kategori Les Private.
       </p>
+      <p className="text-xs font-medium text-bay-deep flex items-center gap-1">
+        ↔️ Tabel ini lebih lebar dari layar — geser ke kanan/kiri di dalam tabel untuk lihat semua
+        kolom, termasuk tombol Top Up.
+      </p>
 
       <div className="flex justify-end">
         <button
@@ -312,7 +321,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
       )}
 
       <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-        <table className="w-full min-w-[1140px] text-left text-sm">
+        <table className="w-full min-w-[1080px] text-left text-sm">
           <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
             <tr>
               <th className="px-4 py-3">Foto</th>
@@ -329,7 +338,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
           <tbody>
             {mitra.map((m) => (
               <tr key={m.id} className="border-b border-line last:border-0">
-                <td className="px-4 py-3">
+                <td className="px-4 py-3 align-top">
                   <PhotoUploadAvatar mitra={m} onUploaded={handlePhotoUploaded} />
                 </td>
                 <td className="px-4 py-3 font-medium text-ink align-top">{m.name}</td>
@@ -387,12 +396,12 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                       onChange={(e) =>
                         setTopupAmount((prev) => ({ ...prev, [m.id]: e.target.value }))
                       }
-                      className="w-24 rounded-lg border border-line px-2 py-1.5 text-xs"
+                      className="w-20 rounded-lg border border-line px-2 py-1.5 text-xs"
                     />
                     <button
                       onClick={() => handleTopup(m.id)}
                       disabled={busyId === m.id}
-                      className="rounded-lg bg-bay-deep px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                      className="shrink-0 rounded-lg bg-bay-deep px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
                     >
                       Isi
                     </button>
