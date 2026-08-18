@@ -50,12 +50,12 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="https://wa.me/6288245185778"
+                 href="https://wa.me/6281145504178"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-white/70 hover:text-[#F5B324] transition-colors"
                 >
-                  WA: +62 882-4518-5778
+                  WA: +62 811-4550-4178
                 </a>
               </li>
               <li>
