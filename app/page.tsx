@@ -4,6 +4,8 @@
 // - <OrderForm /> dipakai APA ADANYA dari komponen Anda yang sudah ada
 //   (logika kirim ke WA TIDAK saya sentuh) — hanya dibungkus kartu baru
 //   sesuai desain Stitch.
+// - <YoutubeSection /> BARU ditambahkan, ditaruh setelah <MitraShowcase />
+//   (sisi trust-building), sesuai kesepakatan.
 // - Section Testimoni & FAQ SENGAJA BELUM dimasukkan — menunggu jawaban
 //   Anda soal testimoni asli & 3 klaim FAQ (verifikasi KTP, vaksinasi,
 //   jam CS 24/7 vs 07.00-20.00 WIB). Begitu dikonfirmasi, saya tambahkan.
@@ -14,6 +16,7 @@ import TrustBar from "@/components/TrustBar";
 import ServicesGrid from "@/components/ServicesGrid";
 import HowItWorks from "@/components/HowItWorks";
 import MitraShowcase from "@/components/MitraShowcase";
+import YoutubeSection from "@/components/YoutubeSection";
 import WhyChooseUs from "@/components/WhyChooseUs";
 import Footer from "@/components/Footer";
 import OrderForm from "@/components/OrderForm";
@@ -28,6 +31,7 @@ export default function HomePage() {
         <ServicesGrid />
         <HowItWorks />
         <MitraShowcase />
+        <YoutubeSection />
 
         <section
           id="order-form"
