@@ -1,27 +1,34 @@
 // GANTI ISI components/HowItWorks.tsx Anda dengan file ini.
 
+import {
+  ClipboardListIcon,
+  ChatIcon,
+  UserCheckIcon,
+  CheckCircleIcon,
+} from "./Icons";
+
 const steps = [
   {
     number: 1,
-    icon: "📋",
+    icon: ClipboardListIcon,
     title: "Isi Formulir",
     desc: "Lengkapi detail layanan dan alamat Anda di website ini.",
   },
   {
     number: 2,
-    icon: "💬",
+    icon: ChatIcon,
     title: "Pesanan Masuk WA",
     desc: "Admin akan mengonfirmasi pesanan Anda melalui WhatsApp.",
   },
   {
     number: 3,
-    icon: "🧑‍🔧",
+    icon: UserCheckIcon,
     title: "Tugaskan Mitra",
     desc: "Admin menugaskan mitra yang sesuai keahlian & preferensi Anda.",
   },
   {
     number: 4,
-    icon: "✅",
+    icon: CheckCircleIcon,
     title: "Mitra Datang",
     desc: "Mitra bekerja, dan Anda bayar tunai setelah semua selesai.",
   },
@@ -49,7 +56,11 @@ export default function HowItWorks() {
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 bg-[#1D6F8C] text-white rounded-full flex items-center justify-center font-bold text-sm">
                 {step.number}
               </div>
-              <div className="pt-2 text-4xl">{step.icon}</div>
+              <div className="pt-4 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-[#1D6F8C]/10 flex items-center justify-center">
+                  <step.icon className="w-6 h-6 text-[#1D6F8C]" />
+                </div>
+              </div>
               <h4 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-[#12202A]">
                 {step.title}
               </h4>
