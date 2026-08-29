@@ -112,16 +112,13 @@ export function exportFinancialReportPdf({
     headStyles: { fillColor: accentColor, textColor: 255, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [246, 247, 248] },
     margin: { left: 14, right: 14 },
-    didDrawPage: () => {
-      const pageCount = doc.internal.pages.length - 1;
+    didDrawPage: (data) => {
+      const pageCount = doc.getNumberOfPages();
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text(
-        `Halaman ${doc.internal.getCurrentPageInfo().pageNumber} dari ${pageCount}`,
-        196,
-        290,
-        { align: "right" }
-      );
+      doc.text(`Halaman ${data.pageNumber} dari ${pageCount}`, 196, 290, {
+        align: "right",
+      });
     },
   });
 
