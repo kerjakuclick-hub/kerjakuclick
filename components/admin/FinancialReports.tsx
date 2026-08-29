@@ -1,8 +1,9 @@
-// FILE BARU: components/admin/FinancialReports.tsx
+// GANTI ISI components/admin/FinancialReports.tsx Anda dengan file ini.
 //
-// 3 laporan yang diminta: Deposito Mitra, Pendapatan Mitra, Fee/Pendapatan
-// Platform — semuanya bisa difilter periode (Hari Ini / 7 Hari / Bulan Ini
-// / Semua Waktu) sekaligus lewat satu tombol filter di atas.
+// Perubahan dari versi sebelumnya: menambahkan tombol "Unduh PDF" di
+// masing-masing dari 3 laporan (Deposito Mitra, Pendapatan Mitra, Fee
+// Platform). Setiap tombol men-generate PDF dari data yang SUDAH
+// difilter oleh periode yang sedang aktif -- bukan seluruh data mentah.
 //
 // Catatan penting soal makna data:
 // - "Deposito" = saldo titipan mitra (dari top up), TIDAK sama dengan
@@ -17,6 +18,7 @@
 
 import { useMemo, useState } from "react";
 import { formatRupiah } from "@/lib/services";
+import { exportFinancialReportPdf } from "@/lib/pdf/exportFinancialReportPdf";
 
 type Period = "today" | "week" | "month" | "all";
 
@@ -66,6 +68,31 @@ function isInPeriod(dateStr: string, period: Period): boolean {
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   }
   return true;
+}
+
+/** Tombol unduh PDF -- dipakai berulang di 3 section, styling seragam. */
+function DownloadPdfButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-full border border-bay-deep px-4 py-1.5 text-xs font-semibold text-bay-deep transition hover:bg-bay-deep hover:text-white"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="w-3.5 h-3.5"
+      >
+        <path d="M12 3v12" />
+        <path d="M7 10l5 5 5-5" />
+        <path d="M4 19h16" />
+      </svg>
+      Unduh PDF
+    </button>
+  );
 }
 
 export default function FinancialReports({
@@ -125,6 +152,73 @@ export default function FinancialReports({
   const totalFeePlatform = totalPotonganPeriode; // sama persis: potongan dari deposito = fee platform
   const feeTransactions = filteredWalletTx.filter((t) => t.type === "deduction");
 
+  // ---------- Handler unduh PDF ----------
+  function handleDownloadDeposito() {
+    exportFinancialReportPdf({
+      title: "Laporan Deposito Mitra",
+      periodLabel: PERIOD_LABEL[period],
+      summary: [
+        { label: "Total Saldo Aktif (Saat Ini)", value: formatRupiah(totalDepositoAktif) },
+        { label: `Total Top Up (${PERIOD_LABEL[period]})`, value: formatRupiah(totalTopupPeriode) },
+        {
+          label: `Total Terpotong Fee (${PERIOD_LABEL[period]})`,
+          value: formatRupiah(totalPotonganPeriode),
+        },
+      ],
+      columns: ["Mitra", "Saldo Saat Ini", `Top Up (${PERIOD_LABEL[period]})`, `Terpotong (${PERIOD_LABEL[period]})`],
+      rows: depositoPerMitra.map((m) => [
+        m.name,
+        formatRupiah(m.wallet_balance),
+        formatRupiah(m.topup),
+        formatRupiah(m.potongan),
+      ]),
+      fileName: `laporan-deposito-mitra-${period}-${Date.now()}.pdf`,
+      note: "Saldo deposito adalah dana titipan mitra (dari top up) untuk jaminan fee platform, bukan pendapatan mitra.",
+    });
+  }
+
+  function handleDownloadPendapatan() {
+    exportFinancialReportPdf({
+      title: "Laporan Pendapatan Mitra",
+      periodLabel: PERIOD_LABEL[period],
+      summary: [
+        {
+          label: `Total Pendapatan Semua Mitra (${PERIOD_LABEL[period]})`,
+          value: formatRupiah(totalPendapatanMitra),
+        },
+      ],
+      columns: ["Mitra", "Jumlah Pekerjaan", "Total Pendapatan"],
+      rows: pendapatanPerMitra.map((m) => [m.name, `${m.count}x`, formatRupiah(m.total)]),
+      fileName: `laporan-pendapatan-mitra-${period}-${Date.now()}.pdf`,
+      note: "Uang tunai yang diterima mitra langsung dari klien (sudah dikurangi fee platform), tidak melewati rekening perusahaan.",
+    });
+  }
+
+  function handleDownloadFeePlatform() {
+    exportFinancialReportPdf({
+      title: "Laporan Fee / Pendapatan Platform",
+      periodLabel: PERIOD_LABEL[period],
+      summary: [
+        { label: `Total Fee Platform (${PERIOD_LABEL[period]})`, value: formatRupiah(totalFeePlatform) },
+      ],
+      columns: ["Waktu", "Mitra", "Order #", "Fee Terpotong"],
+      rows: feeTransactions.map((t) => [
+        new Date(t.created_at).toLocaleString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        t.profiles?.name ?? "-",
+        t.related_order_id ? `#${t.related_order_id}` : "-",
+        formatRupiah(t.amount),
+      ]),
+      fileName: `laporan-fee-platform-${period}-${Date.now()}.pdf`,
+      note: "Fee 20% yang dipotong dari saldo deposito mitra tiap pesanan selesai — pendapatan resmi Kerjaku.click. PDF ini memuat seluruh transaksi periode terpilih (tabel di layar hanya menampilkan 50 terbaru).",
+    });
+  }
+
   return (
     <div className="space-y-10">
       {/* Filter periode berlaku untuk ketiga laporan sekaligus */}
@@ -146,11 +240,16 @@ export default function FinancialReports({
 
       {/* ============ 1. LAPORAN DEPOSITO MITRA ============ */}
       <section>
-        <h2 className="font-display text-lg font-semibold text-ink">Laporan Deposito Mitra</h2>
-        <p className="text-sm text-ink/60 mt-1">
-          Saldo deposito adalah dana titipan mitra (dari top up) untuk jaminan fee platform —
-          bukan pendapatan mitra.
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-ink">Laporan Deposito Mitra</h2>
+            <p className="text-sm text-ink/60 mt-1">
+              Saldo deposito adalah dana titipan mitra (dari top up) untuk jaminan fee platform —
+              bukan pendapatan mitra.
+            </p>
+          </div>
+          <DownloadPdfButton onClick={handleDownloadDeposito} />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
           <div className="rounded-card border border-line bg-white p-5 shadow-card">
             <p className="text-xs uppercase text-ink/50">Total Saldo Aktif (Saat Ini)</p>
@@ -207,11 +306,16 @@ export default function FinancialReports({
 
       {/* ============ 2. LAPORAN PENDAPATAN MITRA ============ */}
       <section>
-        <h2 className="font-display text-lg font-semibold text-ink">Laporan Pendapatan Mitra</h2>
-        <p className="text-sm text-ink/60 mt-1">
-          Uang tunai yang diterima mitra langsung dari klien (sudah dikurangi fee platform,
-          TIDAK melewati rekening perusahaan).
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-ink">Laporan Pendapatan Mitra</h2>
+            <p className="text-sm text-ink/60 mt-1">
+              Uang tunai yang diterima mitra langsung dari klien (sudah dikurangi fee platform,
+              TIDAK melewati rekening perusahaan).
+            </p>
+          </div>
+          <DownloadPdfButton onClick={handleDownloadPendapatan} />
+        </div>
         <div className="mt-4">
           <div className="rounded-card border border-line bg-white p-5 shadow-card inline-block">
             <p className="text-xs uppercase text-ink/50">
@@ -254,13 +358,18 @@ export default function FinancialReports({
 
       {/* ============ 3. LAPORAN FEE / PENDAPATAN PLATFORM ============ */}
       <section>
-        <h2 className="font-display text-lg font-semibold text-ink">
-          Laporan Fee / Pendapatan Platform
-        </h2>
-        <p className="text-sm text-ink/60 mt-1">
-          Fee 20% yang dipotong dari saldo deposito mitra tiap pesanan selesai — ini pendapatan
-          resmi Kerjaku.click.
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-ink">
+              Laporan Fee / Pendapatan Platform
+            </h2>
+            <p className="text-sm text-ink/60 mt-1">
+              Fee 20% yang dipotong dari saldo deposito mitra tiap pesanan selesai — ini pendapatan
+              resmi Kerjaku.click.
+            </p>
+          </div>
+          <DownloadPdfButton onClick={handleDownloadFeePlatform} />
+        </div>
         <div className="mt-4">
           <div className="rounded-card border-2 border-bay-deep bg-bay-deep/5 p-6 shadow-card inline-block">
             <p className="text-xs uppercase text-ink/50">Total Fee Platform ({PERIOD_LABEL[period]})</p>
@@ -310,7 +419,7 @@ export default function FinancialReports({
           {feeTransactions.length > 50 && (
             <p className="px-4 py-2 text-xs text-ink/40">
               Menampilkan 50 transaksi terbaru dari periode ini (total {feeTransactions.length}
-              transaksi).
+              transaksi). PDF berisi seluruh transaksi periode ini.
             </p>
           )}
         </div>
