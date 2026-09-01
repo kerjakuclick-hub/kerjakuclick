@@ -1,6 +1,14 @@
-// lib/types.ts — versi lengkap Fase 1.1 (gabungan file asli + field baru addendum).
-// File ini SIAP MENIMPA lib/types.ts Anda yang sekarang — semua field lama
-// tetap ada, hanya ditambah field baru yang ditandai komentar "BARU".
+// GANTI ISI lib/types.ts Anda dengan file ini.
+//
+// Perubahan dari versi Anda:
+//   1. Order: tambah mitra_id_card_sent_at & mitra_id_card_sent_by (BARU —
+//      fitur "Kirim ID Mitra via WA", migrasi 017).
+//   2. MitraProfile.skill_category & EligibleMitra.skill_category: dikoreksi
+//      dari `string | null` jadi `string[] | null` -- sesuai migrasi 014
+//      (multi-keahlian) yang sudah diterapkan di database, type lama di
+//      file ini belum di-update mengikuti. Kalau ada kode lain yang sempat
+//      menulis skill_category sebagai string tunggal, TypeScript sekarang
+//      akan menandainya sebagai error supaya ketahuan lebih awal.
 
 export type OrderStatus = "unassigned" | "assigned" | "working" | "completed" | "cancelled";
 
@@ -17,7 +25,9 @@ export type Order = {
   mitra_id: string | null;
   status: OrderStatus;
   created_at: string;
-  min_wallet_required: number; // BARU — generated column, 20% dari total_price (migrasi 007)
+  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007)
+  mitra_id_card_sent_at: string | null; // BARU — migrasi 017
+  mitra_id_card_sent_by: string | null; // BARU — migrasi 017
 };
 
 export type MitraOption = {
@@ -34,10 +44,10 @@ export type MitraProfile = {
   total_earnings: number;
   status: "training" | "ahli";
   is_active: boolean;
-  gender: "Pria" | "Wanita" | null; // BARU — migrasi 007
-  skill_category: string | null; // BARU — migrasi 007
-  photo_url: string | null; // BARU — migrasi 007
-  rating: number | null; // BARU — migrasi 007
+  gender: "Pria" | "Wanita" | null; // migrasi 007
+  skill_category: string[] | null; // DIKOREKSI — array sejak migrasi 014
+  photo_url: string | null; // migrasi 007
+  rating: number | null; // migrasi 007
 };
 
 export type MitraSelfProfile = MitraProfile;
@@ -57,7 +67,7 @@ export type Transaction = {
 };
 
 // ============================================================================
-// BARU — model deposit Addendum Fase 1.1 (menggantikan model bagi hasil lama
+// Model deposit Addendum Fase 1.1 (menggantikan model bagi hasil lama
 // untuk order yang completed SETELAH migrasi 008)
 // ============================================================================
 
@@ -97,7 +107,7 @@ export type EligibleMitra = {
   mitra_id: string;
   name: string;
   wallet_balance: number;
-  skill_category: string | null;
+  skill_category: string[] | null; // DIKOREKSI — array sejak migrasi 014
   status: "training" | "ahli" | null;
   gender: "Pria" | "Wanita" | null;
   rating: number | null;
