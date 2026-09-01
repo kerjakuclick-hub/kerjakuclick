@@ -1,16 +1,17 @@
 // GANTI ISI components/admin/OrdersFeed.tsx Anda dengan file ini.
 //
-// Revisi ke-2: menambahkan kolom "Invoice" yang sebelumnya kehapus —
-// sekarang admin bisa lihat status invoice (belum ter-generate / sudah
-// ter-generate tapi belum dikirim / sudah dikirim), buka link PDF-nya,
-// menandai "Sudah Dikirim", dan generate ulang manual kalau gagal otomatis
-// (mis. karena bucket Storage belum ada saat penugasan pertama kali).
+// Perubahan dari versi Anda: menambahkan kolom "ID Mitra" -- tombol untuk
+// membuka gambar ID Card mitra (dari next/og, selalu data terbaru) +
+// membuka chat WA klien dengan teks siap kirim, lalu tombol "Tandai
+// Terkirim" (sama persis polanya dengan kolom Invoice yang sudah ada).
+// Semua logic invoice yang sudah ada TIDAK diubah.
 
 "use client";
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah } from "@/lib/services";
+import { buildClientWaLink } from "@/lib/whatsapp";
 import type { Order, OrderStatus, EligibleMitra, Invoice } from "@/lib/types";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -44,6 +45,7 @@ export default function OrdersFeed({
   const [estimasi, setEstimasi] = useState<Record<number, string>>({});
   const [invoiceBusy, setInvoiceBusy] = useState<number | null>(null);
   const [invoiceError, setInvoiceError] = useState<Record<number, string>>({});
+  const [idCardBusy, setIdCardBusy] = useState<number | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -208,6 +210,35 @@ export default function OrdersFeed({
     }
   }
 
+  /**
+   * Buka chat WA klien dengan teks siap kirim. Dipisah dari link gambar ID
+   * Card (lihat kolom tabel) supaya tidak ada 2 window.open() sekaligus
+   * dari satu klik -- kombinasi itu sering diblokir popup blocker browser
+   * (mis. Firefox). Bukan otomatis terkirim -- admin tetap yang lampirkan
+   * gambarnya secara manual, sesuai alur invoice yang sudah ada.
+   */
+  function sendMitraIdViaWa(order: Order) {
+    const text = `Halo ${order.customer_name}, pesanan Anda di Kerjaku.click sudah kami tugaskan ke mitra kami. Berikut ID Mitra terverifikasi (gambar terlampir) untuk memastikan keamanan Anda saat mitra tiba di lokasi. Terima kasih! - Kerjaku.click`;
+    window.open(buildClientWaLink(order.customer_phone, text), "_blank");
+  }
+
+  async function markMitraIdSent(orderId: number) {
+    setIdCardBusy(orderId);
+    try {
+      const res = await fetch("/api/admin/orders/mark-mitra-id-sent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      if (res.ok) {
+        const { order } = await res.json();
+        setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
+      }
+    } finally {
+      setIdCardBusy(null);
+    }
+  }
+
   if (orders.length === 0) {
     return (
       <div className="rounded-card border border-line bg-white p-10 text-center text-sm text-ink/50">
@@ -218,7 +249,7 @@ export default function OrdersFeed({
 
   return (
     <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-      <table className="w-full min-w-[1100px] text-left text-sm">
+      <table className="w-full min-w-[1300px] text-left text-sm">
         <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
           <tr>
             <th className="px-4 py-3">Waktu Masuk</th>
@@ -229,6 +260,7 @@ export default function OrdersFeed({
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Mitra</th>
             <th className="px-4 py-3">Invoice</th>
+            <th className="px-4 py-3">ID Mitra</th>
           </tr>
         </thead>
         <tbody>
@@ -386,6 +418,45 @@ export default function OrdersFeed({
                       )}
                       {invoiceError[o.id] && (
                         <p className="mt-1 max-w-[200px] text-red-600">{invoiceError[o.id]}</p>
+                      )}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {!o.mitra_id ? (
+                    <span className="text-xs text-ink/30">-</span>
+                  ) : (
+                    <div className="space-y-1.5 text-xs">
+                      <a
+                        href={`/api/admin/mitra/id-card?mitraId=${o.mitra_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block rounded-lg border border-bay-deep px-2.5 py-1.5 text-xs font-medium text-bay-deep hover:bg-bay-deep hover:text-white"
+                      >
+                        Lihat ID Mitra
+                      </a>
+                      <button
+                        onClick={() => sendMitraIdViaWa(o)}
+                        className="block rounded-lg bg-bay-deep px-2.5 py-1.5 text-xs font-medium text-white hover:bg-bay-deep/90"
+                      >
+                        Kirim ke WA Klien
+                      </button>
+                      {o.mitra_id_card_sent_at ? (
+                        <div>
+                          <span className="rounded-full bg-wa/20 px-2 py-0.5 text-wa">
+                            Terkirim
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <button
+                            onClick={() => markMitraIdSent(o.id)}
+                            disabled={idCardBusy === o.id}
+                            className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 disabled:opacity-50"
+                          >
+                            {idCardBusy === o.id ? "Memproses..." : "Tandai Terkirim"}
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}

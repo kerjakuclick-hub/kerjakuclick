@@ -1,3 +1,9 @@
+// GANTI ISI lib/whatsapp.ts Anda dengan file ini.
+//
+// Perubahan: tambah normalizePhoneToWa() dan buildClientWaLink() untuk
+// tombol "Kirim ID Mitra via WA" -- fungsi & tipe yang sudah ada TIDAK
+// diubah sama sekali.
+
 // Nomor WA Operator (pesanan & CS) — +62 811-4550-4178
 export const OPERATOR_WA_NUMBER = "6281145504178";
 
@@ -43,4 +49,22 @@ export function buildOrderMessage({
 
 export function buildWaLink(message: string, phone: string = OPERATOR_WA_NUMBER): string {
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Normalisasi nomor HP lokal (mis. "0812xxxxxxx" hasil parsing #BARU dari
+ * webhook Fonnte) ke format yang dipahami wa.me ("62812xxxxxxx").
+ * Aman dipanggil berkali-kali -- nomor yang sudah "62..." dibiarkan apa
+ * adanya.
+ */
+export function normalizePhoneToWa(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("62")) return digits;
+  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+  return digits;
+}
+
+/** Bikin link wa.me ke NOMOR KLIEN (bukan operator), dengan teks siap kirim. */
+export function buildClientWaLink(phone: string, message: string): string {
+  return `https://wa.me/${normalizePhoneToWa(phone)}?text=${encodeURIComponent(message)}`;
 }
