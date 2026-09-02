@@ -1,26 +1,37 @@
-// FILE BARU: components/ServiceSelect.tsx
+// GANTI ISI components/ServiceSelect.tsx Anda dengan file ini.
 //
-// Menggantikan <select> native untuk "Pilihan Jasa". Alasan: dropdown
-// native (<select>+<option>) dirender OS/browser masing-masing dengan cara
-// berbeda-beda — terbukti dari testing Anda, Firefox menampilkan warna teks
-// opsi dengan benar, tapi Chrome tidak (opsi tidak terbaca kecuali sedang
-// di-hover). Ini keterbatasan bawaan <select>, bukan sesuatu yang bisa
-// diperbaiki 100% lewat CSS untuk semua browser sekaligus.
+// Perubahan: teks tiap opsi (dan teks tombol saat sudah dipilih) sekarang
+// menampilkan detail layanan (unit/pcs/tipe rumah + durasi), bukan cuma
+// nama & harga. Contoh: "Setrika Fast (Rp40.000) — 20 Pcs / Paket, 1 Jam".
 //
-// Komponen ini dirender pakai <div>/<button> biasa (bukan elemen native
-// browser), jadi tampilannya — termasuk warna teks dan shadow — dijamin
-// identik di semua browser karena kita yang mengatur semuanya lewat CSS
-// biasa, bukan bergantung pada rendering internal browser.
+// Detail diambil generik dari field `unit` & `duration` di lib/services.ts
+// (bukan di-hardcode per layanan di sini) supaya varian baru otomatis ikut
+// tampil lengkap. Satu pengecualian: untuk kategori "Les Private", field
+// `unit`-nya sudah terkandung dalam `name` (mis. "Mengaji — 1x Pertemuan"),
+// jadi untuk kategori itu cuma `duration` yang ditambahkan supaya teksnya
+// tidak dobel ("...1x Pertemuan — 1x Pertemuan, 2 Jam").
+//
+// Catatan: Cuci Motor & Cuci Mobil TIDAK diminta detail tambahan secara
+// eksplisit, tapi karena field unit/duration untuk keduanya sudah ada &
+// valid di lib/services.ts ("1 Motor"/"1 Jam", "1 Mobil"/"2 Jam"), detail
+// itu ikut tampil juga lewat logic generik ini -- konsisten dengan seluruh
+// kategori lain, dan datanya memang benar. Kalau ternyata tidak mau
+// ditampilkan untuk 2 layanan ini, tinggal beri tahu saya.
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { services, formatRupiah, serviceCategories } from "@/lib/services";
+import { services, formatRupiah, serviceCategories, type ServiceVariant } from "@/lib/services";
 
 interface ServiceSelectProps {
   id?: string;
   value: string;
   onChange: (name: string) => void;
+}
+
+function formatServiceLabel(s: ServiceVariant): string {
+  const details = s.category === "Les Private" ? [s.duration] : [s.unit, s.duration];
+  return `${s.name} (${formatRupiah(s.price)}) — ${details.join(", ")}`;
 }
 
 export default function ServiceSelect({ id, value, onChange }: ServiceSelectProps) {
@@ -57,7 +68,7 @@ export default function ServiceSelect({ id, value, onChange }: ServiceSelectProp
         className="w-full flex items-center justify-between rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-left text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bridge"
       >
         <span className={selected ? "" : "text-white/40"}>
-          {selected ? `${selected.name} (${formatRupiah(selected.price)})` : "Pilih jenis layanan"}
+          {selected ? formatServiceLabel(selected) : "Pilih jenis layanan"}
         </span>
         <svg
           width="16"
@@ -102,7 +113,7 @@ export default function ServiceSelect({ id, value, onChange }: ServiceSelectProp
                       value === s.name ? "bg-bay-deep/10 font-medium text-bay-deep" : "text-ink"
                     }`}
                   >
-                    {s.name} ({formatRupiah(s.price)})
+                    {formatServiceLabel(s)}
                   </button>
                 ))}
             </div>
