@@ -1,14 +1,10 @@
 // GANTI ISI lib/services.ts Anda dengan file ini.
 //
-// Perubahan: menambahkan 14 varian baru untuk kategori "Les Private" (7 mata
-// pelajaran x 2 paket harga). Tidak ada perubahan pada type, fungsi
-// findServiceByLabel, formatRupiah, atau serviceCategories — semuanya
-// otomatis ikut mendukung Les Private karena beroperasi generik di atas
-// array `services`.
-//
-// Skema tier: "Fast" dipakai untuk paket 1x pertemuan (Rp65.000), "PRO"
-// untuk paket 3x/minggu (Rp150.000) — konsisten dengan makna tier di 3
-// kategori rumah tangga yang sudah ada (Fast = sekali, PRO = lebih lengkap).
+// Perubahan: unit untuk cleaning-fast & cleaning-pro dilengkapi info tipe
+// rumah (36/45 dan 50/80) supaya detail layanan yang ditampilkan di
+// dropdown "Pilihan Jasa" (lihat ServiceSelect.tsx) lengkap. Tidak ada
+// perubahan pada type, fungsi findServiceByLabel, formatRupiah, atau
+// serviceCategories.
 
 export type ServiceVariant = {
   id: string;
@@ -75,7 +71,7 @@ export const services: ServiceVariant[] = [
     category: "Bersihkan Rumah",
     name: "Cleaning Fast",
     price: 45000,
-    unit: "1 Rumah / Properti",
+    unit: "1 Rumah (Tipe 36/45)",
     duration: "1.5 Jam",
     tier: "Fast",
   },
@@ -84,7 +80,7 @@ export const services: ServiceVariant[] = [
     category: "Bersihkan Rumah",
     name: "Cleaning PRO",
     price: 80000,
-    unit: "1 Rumah / Properti",
+    unit: "1 Rumah (Tipe 50/80)",
     duration: "2.5 Jam",
     tier: "PRO",
   },
