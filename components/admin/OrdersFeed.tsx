@@ -1,10 +1,18 @@
 // GANTI ISI components/admin/OrdersFeed.tsx Anda dengan file ini.
 //
-// Perubahan dari versi Anda: menambahkan kolom "ID Mitra" -- tombol untuk
-// membuka gambar ID Card mitra (dari next/og, selalu data terbaru) +
-// membuka chat WA klien dengan teks siap kirim, lalu tombol "Tandai
-// Terkirim" (sama persis polanya dengan kolom Invoice yang sudah ada).
-// Semua logic invoice yang sudah ada TIDAK diubah.
+// Perubahan dari versi sebelumnya (streamlining alur konfirmasi klien,
+// karena Fonnte API kirim belum terkoneksi -- masih webhook/terima saja):
+//   1. Kolom "Invoice" lama (Klien + Mitra) dipecah: baris Klien pindah
+//      gabung ke kolom "Konfirmasi Klien" yang baru, kolom "Invoice Mitra"
+//      sekarang cuma urus invoice Mitra saja.
+//   2. Kolom "ID Mitra" lama diganti "Konfirmasi Klien" -- satu kolom
+//      berisi: link unduh ID Card (pakai atribut `download`, jadi
+//      langsung ke-download, tidak perlu buka tab lalu save-as manual
+//      lagi), link "Lihat Invoice" klien, tombol buka WA klien, dan SATU
+//      tombol "Tandai Terkirim" yang menandai invoice klien + ID card
+//      sekaligus (bukan dua tombol terpisah seperti sebelumnya).
+//   3. Layout tabel (spacing kolom + scrollbar horizontal) tetap seperti
+//      perbaikan sebelumnya, tidak diubah lagi di file ini.
 
 "use client";
 
@@ -45,7 +53,7 @@ export default function OrdersFeed({
   const [estimasi, setEstimasi] = useState<Record<number, string>>({});
   const [invoiceBusy, setInvoiceBusy] = useState<number | null>(null);
   const [invoiceError, setInvoiceError] = useState<Record<number, string>>({});
-  const [idCardBusy, setIdCardBusy] = useState<number | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState<number | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -211,31 +219,45 @@ export default function OrdersFeed({
   }
 
   /**
-   * Buka chat WA klien dengan teks siap kirim. Dipisah dari link gambar ID
-   * Card (lihat kolom tabel) supaya tidak ada 2 window.open() sekaligus
-   * dari satu klik -- kombinasi itu sering diblokir popup blocker browser
-   * (mis. Firefox). Bukan otomatis terkirim -- admin tetap yang lampirkan
-   * gambarnya secara manual, sesuai alur invoice yang sudah ada.
+   * "Konfirmasi Klien" -- satu tombol untuk mempersingkat alur lama yang
+   * butuh buka-tab-terpisah lalu save-as manual. Sekarang: (1) ID Card
+   * ter-download otomatis lewat klik <a download> di JSX (browser tidak
+   * menganggap itu popup, jadi aman), lalu (2) chat WA klien langsung
+   * kebuka dengan teks siap kirim -- cuma 1 window.open() supaya tidak
+   * kena popup blocker (pernah kejadian sebelumnya kalau 2 sekaligus).
+   * Invoice PDF klien tetap dibuka lewat link "Lihat Invoice" terpisah di
+   * kolom yang sama (klik manual kalau memang belum kebuka), karena PDF-nya
+   * di-host Supabase Storage (beda origin) sehingga tidak bisa dipaksa ikut
+   * ter-download otomatis dari sini.
+   *
+   * Belum ada kirim otomatis lewat Fonnte API (baru webhook/terima yang
+   * aktif) -- begitu device-token Fonnte untuk kirim sudah di-setup, alur
+   * ini bisa diganti jadi benar-benar 1 klik tanpa perlu attach manual di
+   * WA sama sekali.
    */
-  function sendMitraIdViaWa(order: Order) {
-    const text = `Halo ${order.customer_name}, pesanan Anda di Kerjaku.click sudah kami tugaskan ke mitra kami. Berikut ID Mitra terverifikasi (gambar terlampir) untuk memastikan keamanan Anda saat mitra tiba di lokasi. Terima kasih! - Kerjaku.click`;
+  function openWaKonfirmasiKlien(order: Order) {
+    const text = `Halo ${order.customer_name}, pesanan Anda di Kerjaku.click sudah kami tugaskan ke mitra kami. Berikut ID Mitra terverifikasi & invoice pesanan (terlampir) untuk memastikan keamanan dan transparansi biaya Anda. Terima kasih! - Kerjaku.click`;
     window.open(buildClientWaLink(order.customer_phone, text), "_blank");
   }
 
-  async function markMitraIdSent(orderId: number) {
-    setIdCardBusy(orderId);
+  /** Menandai SEKALIGUS invoice klien + ID Card sebagai terkirim -- satu tombol, bukan dua. */
+  async function markKlienConfirmed(orderId: number, klienInvoiceId?: number) {
+    setConfirmBusy(orderId);
     try {
-      const res = await fetch("/api/admin/orders/mark-mitra-id-sent", {
+      const res = await fetch("/api/admin/orders/mark-klien-confirmed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId }),
+        body: JSON.stringify({ orderId, klienInvoiceId }),
       });
       if (res.ok) {
-        const { order } = await res.json();
+        const { order, invoice } = await res.json();
         setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
+        if (invoice) {
+          setInvoices((prev) => prev.map((i) => (i.id === invoice.id ? invoice : i)));
+        }
       }
     } finally {
-      setIdCardBusy(null);
+      setConfirmBusy(null);
     }
   }
 
@@ -248,19 +270,24 @@ export default function OrdersFeed({
   }
 
   return (
-    <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-      <table className="w-full min-w-[1300px] text-left text-sm">
-        <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
-          <tr>
-            <th className="px-4 py-3">Waktu Masuk</th>
-            <th className="px-4 py-3">Pelanggan</th>
-            <th className="px-4 py-3">Layanan</th>
-            <th className="px-4 py-3">Jadwal</th>
-            <th className="px-4 py-3">Preferensi</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3">Mitra</th>
-            <th className="px-4 py-3">Invoice</th>
-            <th className="px-4 py-3">ID Mitra</th>
+    // max-h + overflow-auto (bukan cuma overflow-x-auto) supaya scrollbar
+    // horizontal selalu ada di dekat bagian atas layar -- tidak perlu
+    // scroll ke bawah dulu buat nemuin scrollbar-nya kalau baris pesanan
+    // banyak. Header ikut sticky supaya nama kolom tetap kelihatan saat
+    // scroll ke bawah.
+    <div className="max-h-[75vh] overflow-auto rounded-card border border-line bg-white shadow-card">
+      <table className="w-full min-w-[1350px] text-left text-sm">
+        <thead className="sticky top-0 z-10 border-b border-line bg-paper text-xs uppercase text-ink/50 shadow-sm">
+          <tr className="divide-x divide-line">
+            <th className="px-5 py-4">Waktu Masuk</th>
+            <th className="px-5 py-4">Pelanggan</th>
+            <th className="px-5 py-4">Layanan</th>
+            <th className="px-5 py-4">Jadwal</th>
+            <th className="px-5 py-4">Preferensi</th>
+            <th className="px-5 py-4">Status</th>
+            <th className="px-5 py-4">Mitra</th>
+            <th className="px-5 py-4">Invoice Mitra</th>
+            <th className="px-5 py-4">Konfirmasi Klien</th>
           </tr>
         </thead>
         <tbody>
@@ -272,8 +299,11 @@ export default function OrdersFeed({
             const mitraInvoice = orderInvoices.find((i) => i.recipient_type === "mitra");
 
             return (
-              <tr key={o.id} className="border-b border-line last:border-0 align-top">
-                <td className="whitespace-nowrap px-4 py-3 text-xs text-ink/60">
+              <tr
+                key={o.id}
+                className="divide-x divide-line border-b border-line align-top last:border-0"
+              >
+                <td className="whitespace-nowrap px-5 py-4 text-xs text-ink/60">
                   {new Date(o.created_at).toLocaleString("id-ID", {
                     day: "2-digit",
                     month: "short",
@@ -281,25 +311,25 @@ export default function OrdersFeed({
                     minute: "2-digit",
                   })}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-5 py-4">
                   <p className="font-medium text-ink">{o.customer_name}</p>
                   <p className="text-xs text-ink/50">{o.customer_phone}</p>
                   <p className="max-w-[180px] truncate text-xs text-ink/50">{o.address}</p>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-5 py-4">
                   <p className="text-ink">{o.service_type}</p>
                   <p className="text-xs text-ink/50">{formatRupiah(o.total_price)}</p>
                   <p className="text-xs text-ink/40">
                     Ambang saldo: {formatRupiah(o.min_wallet_required)}
                   </p>
                 </td>
-                <td className="px-4 py-3 text-xs text-ink/70">
+                <td className="px-5 py-4 text-xs text-ink/70">
                   {o.scheduled_date ?? "-"}
                   <br />
                   {o.preferred_time ?? "-"}
                 </td>
-                <td className="px-4 py-3 text-xs text-ink/70">{o.mitra_gender_preference ?? "-"}</td>
-                <td className="px-4 py-3">
+                <td className="px-5 py-4 text-xs text-ink/70">{o.mitra_gender_preference ?? "-"}</td>
+                <td className="px-5 py-4">
                   <select
                     value={o.status}
                     disabled={savingId === o.id}
@@ -313,7 +343,7 @@ export default function OrdersFeed({
                     ))}
                   </select>
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-5 py-4">
                   {showEligibleHint ? (
                     <div className="space-y-1.5">
                       <input
@@ -367,46 +397,38 @@ export default function OrdersFeed({
                     </select>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-5 py-4">
                   {o.status === "unassigned" ? (
                     <span className="text-xs text-ink/30">-</span>
                   ) : (
                     <div className="space-y-1.5 text-xs">
-                      {[
-                        { label: "Klien", inv: klienInvoice },
-                        { label: "Mitra", inv: mitraInvoice },
-                      ].map(({ label, inv }) => (
-                        <div key={label} className="flex items-center gap-1.5">
-                          <span className="w-10 text-ink/50">{label}:</span>
-                          {inv ? (
-                            <>
-                              <a
-                                href={inv.file_url ?? "#"}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-bay-deep underline"
-                              >
-                                Lihat PDF
-                              </a>
-                              {inv.sent_at ? (
-                                <span className="rounded-full bg-wa/20 px-2 py-0.5 text-wa">
-                                  Terkirim
-                                </span>
-                              ) : (
-                                <button
-                                  onClick={() => markSent(inv.id)}
-                                  disabled={invoiceBusy === inv.id}
-                                  className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 disabled:opacity-50"
-                                >
-                                  Tandai Terkirim
-                                </button>
-                              )}
-                            </>
+                      {mitraInvoice ? (
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={mitraInvoice.file_url ?? "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-bay-deep underline"
+                          >
+                            Lihat PDF
+                          </a>
+                          {mitraInvoice.sent_at ? (
+                            <span className="rounded-full bg-wa/20 px-2 py-0.5 text-wa">
+                              Terkirim
+                            </span>
                           ) : (
-                            <span className="text-red-500">Belum ter-generate</span>
+                            <button
+                              onClick={() => markSent(mitraInvoice.id)}
+                              disabled={invoiceBusy === mitraInvoice.id}
+                              className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 disabled:opacity-50"
+                            >
+                              Tandai Terkirim
+                            </button>
                           )}
                         </div>
-                      ))}
+                      ) : (
+                        <span className="text-red-500">Belum ter-generate</span>
+                      )}
                       {(!klienInvoice || !mitraInvoice) && (
                         <button
                           onClick={() => retryGenerateInvoice(o.id)}
@@ -422,41 +444,51 @@ export default function OrdersFeed({
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-5 py-4">
                   {!o.mitra_id ? (
                     <span className="text-xs text-ink/30">-</span>
                   ) : (
                     <div className="space-y-1.5 text-xs">
-                      <a
-                        href={`/api/admin/mitra/id-card?mitraId=${o.mitra_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block rounded-lg border border-bay-deep px-2.5 py-1.5 text-xs font-medium text-bay-deep hover:bg-bay-deep hover:text-white"
-                      >
-                        Lihat ID Mitra
-                      </a>
+                      {/* download otomatis, bukan cuma "buka tab lalu save manual" --
+                          sama origin (route API kita sendiri) jadi atribut download
+                          jalan normal di browser. */}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <a
+                          href={`/api/admin/mitra/id-card?mitraId=${o.mitra_id}`}
+                          download={`id-card-mitra-order-${o.id}.png`}
+                          className="inline-block rounded-lg border border-bay-deep px-2.5 py-1.5 text-xs font-medium text-bay-deep hover:bg-bay-deep hover:text-white"
+                        >
+                          Unduh ID Mitra
+                        </a>
+                        {klienInvoice?.file_url && (
+                          <a
+                            href={klienInvoice.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-bay-deep underline"
+                          >
+                            Lihat Invoice
+                          </a>
+                        )}
+                      </div>
                       <button
-                        onClick={() => sendMitraIdViaWa(o)}
+                        onClick={() => openWaKonfirmasiKlien(o)}
                         className="block rounded-lg bg-bay-deep px-2.5 py-1.5 text-xs font-medium text-white hover:bg-bay-deep/90"
                       >
                         Kirim ke WA Klien
                       </button>
                       {o.mitra_id_card_sent_at ? (
-                        <div>
-                          <span className="rounded-full bg-wa/20 px-2 py-0.5 text-wa">
-                            Terkirim
-                          </span>
-                        </div>
+                        <span className="inline-block rounded-full bg-wa/20 px-2 py-0.5 text-wa">
+                          Terkirim
+                        </span>
                       ) : (
-                        <div>
-                          <button
-                            onClick={() => markMitraIdSent(o.id)}
-                            disabled={idCardBusy === o.id}
-                            className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 disabled:opacity-50"
-                          >
-                            {idCardBusy === o.id ? "Memproses..." : "Tandai Terkirim"}
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => markKlienConfirmed(o.id, klienInvoice?.id)}
+                          disabled={confirmBusy === o.id}
+                          className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 disabled:opacity-50"
+                        >
+                          {confirmBusy === o.id ? "Memproses..." : "Tandai Terkirim"}
+                        </button>
                       )}
                     </div>
                   )}
