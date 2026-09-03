@@ -30,9 +30,8 @@ export default function Hero() {
           Jasa Tenaga Kerja Ke Rumah Anda, Sekali Klik!.
         </h1>
         <p className="text-lg text-[#3f484d] leading-relaxed">
-          Solusi praktis untuk kebutuhan rumah tangga di Kota Palu. Setrika,
-          bersih-bersih rumah, cuci kendaraan, hingga les private untuk anak Anda dengan tenaga terpercaya
-          dan profesional.
+           Solusi praktis bikin hidup bernilai. Setrika | Bersihin Rumah | 
+  Cuci Kendaraan | Les Private. Mitra Terverifikasi & Profesional.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           <a

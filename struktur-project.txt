@@ -1,0 +1,155 @@
+.
+├── app
+│   ├── admin
+│   │   ├── layout.tsx
+│   │   ├── media
+│   │   │   └── page.tsx
+│   │   ├── mitra
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   ├── pendaftar
+│   │   │   └── page.tsx
+│   │   └── transaksi
+│   │       └── page.tsx
+│   ├── api
+│   │   ├── admin
+│   │   │   ├── invoices
+│   │   │   │   └── mark-sent
+│   │   │   │       └── route.ts
+│   │   │   ├── media
+│   │   │   │   ├── create-slot
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── delete-slot
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── upload
+│   │   │   │       └── route.ts
+│   │   │   ├── mitra
+│   │   │   │   ├── route.ts
+│   │   │   │   ├── toggle
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── topup
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── update-attributes
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── upload-photo
+│   │   │   │       └── route.ts
+│   │   │   ├── mitra-applications
+│   │   │   │   ├── get-file-url
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── update-status
+│   │   │   │       └── route.ts
+│   │   │   └── orders
+│   │   │       ├── assign
+│   │   │       │   └── route.ts
+│   │   │       └── generate-invoice
+│   │   │           └── route.ts
+│   │   ├── mitra
+│   │   │   └── orders
+│   │   │       └── update
+│   │   │           └── route.ts
+│   │   ├── mitra-applications
+│   │   │   └── submit
+│   │   │       └── route.ts
+│   │   └── webhook
+│   │       └── fonnte
+│   │           └── route.ts
+│   ├── apple-icon.png
+│   ├── auth
+│   │   └── signout
+│   │       └── route.ts
+│   ├── daftar-mitra
+│   │   └── page.tsx
+│   ├── favicon.ico
+│   ├── globals.css
+│   ├── icon.png
+│   ├── layout.tsx
+│   ├── login
+│   │   └── page.tsx
+│   ├── manifest.ts
+│   ├── mitra
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   └── page.tsx
+├── audit-project.txt
+├── CHECKLIST_KEAMANAN_TAHAP5.md
+├── components
+│   ├── admin
+│   │   ├── AdminNav.tsx
+│   │   ├── FinancialReports.tsx
+│   │   ├── MediaLibrary.tsx
+│   │   ├── MitraApplicationsList.tsx
+│   │   ├── MitraTable.tsx
+│   │   └── OrdersFeed.tsx
+│   ├── Footer.tsx
+│   ├── Header.tsx
+│   ├── Hero.tsx
+│   ├── HowItWorks.tsx
+│   ├── Icons.tsx
+│   ├── mitra
+│   │   ├── MitraNav.tsx
+│   │   └── TaskList.tsx
+│   ├── MitraApplicationForm.tsx
+│   ├── MitraShowcase.tsx
+│   ├── OrderForm.tsx
+│   ├── Promo.tsx
+│   ├── ServiceSelect.tsx
+│   ├── ServicesGrid.tsx
+│   ├── TrustBar.tsx
+│   ├── WhatsAppPreview.tsx
+│   ├── WhyChooseUs.tsx
+│   └── YoutubeSection.tsx
+├── deep-audit-2.txt
+├── deep-audit.txt
+├── .env.local
+├── .gitignore
+├── lib
+│   ├── pdf
+│   │   ├── exportFinancialReportPdf.ts
+│   │   ├── generate-invoice.tsx
+│   │   └── invoice-templates.tsx
+│   ├── services.ts
+│   ├── supabase
+│   │   ├── client.ts
+│   │   └── server.ts
+│   ├── supabaseAdmin.ts
+│   ├── types.ts
+│   └── whatsapp.ts
+├── middleware.ts
+├── next.config.mjs
+├── next-env.d.ts
+├── order-form-audit.txt
+├── package.json
+├── package-lock.json
+├── postcss.config.mjs
+├── public
+│   └── icons
+│       ├── icon-192.png
+│       └── icon-512.png
+├── README.md
+├── ROADMAP.md
+├── struktur-project.txt
+├── supabase
+│   ├── migrations
+│   │   ├── 001_add_waktu_preferensi.sql
+│   │   ├── 002_add_tanggal.sql
+│   │   ├── 003_enable_realtime.sql
+│   │   ├── 004_fix_profiles_rls_recursion.sql
+│   │   ├── 005_mitra_update_own_orders.sql
+│   │   ├── 006_bagi_hasil_otomatis.sql
+│   │   ├── 007_addendum_fase_1_1_schema.sql
+│   │   ├── 008_switch_to_deposit_model.sql
+│   │   ├── 009_reset_legacy_wallet_balance.sql
+│   │   ├── 011_create_mitra_photos_bucket.sql
+│   │   ├── 012_create_media_library.sql
+│   │   ├── 013_public_mitra_showcase_function.sql
+│   │   ├── 014_multi_skill_category.sql
+│   │   ├── 015_mitra_applications.sql
+│   │   └── 016_les_private_verification.sql
+│   ├── schema.sql
+│   └── scripts
+│       ├── pre_migration_audit_saldo.sql
+│       └── rollback_007_008.sql
+├── tailwind.config.ts
+└── tsconfig.json
+
+49 directories, 104 files
