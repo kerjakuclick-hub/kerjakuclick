@@ -1,8 +1,10 @@
 // GANTI ISI lib/whatsapp.ts Anda dengan file ini.
 //
-// Perubahan: tambah normalizePhoneToWa() dan buildClientWaLink() untuk
-// tombol "Kirim ID Mitra via WA" -- fungsi & tipe yang sudah ada TIDAK
-// diubah sama sekali.
+// Perubahan: tambah phoneLookupVariants() untuk fitur "Riwayat Pesanan
+// Saya" (app/api/riwayat/route.ts) -- dipakai mencocokkan nomor HP yang
+// diketik pelanggan ke format yang mungkin tersimpan di kolom
+// orders.customer_phone (bisa "0812..." atau "62812..." tergantung cara
+// webhook Fonnte menyimpannya). Fungsi & tipe yang sudah ada TIDAK diubah.
 
 // Nomor WA Operator (pesanan & CS) — +62 811-4550-4178
 export const OPERATOR_WA_NUMBER = "6281145504178";
@@ -67,4 +69,28 @@ export function normalizePhoneToWa(phone: string): string {
 /** Bikin link wa.me ke NOMOR KLIEN (bukan operator), dengan teks siap kirim. */
 export function buildClientWaLink(phone: string, message: string): string {
   return `https://wa.me/${normalizePhoneToWa(phone)}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Menghasilkan kemungkinan bentuk penyimpanan satu nomor HP ("0812...",
+ * "62812...") supaya query .in("customer_phone", variants) tetap
+ * ketemu order lama, terlepas dari apakah webhook Fonnte menyimpannya
+ * dengan awalan "0" atau "62". Dipakai oleh
+ * app/api/customer/riwayat/route.ts.
+ */
+export function phoneLookupVariants(rawPhone: string): string[] {
+  const digits = rawPhone.replace(/\D/g, "");
+  const variants = new Set<string>([digits]);
+
+  if (digits.startsWith("62")) {
+    variants.add(`0${digits.slice(2)}`);
+  } else if (digits.startsWith("0")) {
+    variants.add(`62${digits.slice(1)}`);
+  } else {
+    // Diketik tanpa awalan 0/62 (mis. langsung "812...") -- coba dua-duanya.
+    variants.add(`0${digits}`);
+    variants.add(`62${digits}`);
+  }
+
+  return Array.from(variants);
 }

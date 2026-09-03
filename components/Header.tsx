@@ -1,3 +1,10 @@
+// GANTI ISI komponen navbar Anda dengan file ini.
+//
+// Perubahan: tambah link "Riwayat Pesanan" (ke /riwayat) di navLinks --
+// otomatis muncul di menu desktop DAN mobile karena keduanya render
+// navLinks yang sama. Style disamakan dengan "Jadi Mitra" (link Next.js
+// biasa, bukan anchor #section). Tidak ada perubahan lain.
+
 "use client";
 
 import { useState } from "react";
@@ -35,6 +42,13 @@ export default function Header() {
         className="text-[#3f484d] hover:text-[#1D6F8C] transition-colors text-sm font-medium"
       >
         Jadi Mitra
+      </Link>
+      <Link
+        href="/riwayat"
+        onClick={() => setMobileOpen(false)}
+        className="text-[#3f484d] hover:text-[#1D6F8C] transition-colors text-sm font-medium"
+      >
+        Riwayat Pesanan
       </Link>
     </>
   );
