@@ -76,6 +76,22 @@ export default function OrderForm() {
     }
   }, []);
 
+  // Dipicu dari modal detail jasa di ServicesGridInteractive.tsx (tombol
+  // "Pesan Sekarang") -- OrderForm SUDAH ter-mount di halaman yang sama,
+  // jadi tidak bisa pakai localStorage+prefill-on-mount seperti "Pesan
+  // Lagi" di atas (efek mount itu cuma jalan sekali di awal, sudah lewat).
+  // Custom event ini yang menjembatani klik di modal -> state form ini,
+  // walau customer belum login pun jasa-nya tetap ter-set duluan (form
+  // baru muncul setelah login, tapi value jasa sudah siap).
+  useEffect(() => {
+    function handleSelectService(e: Event) {
+      const detail = (e as CustomEvent<{ jasa?: string }>).detail;
+      if (detail?.jasa) setJasa(detail.jasa);
+    }
+    window.addEventListener("kerjaku:select-service", handleSelectService);
+    return () => window.removeEventListener("kerjaku:select-service", handleSelectService);
+  }, []);
+
   const selectedService = useMemo(() => services.find((s) => s.name === jasa), [jasa]);
   const isLesPrivate = selectedService?.category === "Les Private";
   const timeSlotOptions = isLesPrivate ? LES_PRIVATE_TIME_SLOTS : HOUSEHOLD_TIME_SLOTS;

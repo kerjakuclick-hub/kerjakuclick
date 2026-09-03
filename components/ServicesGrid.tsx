@@ -1,12 +1,27 @@
 // GANTI ISI components/ServicesGrid.tsx Anda dengan file ini.
-// Perubahan: tambah kartu ke-4 untuk kategori "Les Private".
+//
+// Perubahan: kartu "Layanan Unggulan" sekarang bisa diklik (kecuali yang
+// masih "Coming Soon") untuk membuka modal berisi daftar varian jasa
+// (Fast/PRO, harga, unit, durasi) dari lib/services.ts, dengan tombol
+// "Pesan Sekarang" per varian. Bagian interaktifnya (modal, klik) pindah
+// ke ServicesGridInteractive.tsx (Client Component) -- file ini TETAP
+// Server Component, cuma nambah field `serviceCategory` (penghubung ke
+// kategori di lib/services.ts) & `comingSoon` per kartu, fetch gambar
+// dari Supabase tidak berubah.
+//
+// Cuci Kendaraan & Les Private tetap ditandai comingSoon: true (tidak
+// bisa diklik) sesuai keputusan Anda, walau datanya sudah lengkap di
+// lib/services.ts -- badge "COMING SOON" di gambar kartu itu sendiri
+// (di-upload lewat panel media) tidak disentuh oleh perubahan ini.
 
 import { createClient } from "@/lib/supabase/server";
+import ServicesGridInteractive, { type ServiceCardData } from "./ServicesGridInteractive";
 
-const services = [
+const services: Omit<ServiceCardData, "imageUrl">[] = [
   {
     slug: "service_setrika",
     name: "Setrika",
+    serviceCategory: "Setrika Pakaian",
     desc: "Pakaian rapi tanpa lelah. Mitra kami ahli dalam menangani berbagai jenis kain.",
     priceFrom: "Rp 40.000",
     duration: "Est. 1-2 Jam",
@@ -17,6 +32,7 @@ const services = [
   {
     slug: "service_bersihkan_rumah",
     name: "Bersihkan Rumah",
+    serviceCategory: "Bersihkan Rumah",
     desc: "Pembersihan menyeluruh untuk ruang tamu, kamar tidur, hingga dapur Anda.",
     priceFrom: "Rp 45.000",
     duration: "Est. 1,5-2,5 Jam",
@@ -26,6 +42,8 @@ const services = [
   {
     slug: "service_cuci_kendaraan",
     name: "Cuci Kendaraan",
+    serviceCategory: "Cuci Kendaraan",
+    comingSoon: true,
     desc: "Cuci motor atau mobil langsung di rumah Anda tanpa perlu antre di luar.",
     priceFrom: "Rp 35.000",
     duration: "Est. 1-2 Jam",
@@ -35,6 +53,8 @@ const services = [
   {
     slug: "service_les_private",
     name: "Les Private",
+    serviceCategory: "Les Private",
+    comingSoon: true,
     desc: "Bantu anak selesaikan PR & pahami pelajaran sekolah — mengaji, matematika, IPA, hingga komputer.",
     priceFrom: "Rp 65.000",
     duration: "2 Jam / Sesi",
@@ -55,6 +75,11 @@ export default async function ServicesGrid() {
 
   const imageBySlug = new Map((media ?? []).map((m) => [m.slug, m.image_url]));
 
+  const resolvedServices: ServiceCardData[] = services.map((s) => ({
+    ...s,
+    imageUrl: imageBySlug.get(s.slug) ?? null,
+  }));
+
   return (
     <section id="services" className="max-w-[1200px] mx-auto px-6 py-16 md:py-20">
       <div className="text-center mb-10">
@@ -66,50 +91,7 @@ export default async function ServicesGrid() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {services.map((s) => {
-          const imageUrl = imageBySlug.get(s.slug);
-          return (
-            <div
-              key={s.name}
-              className="bg-white rounded-xl overflow-hidden border border-[#12202A]/5 shadow-[0px_4px_20px_rgba(18,32,42,0.05)] hover:shadow-[0px_8px_30px_rgba(18,32,42,0.08)] hover:-translate-y-0.5 transition-all"
-            >
-              {imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imageUrl} alt={s.name} className="h-40 w-full object-cover" />
-              ) : (
-                <div
-                  className={`h-40 w-full bg-gradient-to-br ${s.gradient} flex items-center justify-center text-5xl`}
-                >
-                  {s.icon}
-                </div>
-              )}
-              <div className="p-5 space-y-3">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-lg text-[#12202A]">
-                    {s.name}
-                  </h3>
-                  {s.badge && (
-                    <span className="bg-[#1D6F8C]/10 text-[#1D6F8C] text-[10px] font-bold px-2 py-1 rounded uppercase">
-                      {s.badge}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[#3f484d] text-sm">{s.desc}</p>
-                <div className="flex justify-between items-center pt-3 border-t border-[#dfe3e0]">
-                  <div>
-                    <p className="text-xs text-[#3f484d] uppercase font-bold tracking-wide">
-                      Mulai dari
-                    </p>
-                    <p className="font-semibold text-[#12202A]">{s.priceFrom}</p>
-                  </div>
-                  <span className="text-xs text-[#3f484d]">{s.duration}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <ServicesGridInteractive services={resolvedServices} />
     </section>
   );
 }
