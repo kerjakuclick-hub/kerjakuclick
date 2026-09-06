@@ -1,13 +1,17 @@
 // GANTI ISI components/Footer.tsx Anda dengan file ini.
-// Link kontak diisi data asli dari identitas perusahaan (bukan "#" kosong
-// seperti hasil mentah Stitch).
+// Perubahan: logo gambar (/public/logo.png) ditambahkan di sebelah teks
+// "kerjaku.click".
 
 export default function Footer() {
   return (
     <footer className="bg-[#12202A] mt-16">
       <div className="max-w-[1200px] mx-auto px-6 py-16 flex flex-col md:flex-row justify-between items-start gap-10">
         <div className="space-y-3 max-w-sm">
-          <div className="font-semibold text-[#F5B324]">kerjaku.click</div>
+          <div className="flex items-center gap-2 font-semibold text-[#F5B324]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9 rounded-full" />
+            <span>kerjaku.click</span>
+          </div>
           <p className="text-white/70 text-sm">
             Penyedia jasa tenaga kerja harian terpercaya untuk area Kota Palu
             dan sekitarnya. Membantu memudahkan urusan rumah tangga Anda.
@@ -50,7 +54,7 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                 href="https://wa.me/6281145504178"
+                  href="https://wa.me/6281145504178"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-white/70 hover:text-[#F5B324] transition-colors"

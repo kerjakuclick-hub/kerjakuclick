@@ -1,9 +1,6 @@
-// GANTI ISI komponen navbar Anda dengan file ini.
-//
-// Perubahan: tambah link "Riwayat Pesanan" (ke /riwayat) di navLinks --
-// otomatis muncul di menu desktop DAN mobile karena keduanya render
-// navLinks yang sama. Style disamakan dengan "Jadi Mitra" (link Next.js
-// biasa, bukan anchor #section). Tidak ada perubahan lain.
+// GANTI ISI components/Header.tsx Anda dengan file ini.
+// Perubahan: logo gambar (/public/logo.png) ditambahkan di sebelah teks
+// "kerjaku.click", bukan menggantikannya.
 
 "use client";
 
@@ -43,21 +40,18 @@ export default function Header() {
       >
         Jadi Mitra
       </Link>
-      <Link
-        href="/riwayat"
-        onClick={() => setMobileOpen(false)}
-        className="text-[#3f484d] hover:text-[#1D6F8C] transition-colors text-sm font-medium"
-      >
-        Riwayat Pesanan
-      </Link>
     </>
   );
 
   return (
     <header className="sticky top-0 z-50 bg-[#f6faf6]/95 backdrop-blur shadow-sm">
       <nav className="max-w-[1200px] mx-auto flex items-center justify-between px-6 py-3">
-        <Link href="/" className="font-bold text-xl text-[#00566f]">
-          kerjaku<span className="text-[#1D6F8C]">.click</span>
+        <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#00566f]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9 rounded-full" />
+          <span>
+            kerjaku<span className="text-[#1D6F8C]">.click</span>
+          </span>
         </Link>
 
         {/* Menu desktop */}
