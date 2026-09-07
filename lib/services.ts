@@ -1,9 +1,23 @@
 // GANTI ISI lib/services.ts Anda dengan file ini.
 //
-// Perubahan: unit untuk cleaning-fast & cleaning-pro dilengkapi info tipe
-// rumah (36/45 dan 50/80) supaya detail layanan yang ditampilkan di
-// dropdown "Pilihan Jasa" (lihat ServiceSelect.tsx) lengkap. Tidak ada
-// perubahan pada type, fungsi findServiceByLabel, formatRupiah, atau
+// Perubahan:
+// 1. ServiceVariant dapat 2 field baru opsional: `desc` (deskripsi layanan)
+//    & `detilPekerjaan` (daftar detil pekerjaan) -- opsional supaya varian
+//    lain (Setrika, Cuci Kendaraan, Les Private) yang belum diisi tidak
+//    perlu diubah dan tidak error di TypeScript.
+// 2. Diisi untuk cleaning-fast & cleaning-pro sesuai "Detil Produk Layanan
+//    Bersihkan Rumah" yang Anda kirim. Field internal (Pendapatan
+//    Mitra/Komisi Platform) SENGAJA tidak dimasukkan ke sini karena file
+//    ini konsumsinya publik (ditampilkan di modal detail jasa & dropdown
+//    form pemesanan) -- kalau perlu didokumentasikan, itu disimpan
+//    terpisah, bukan di kode.
+// 3. Konfirmasi Anda: harga & durasi cleaning-fast/cleaning-pro DIUPDATE
+//    mengikuti detil produk baru:
+//    - Cleaning Fast: Rp45.000 -> Rp55.000 (durasi tetap 1.5 Jam)
+//    - Cleaning PRO: Rp80.000 -> Rp95.000, durasi 2.5 Jam -> 3 Jam
+//    Ini mengubah harga yang tercantum di landing page & pesan WA order
+//    untuk kedua varian tsb.
+// Tidak ada perubahan pada findServiceByLabel, formatRupiah, atau
 // serviceCategories.
 
 export type ServiceVariant = {
@@ -14,6 +28,8 @@ export type ServiceVariant = {
   unit: string;
   duration: string;
   tier: "Fast" | "PRO";
+  desc?: string;
+  detilPekerjaan?: string[];
 };
 
 const LES_PRIVATE_SUBJECTS = [
@@ -70,19 +86,30 @@ export const services: ServiceVariant[] = [
     id: "cleaning-fast",
     category: "Bersihkan Rumah",
     name: "Cleaning Fast",
-    price: 45000,
+    price: 55000,
     unit: "1 Rumah (Tipe 36/45)",
     duration: "1.5 Jam",
     tier: "Fast",
+    desc: "Layanan pembersihan harian rumah/properti kecil yang dikerjakan dengan waktu singkat dan padat.",
+    detilPekerjaan: [
+      "Menyapu & mengepel seluruh ruangan",
+      "Penataan ruang: kamar, toilet, ruang tamu (living room), dapur",
+    ],
   },
   {
     id: "cleaning-pro",
     category: "Bersihkan Rumah",
     name: "Cleaning PRO",
-    price: 80000,
+    price: 95000,
     unit: "1 Rumah (Tipe 50/80)",
-    duration: "2.5 Jam",
+    duration: "3 Jam",
     tier: "PRO",
+    desc: "Layanan pembersihan harian rumah/properti menengah yang dikerjakan lebih lengkap dan menyeluruh.",
+    detilPekerjaan: [
+      "Menyapu & mengepel seluruh ruangan",
+      "Penataan ruang: kamar, toilet, ruang tamu, teras, dapur",
+      "Mencuci alat makan & peralatan dapur",
+    ],
   },
   {
     id: "cuci-motor",
