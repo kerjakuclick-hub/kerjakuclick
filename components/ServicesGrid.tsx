@@ -1,18 +1,13 @@
 // GANTI ISI components/ServicesGrid.tsx Anda dengan file ini.
 //
-// Perubahan: kartu "Layanan Unggulan" sekarang bisa diklik (kecuali yang
-// masih "Coming Soon") untuk membuka modal berisi daftar varian jasa
-// (Fast/PRO, harga, unit, durasi) dari lib/services.ts, dengan tombol
-// "Pesan Sekarang" per varian. Bagian interaktifnya (modal, klik) pindah
-// ke ServicesGridInteractive.tsx (Client Component) -- file ini TETAP
-// Server Component, cuma nambah field `serviceCategory` (penghubung ke
-// kategori di lib/services.ts) & `comingSoon` per kartu, fetch gambar
-// dari Supabase tidak berubah.
-//
-// Cuci Kendaraan & Les Private tetap ditandai comingSoon: true (tidak
-// bisa diklik) sesuai keputusan Anda, walau datanya sudah lengkap di
-// lib/services.ts -- badge "COMING SOON" di gambar kartu itu sendiri
-// (di-upload lewat panel media) tidak disentuh oleh perubahan ini.
+// Perubahan: kartu "Bersihkan Rumah" di beranda pakai `priceFrom` &
+// `duration` yang di-hardcode di sini (terpisah dari lib/services.ts,
+// jadi tidak ikut ter-update otomatis saat harga di lib/services.ts
+// diubah) -- disamakan sekarang dengan harga & durasi terbaru:
+// Cleaning Fast Rp55.000 (sebelumnya Rp45.000) & Cleaning PRO 3 Jam
+// (sebelumnya 2.5 Jam), jadi "Mulai dari Rp 55.000" & "Est. 1,5-3 Jam".
+// Tidak ada perubahan lain -- kartu Setrika, Cuci Kendaraan, Les Private,
+// fetch gambar dari Supabase, & serviceCategory/comingSoon tetap sama.
 
 import { createClient } from "@/lib/supabase/server";
 import ServicesGridInteractive, { type ServiceCardData } from "./ServicesGridInteractive";
@@ -34,8 +29,8 @@ const services: Omit<ServiceCardData, "imageUrl">[] = [
     name: "Bersihkan Rumah",
     serviceCategory: "Bersihkan Rumah",
     desc: "Pembersihan menyeluruh untuk ruang tamu, kamar tidur, hingga dapur Anda.",
-    priceFrom: "Rp 45.000",
-    duration: "Est. 1,5-2,5 Jam",
+    priceFrom: "Rp 55.000",
+    duration: "Est. 1,5-3 Jam",
     gradient: "from-[#F5B324] to-[#1D6F8C]",
     icon: "🧹",
   },

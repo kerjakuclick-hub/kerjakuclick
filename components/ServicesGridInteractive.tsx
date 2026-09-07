@@ -1,17 +1,13 @@
-// FILE BARU: components/ServicesGridInteractive.tsx
+// GANTI ISI components/ServicesGridInteractive.tsx Anda dengan file ini.
 //
-// Bagian interaktif dari "Layanan Unggulan" -- dipisah dari
-// ServicesGrid.tsx (Server Component yang fetch gambar dari Supabase)
-// karena modal & klik butuh state di client. ServicesGrid.tsx memanggil
-// komponen ini sambil mengoper data kartu yang gambarnya sudah di-resolve.
-//
-// Klik kartu (yang TIDAK "Coming Soon") -> buka modal berisi daftar
-// varian jasa kategori itu (Fast/PRO, harga, unit, durasi -- diambil dari
-// lib/services.ts, satu sumber data yang sama dipakai dropdown "Pilihan
-// Jasa" di form pemesanan). Tombol "Pesan Sekarang" di tiap varian
-// menutup modal, scroll ke form pemesanan (#pesan), dan mengirim event
-// "kerjaku:select-service" supaya OrderForm.tsx otomatis memilih jasa itu
-// di dropdown-nya (lihat listener event di OrderForm.tsx).
+// Perubahan: kartu varian di dalam modal (Fast/PRO) sekarang menampilkan
+// `v.desc` (deskripsi layanan) dan `v.detilPekerjaan` (daftar detil
+// pekerjaan) KALAU field itu ada di lib/services.ts -- untuk sekarang baru
+// diisi di Cleaning Fast & Cleaning PRO, jadi ditulis pakai pengecekan
+// `v.desc && ...` / `v.detilPekerjaan?.length` supaya varian lain (Setrika,
+// Cuci Kendaraan, Les Private) yang belum diisi tetap tampil normal tanpa
+// bagian ini. Tidak ada perubahan pada struktur modal, event
+// "kerjaku:select-service", atau bagian grid kartu kategori di atasnya.
 
 "use client";
 
@@ -163,6 +159,17 @@ export default function ServicesGridInteractive({ services }: { services: Servic
                       {formatRupiah(v.price)}
                     </p>
                   </div>
+
+                  {v.desc && <p className="mt-2 text-xs text-[#3f484d]">{v.desc}</p>}
+
+                  {v.detilPekerjaan && v.detilPekerjaan.length > 0 && (
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-[#3f484d]">
+                      {v.detilPekerjaan.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => handlePesanSekarang(v.name)}
