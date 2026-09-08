@@ -3,6 +3,7 @@
   "short_name": "Kerjaku Mitra",
   "description": "Dashboard mitra Kerjaku.click - lihat tugas, saldo, dan profil digital.",
   "start_url": "/mitra",
+  "scope": "/mitra",
   "display": "standalone",
   "background_color": "#EEF2EE",
   "theme_color": "#12202A",
