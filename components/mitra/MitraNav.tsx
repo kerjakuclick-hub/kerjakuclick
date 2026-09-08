@@ -1,3 +1,7 @@
+// GANTI ISI components/mitra/MitraNav.tsx Anda dengan file ini.
+// Perubahan: logo (varian gelap, konsisten dengan ikon install app Mitra)
+// ditambahkan di sebelah teks "kerjaku.click Mitra".
+
 import Link from "next/link";
 import { formatRupiah } from "@/lib/services";
 
@@ -11,9 +15,13 @@ export default function MitraNav({
   return (
     <header className="border-b border-line bg-bay-deep">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4 lg:px-8">
-        <Link href="/mitra" className="font-display text-lg font-bold text-white">
-          kerjaku<span className="text-bridge">.click</span>{" "}
-          <span className="text-sm font-normal text-white/50">Mitra</span>
+        <Link href="/mitra" className="flex items-center gap-2 font-display text-lg font-bold text-white">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mitra.png" alt="Kerjaku.click Mitra" className="h-8 w-8 rounded-full" />
+          <span>
+            kerjaku<span className="text-bridge">.click</span>{" "}
+            <span className="text-sm font-normal text-white/50">Mitra</span>
+          </span>
         </Link>
 
         <div className="flex items-center gap-4">

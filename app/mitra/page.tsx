@@ -1,12 +1,14 @@
 // GANTI ISI app/mitra/page.tsx Anda dengan file ini.
 //
-// Perubahan: teks peringatan saldo tidak lagi menyebut angka tetap Rp50.000;
-// menambah fetch dari `earnings` (model baru) di samping `transactions`
-// (model lama) — dikirim keduanya ke TaskList supaya riwayat pekerjaan lama
-// & baru sama-sama bisa ditampilkan dengan benar.
+// Perubahan dari versi sebelumnya:
+// 1. Query profil ditambah kolom photo_url, skill_category, rating (buat
+//    ID Card Digital) -- kolom lain yang sudah ada TIDAK diubah.
+// 2. Section baru <DigitalIdCard /> ditambahkan setelah ringkasan
+//    saldo/pendapatan, sebelum daftar Tugas Saya.
 
 import { createClient } from "@/lib/supabase/server";
 import TaskList from "@/components/mitra/TaskList";
+import DigitalIdCard from "@/components/mitra/DigitalIdCard";
 import { formatRupiah, services } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +25,9 @@ export default async function MitraDashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("name, phone, wallet_balance, total_earnings, status, is_active")
+    .select(
+      "id, name, phone, wallet_balance, total_earnings, status, is_active, photo_url, skill_category, rating"
+    )
     .eq("id", user!.id)
     .single();
 
@@ -78,6 +82,19 @@ export default async function MitraDashboardPage() {
           </p>
         </div>
       </div>
+
+      {profile && (
+        <DigitalIdCard
+          mitra={{
+            id: profile.id,
+            name: profile.name,
+            photo_url: profile.photo_url,
+            status: profile.status,
+            skill_category: profile.skill_category,
+            rating: profile.rating,
+          }}
+        />
+      )}
 
       <div>
         <h2 className="font-display text-lg font-semibold text-ink">Tugas Saya</h2>
