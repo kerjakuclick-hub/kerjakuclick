@@ -1,0 +1,21 @@
+{
+  "name": "Kerjaku.click — Jasa Tenaga Kerja Ke Rumah Anda",
+  "short_name": "Kerjaku.click",
+  "description": "Jasa setrika, bersih rumah, dan cuci kendaraan on-demand di Kota Palu.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EEF2EE",
+  "theme_color": "#1D6F8C",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
