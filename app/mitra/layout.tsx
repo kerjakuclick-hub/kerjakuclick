@@ -1,6 +1,18 @@
+// GANTI ISI app/mitra/layout.tsx Anda dengan file ini.
+//
+// Perubahan dari versi Anda: HANYA menambahkan `export const metadata`
+// (untuk manifest install app khusus mitra). Logika auth/redirect/MitraNav
+// yang sudah ada TIDAK diubah sama sekali.
+
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import MitraNav from "@/components/mitra/MitraNav";
+
+export const metadata: Metadata = {
+  title: "Kerjaku.click Mitra",
+  manifest: "/mitra-manifest.webmanifest",
+};
 
 export default async function MitraLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
