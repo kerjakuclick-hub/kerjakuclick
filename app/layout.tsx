@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   title: "Kerjakuclick — Jasa Tenaga Kerja ke Rumah Anda, Sekali Klik | Kota Palu",
   description:
     "Pesan jasa setrika, bersih-bersih rumah, dan cuci kendaraan langsung ke rumah Anda di Kota Palu. Isi form, klik pesan, langsung terkirim via WhatsApp. Mitra terpercaya, tarif jelas.",
+  manifest: "/manifest.webmanifest",
   keywords: [
     "jasa setrika palu",
     "jasa bersih rumah palu",
