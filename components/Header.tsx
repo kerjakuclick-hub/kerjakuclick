@@ -1,7 +1,3 @@
-// GANTI ISI components/Header.tsx Anda dengan file ini.
-// Perubahan: logo gambar (/public/logo.png) ditambahkan di sebelah teks
-// "kerjaku.click", bukan menggantikannya.
-
 "use client";
 
 import { useState } from "react";
@@ -33,6 +29,13 @@ export default function Header() {
       >
         Mitra Kami
       </a>
+      <Link
+        href="/riwayat"
+        onClick={() => setMobileOpen(false)}
+        className="text-[#3f484d] hover:text-[#1D6F8C] transition-colors text-sm font-medium"
+      >
+        Riwayat Pesanan
+      </Link>
       <Link
         href="/daftar-mitra"
         onClick={() => setMobileOpen(false)}
