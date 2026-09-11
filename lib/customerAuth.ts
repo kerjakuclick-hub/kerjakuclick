@@ -1,4 +1,4 @@
-// FILE BARU: lib/customerAuth.ts
+// lib/customerAuth.ts
 //
 // Helper otentikasi PELANGGAN (bukan admin/mitra -- itu tetap pakai
 // Supabase Auth seperti biasa, tidak disentuh di sini). Sengaja TIDAK
@@ -16,8 +16,11 @@
 //      login ulang.
 //   3. PIN cuma 4 digit (10.000 kombinasi) -- gampang ditebak kalau tidak
 //      dibatasi. Makanya ada lockout: 5x salah -> terkunci 15 menit.
+//   4. Reset PIN: pelanggan chat "reset pin" ke CS WA -> webhook Fonnte
+//      kirim OTP 6 digit ke nomor WA yang sama -> pelanggan masukkan OTP
+//      + PIN baru di halaman web -> confirmPinReset() verifikasi & update.
 
-import { randomBytes, scryptSync, timingSafeEqual, createHash } from "crypto";
+import { randomBytes, randomInt, scryptSync, timingSafeEqual, createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const SESSION_COOKIE_NAME = "kerjaku_customer_session";
@@ -113,4 +116,165 @@ export async function destroySession(token: string | undefined) {
   if (!token) return;
   const admin = getSupabaseAdmin();
   await admin.from("customer_sessions").delete().eq("token_hash", hashToken(token));
+}
+
+// ========================================================================
+// Reset PIN via OTP WhatsApp
+// ========================================================================
+
+const OTP_TTL_MINUTES = 10;
+const OTP_RESEND_COOLDOWN_MINUTES = 2;
+
+/** OTP 6 digit, format string dengan leading zero (mis. "004821"). */
+function generateOtp(): string {
+  return randomInt(0, 1_000_000).toString().padStart(6, "0");
+}
+
+/** Hash OTP pakai pola sama persis dengan hashPin (scrypt + salt acak per baris). */
+function hashOtp(otp: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(otp, salt, 32).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyOtp(otp: string, stored: string): boolean {
+  const [salt, hash] = stored.split(":");
+  if (!salt || !hash) return false;
+  const candidate = scryptSync(otp, salt, 32);
+  const expected = Buffer.from(hash, "hex");
+  if (candidate.length !== expected.length) return false;
+  return timingSafeEqual(candidate, expected);
+}
+
+export type RequestPinResetResult =
+  | { ok: true; otp: string; customerName: string }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "cooldown"; waitSeconds: number };
+
+/**
+ * Dipanggil dari webhook Fonnte saat pelanggan chat "reset pin"/"lupa sandi"/dst.
+ * `phone` adalah nomor sender dari webhook (sudah format internasional).
+ * Return `otp` di sini adalah OTP POLOS (plain) — HANYA dipakai sekali untuk
+ * dikirim lewat WA, tidak pernah disimpan polos ke database.
+ */
+export async function requestPinReset(phone: string): Promise<RequestPinResetResult> {
+  const admin = getSupabaseAdmin();
+  const normalizedPhone = normalizeCustomerPhone(phone);
+
+  const { data: customer } = await admin
+    .from("customers")
+    .select("id, name")
+    .eq("phone", normalizedPhone)
+    .maybeSingle();
+
+  if (!customer) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  const { data: lastReset } = await admin
+    .from("customer_pin_resets")
+    .select("created_at")
+    .eq("customer_id", customer.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastReset) {
+    const elapsedMs = Date.now() - new Date(lastReset.created_at).getTime();
+    const cooldownMs = OTP_RESEND_COOLDOWN_MINUTES * 60 * 1000;
+    if (elapsedMs < cooldownMs) {
+      return { ok: false, reason: "cooldown", waitSeconds: Math.ceil((cooldownMs - elapsedMs) / 1000) };
+    }
+  }
+
+  await admin
+    .from("customer_pin_resets")
+    .update({ used_at: new Date().toISOString() })
+    .eq("customer_id", customer.id)
+    .is("used_at", null);
+
+  const otp = generateOtp();
+  const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+
+  const { error } = await admin.from("customer_pin_resets").insert({
+    customer_id: customer.id,
+    otp_hash: hashOtp(otp),
+    expires_at: expiresAt.toISOString(),
+  });
+  if (error) throw new Error(error.message);
+
+  return { ok: true, otp, customerName: customer.name };
+}
+
+export type ConfirmPinResetResult =
+  | { ok: true; customer: { id: string; name: string; phone: string } }
+  | { ok: false; error: string };
+
+/**
+ * Dipanggil dari halaman web reset PIN (bukan dari WA) setelah pelanggan
+ * memasukkan nomor WA + OTP yang diterima + PIN baru.
+ */
+export async function confirmPinReset(
+  phone: string,
+  otp: string,
+  newPin: string
+): Promise<ConfirmPinResetResult> {
+  if (!isValidPin(newPin)) {
+    return { ok: false, error: "PIN baru harus 4 angka." };
+  }
+
+  const normalizedPhone = normalizeCustomerPhone(phone);
+  const admin = getSupabaseAdmin();
+
+  const { data: customer } = await admin
+    .from("customers")
+    .select("id, name, phone")
+    .eq("phone", normalizedPhone)
+    .maybeSingle();
+
+  if (!customer) {
+    return { ok: false, error: "Nomor WA tidak ditemukan." };
+  }
+
+  const { data: resetRow } = await admin
+    .from("customer_pin_resets")
+    .select("id, otp_hash, expires_at, attempts_left")
+    .eq("customer_id", customer.id)
+    .is("used_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!resetRow) {
+    return { ok: false, error: "Tidak ada permintaan reset aktif. Kirim ulang 'reset pin' lewat WA." };
+  }
+  if (new Date(resetRow.expires_at) < new Date()) {
+    return { ok: false, error: "Kode OTP sudah kedaluwarsa. Kirim ulang 'reset pin' lewat WA." };
+  }
+  if (resetRow.attempts_left <= 0) {
+    return { ok: false, error: "Terlalu banyak percobaan salah. Kirim ulang 'reset pin' lewat WA." };
+  }
+
+  const valid = verifyOtp(otp, resetRow.otp_hash);
+  if (!valid) {
+    await admin
+      .from("customer_pin_resets")
+      .update({ attempts_left: resetRow.attempts_left - 1 })
+      .eq("id", resetRow.id);
+    return { ok: false, error: "Kode OTP salah." };
+  }
+
+  await admin
+    .from("customers")
+    .update({ pin_hash: hashPin(newPin), failed_attempts: 0, locked_until: null })
+    .eq("id", customer.id);
+
+  await admin
+    .from("customer_pin_resets")
+    .update({ used_at: new Date().toISOString() })
+    .eq("id", resetRow.id);
+
+  await admin.from("customer_sessions").delete().eq("customer_id", customer.id);
+
+  return { ok: true, customer };
 }
