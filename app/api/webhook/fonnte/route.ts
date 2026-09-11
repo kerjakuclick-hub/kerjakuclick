@@ -12,7 +12,17 @@ type FonnteWebhookBody = {
   [key: string]: unknown;
 };
 
-function parseOrderMessage(raw: string) {
+type ParsedOrder = {
+  nama: string;
+  noHp: string;
+  alamat: string;
+  jasa: string;
+  tanggal?: string;
+  waktu?: string;
+  preferensi?: string;
+};
+
+function parseOrderMessage(raw: string): ParsedOrder | null {
   const lines = raw
     .split("\n")
     .map((l) => l.trim())
@@ -46,6 +56,68 @@ function parseOrderMessage(raw: string) {
   return { nama, noHp, alamat, jasa, tanggal, waktu, preferensi };
 }
 
+/**
+ * Kirim balasan WA lewat Fonnte (https://docs.fonnte.com/kirim-pesan-api-dengan-javascript).
+ * - Endpoint: https://api.fonnte.com/send
+ * - Body: x-www-form-urlencoded, field "target" & "message"
+ * - Header: Authorization diisi TOKEN LANGSUNG (bukan "Bearer <token>")
+ *
+ * `target` dipakai apa adanya dari `sender` webhook — sender Fonnte sudah
+ * dalam format internasional lengkap (mis. "6285284415992"), jadi tidak
+ * perlu parameter countryCode.
+ *
+ * Kegagalan kirim balasan TIDAK menggagalkan response webhook — order sudah
+ * tersimpan duluan, jadi ini cuma di-log supaya tidak bikin Fonnte retry
+ * webhook (yang bisa memicu order dobel kalau tidak hati-hati).
+ */
+async function sendFonnteReply(target: string, message: string) {
+  const token = process.env.FONNTE_DEVICE_TOKEN;
+  if (!token) {
+    console.error("FONNTE_DEVICE_TOKEN belum diset di environment variables — balasan tidak terkirim.");
+    return;
+  }
+
+  try {
+    const body = new URLSearchParams();
+    body.append("target", target);
+    body.append("message", message);
+
+    const res = await fetch("https://api.fonnte.com/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: token,
+      },
+      body,
+    });
+
+    if (!res.ok) {
+      console.error("Gagal kirim balasan Fonnte:", res.status, await res.text());
+    }
+  } catch (err) {
+    console.error("Error saat kirim balasan Fonnte:", err);
+  }
+}
+
+function buildOrderConfirmationMessage(
+  parsed: ParsedOrder,
+  serviceName: string
+): string {
+  const jadwal =
+    parsed.tanggal && parsed.waktu
+      ? `tanggal ${parsed.tanggal}, jam ${parsed.waktu}`
+      : "sesuai jadwal yang Anda pilih";
+
+  return (
+    `Pesanan Anda diterima ya kak ✅\n\n` +
+    `Jasa: ${serviceName}\n` +
+    `Untuk: ${parsed.nama}\n` +
+    `Jadwal: ${jadwal}\n\n` +
+    `Mitra akan segera ditugaskan sesuai jadwal ini. ` +
+    `Kami kabari lagi di sini begitu mitra dikonfirmasi 🤍`
+  );
+}
+
 export async function POST(req: NextRequest) {
   // Verifikasi token rahasia di URL — tanpa ini, siapa pun di internet yang
   // tahu alamat endpoint ini bisa mengirim data order palsu langsung ke
@@ -73,6 +145,8 @@ export async function POST(req: NextRequest) {
   const parsed = parseOrderMessage(rawMessage);
 
   // Bukan format order (#BARU) — abaikan tanpa error, biar Fonnte tidak retry terus.
+  // Sengaja TIDAK dibalas otomatis di sini — obrolan non-order tetap ditangani
+  // manual oleh admin lewat Inbox Fonnte, sesuai alur yang sudah berjalan.
   if (!parsed) {
     return NextResponse.json({ ok: true, ignored: true });
   }
@@ -97,6 +171,14 @@ export async function POST(req: NextRequest) {
       console.error("Gagal insert order:", error.message);
       return NextResponse.json({ ok: false, reason: "db_error" }, { status: 500 });
     }
+
+    // Order berhasil tersimpan — kirim konfirmasi spesifik ke customer.
+    // Tidak di-await secara blocking terhadap kegagalan: kalau kirim gagal,
+    // order tetap tercatat dan admin bisa follow up manual dari dashboard.
+    await sendFonnteReply(
+      parsed.noHp,
+      buildOrderConfirmationMessage(parsed, matchedService?.name ?? parsed.jasa)
+    );
 
     return NextResponse.json({ ok: true });
   } catch (err) {
