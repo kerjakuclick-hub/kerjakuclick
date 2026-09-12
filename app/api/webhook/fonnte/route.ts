@@ -58,12 +58,78 @@ function parseOrderMessage(raw: string): ParsedOrder | null {
 }
 
 // Deteksi permintaan reset PIN: kombinasi kata "reset"/"lupa" + "pin"/"sandi"/"password".
-// Sengaja longgar (regex, bukan exact match) karena pelanggan bisa nulis macam-macam:
-// "reset pin dong", "lupa pin saya", "mau reset password", dst.
 const RESET_PIN_PATTERN = /\b(reset|lupa|ganti)\b.{0,15}\b(pin|sandi|password)\b/i;
 
 function isResetPinRequest(raw: string): boolean {
   return RESET_PIN_PATTERN.test(raw);
+}
+
+// ========================================================================
+// FAQ auto-reply — HANYA untuk pertanyaan faktual yang jawabannya tetap
+// (harga, jam operasional, cara pesan, cara jadi mitra). SENGAJA TIDAK
+// dipakai untuk keluhan/komplain — itu tetap harus dijawab manual oleh
+// admin, bukan auto-reply, supaya tidak terasa dingin/tidak peduli.
+//
+// Urutan array ini penting: dicek dari atas ke bawah, yang pertama cocok
+// yang dipakai. "Mitra" dicek paling awal supaya tidak ketimpa pattern lain
+// yang lebih umum (mis. "cara jadi mitra" jangan sampai kena pattern harga).
+// ========================================================================
+
+const FAQ_PRICE_REPLY =
+  `Berikut harga layanan kerjaku.click ya kak 🙏\n\n` +
+  `🧺 Setrika Fast: Rp40.000 (20 pcs, ±1 jam)\n` +
+  `🧺 Setrika PRO: Rp75.000 (40 pcs, ±2 jam)\n` +
+  `🧹 Cleaning Fast: Rp55.000 (tipe 36/45, ±1,5 jam)\n` +
+  `🧹 Cleaning PRO: Rp95.000 (tipe 50/80, ±3 jam)\n` +
+  `🏍️ Cuci Motor: Rp35.000\n` +
+  `🚗 Cuci Mobil: Rp75.000\n\n` +
+  `Untuk pesan, langsung isi form di www.kerjaku.click ya 🤍`;
+
+const FAQ_HOURS_REPLY =
+  `Jam operasional kerjaku.click: *07.00–20.00 WITA*, setiap hari 🙏\n\n` +
+  `Di luar jam itu, pesanan tetap otomatis tercatat sistem kami — nanti diproses begitu tim kami online lagi.`;
+
+const FAQ_HOW_TO_ORDER_REPLY =
+  `Cara pesan gampang banget kak:\n\n` +
+  `1️⃣ Buka www.kerjaku.click\n` +
+  `2️⃣ Pilih jasa & isi form (nama, alamat, jadwal)\n` +
+  `3️⃣ Klik "Pesan Sekarang" — otomatis kebuka WhatsApp dengan pesan siap kirim\n` +
+  `4️⃣ Tinggal kirim, sistem kami langsung proses & kasih konfirmasi\n\n` +
+  `Coba langsung di www.kerjaku.click ya 🤍`;
+
+const FAQ_JOIN_MITRA_REPLY =
+  `Mau gabung jadi Mitra kerjaku.click? Gampang, daftar langsung di www.kerjaku.click/daftar-mitra 🤍\n\n` +
+  `Cocok buat ibu rumah tangga, mahasiswa akhir, guru, atau siapa saja yang mau penghasilan tambahan dengan jadwal fleksibel. Nanti tim kami hubungi untuk proses selanjutnya.`;
+
+const FAQ_PATTERNS: Array<{ test: RegExp; reply: string }> = [
+  {
+    // "jadi mitra", "gabung mitra", "daftar mitra", "cara jadi mitra", dst.
+    test: /\b(jadi|gabung|daftar)\b.{0,15}\bmitra\b|\bmitra\b.{0,15}\b(jadi|gabung|daftar)\b/i,
+    reply: FAQ_JOIN_MITRA_REPLY,
+  },
+  {
+    // "harga", "tarif", "biaya" — dicek sebelum "cara pesan" supaya
+    // "berapa harga buat pesan" tetap kena harga, bukan cara-pesan.
+    test: /\b(harga|tarif|biaya)\b/i,
+    reply: FAQ_PRICE_REPLY,
+  },
+  {
+    // "jam operasional/buka/kerja/layanan", "kapan buka/online"
+    test: /\bjam\b.{0,10}\b(operasional|buka|kerja|layanan)\b|\bkapan\b.{0,10}\b(buka|online)\b/i,
+    reply: FAQ_HOURS_REPLY,
+  },
+  {
+    // "cara pesan/order/booking", "gimana pesan/order"
+    test: /\bcara\b.{0,10}\b(pesan|order|booking)\b|\bgimana\b.{0,10}\b(pesan|order)\b/i,
+    reply: FAQ_HOW_TO_ORDER_REPLY,
+  },
+];
+
+function matchFaq(raw: string): string | null {
+  for (const { test, reply } of FAQ_PATTERNS) {
+    if (test.test(raw)) return reply;
+  }
+  return null;
 }
 
 /**
@@ -71,6 +137,14 @@ function isResetPinRequest(raw: string): boolean {
  * - Endpoint: https://api.fonnte.com/send
  * - Body: x-www-form-urlencoded, field "target" & "message"
  * - Header: Authorization diisi TOKEN LANGSUNG (bukan "Bearer <token>")
+ *
+ * `target` dipakai apa adanya dari `sender` webhook — sender Fonnte sudah
+ * dalam format internasional lengkap (mis. "6285284415992"), jadi tidak
+ * perlu parameter countryCode.
+ *
+ * Kegagalan kirim balasan TIDAK menggagalkan response webhook — order sudah
+ * tersimpan duluan, jadi ini cuma di-log supaya tidak bikin Fonnte retry
+ * webhook (yang bisa memicu order dobel kalau tidak hati-hati).
  */
 async function sendFonnteReply(target: string, message: string) {
   const token = process.env.FONNTE_DEVICE_TOKEN;
@@ -222,9 +296,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // --- Jalur 3: bukan order, bukan reset PIN — abaikan tanpa error, biar Fonnte
-  // tidak retry terus. Obrolan non-order tetap ditangani manual oleh admin
-  // lewat Inbox Fonnte, sesuai alur yang sudah berjalan. ---
+  // --- Jalur 3: FAQ (harga, jam operasional, cara pesan, cara jadi mitra) ---
+  // Sengaja TIDAK menyentuh kata-kata yang terkesan komplain/masalah — kalau
+  // pesan tidak cocok salah satu pattern FAQ di atas, jatuh ke Jalur 4
+  // (diabaikan, ditangani manual admin) — termasuk semua keluhan.
+  const faqReply = matchFaq(rawMessage);
+  if (faqReply) {
+    await sendFonnteReply(sender, faqReply);
+    return NextResponse.json({ ok: true, faq: "sent" });
+  }
+
+  // --- Jalur 4: bukan order, bukan reset PIN, bukan FAQ — abaikan tanpa
+  // error, biar Fonnte tidak retry terus. Ini termasuk keluhan/komplain:
+  // SENGAJA tidak dibalas otomatis, tetap ditangani manual oleh admin
+  // lewat Inbox Fonnte, karena komplain butuh respons manusiawi. ---
   return NextResponse.json({ ok: true, ignored: true });
 }
 
