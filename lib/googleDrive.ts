@@ -22,7 +22,7 @@ const UPLOAD_ENDPOINT = "https://www.googleapis.com/upload/drive/v3/files?upload
 // Scope "drive.file" SENGAJA dipilih (bukan scope "drive" penuh) -- aplikasi
 // cuma bisa akses file yang dia sendiri buat lewat API ini, tidak bisa
 // membaca seluruh isi Drive akun Anda.
-const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
