@@ -51,7 +51,7 @@ export default function Header() {
       <nav className="max-w-[1200px] mx-auto flex items-center justify-between px-6 py-3">
         <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#00566f]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9 rounded-full" />
+          <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9" />
           <span>
             kerjaku<span className="text-[#1D6F8C]">.click</span>
           </span>

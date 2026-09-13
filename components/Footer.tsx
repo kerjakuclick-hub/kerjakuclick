@@ -9,7 +9,7 @@ export default function Footer() {
         <div className="space-y-3 max-w-sm">
           <div className="flex items-center gap-2 font-semibold text-[#F5B324]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9 rounded-full" />
+            <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9" />
             <span>kerjaku.click</span>
           </div>
           <p className="text-white/70 text-sm">

@@ -17,7 +17,7 @@ export default function MitraNav({
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4 lg:px-8">
         <Link href="/mitra" className="flex items-center gap-2 font-display text-lg font-bold text-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mitra.png" alt="Kerjaku.click Mitra" className="h-8 w-8 rounded-full" />
+          <img src="/logo-mitra.png" alt="Kerjaku.click Mitra" className="h-8 w-8" />
           <span>
             kerjaku<span className="text-bridge">.click</span>{" "}
             <span className="text-sm font-normal text-white/50">Mitra</span>
