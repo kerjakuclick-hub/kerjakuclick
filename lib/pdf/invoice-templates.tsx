@@ -104,3 +104,52 @@ export function InvoiceMitraPDF({ invoiceNumber, order }: InvoiceMitraProps) {
     </Document>
   );
 }
+
+// ============================================================================
+// FILE BARU (fitur "Invoice Pembayaran"): terbit otomatis saat mitra klik
+// "Selesaikan Tugas" di dashboard mitra (lib/pdf/generate-invoice.tsx ->
+// generatePaymentInvoiceForOrder). Ini invoice/struk PEMBAYARAN yang
+// sesungguhnya -- beda dari InvoiceKlienPDF di atas yang terbit saat
+// PENUGASAN (dokumen konfirmasi/task-slip). Mitra sendiri yang mengunduh &
+// mengirim invoice ini ke klien via WA, karena mitra yang menerima
+// pembayaran tunai/transfer langsung.
+// ============================================================================
+
+interface InvoicePembayaranProps {
+  invoiceNumber: string;
+  order: Order;
+  mitraName: string;
+}
+
+export function InvoicePembayaranPDF({ invoiceNumber, order, mitraName }: InvoicePembayaranProps) {
+  return (
+    <Document>
+      <Page size="A5" style={styles.page}>
+        <Text style={styles.header}>Kerjaku.click</Text>
+        <Text style={styles.sub}>Invoice Pembayaran — {invoiceNumber}</Text>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Pelanggan</Text>
+          <Text style={styles.value}>{order.customer_name}</Text>
+          <Text style={styles.label}>Jasa</Text>
+          <Text style={styles.value}>{order.service_type}</Text>
+          <Text style={styles.label}>Alamat</Text>
+          <Text style={styles.value}>{order.address}</Text>
+          <Text style={styles.label}>Total Tagihan</Text>
+          <Text style={styles.value}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Pekerjaan Diselesaikan Oleh</Text>
+          <Text style={styles.value}>{mitraName}</Text>
+          <Text style={styles.badge}>Status: Selesai</Text>
+        </View>
+
+        <Text style={styles.sub}>
+          Pembayaran tunai atau transfer langsung ke mitra sesuai kesepakatan di lokasi
+          (bukan ke rekening kerjaku.click). Terima kasih telah menggunakan Kerjaku.click.
+        </Text>
+      </Page>
+    </Document>
+  );
+}

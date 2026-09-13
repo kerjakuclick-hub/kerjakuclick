@@ -47,6 +47,19 @@ export default async function MitraDashboardPage() {
     .select("*")
     .eq("mitra_id", user!.id);
 
+  // Invoice pembayaran (fitur BARU) -- terbit otomatis saat mitra klik
+  // "Selesaikan Tugas". RLS "invoices_mitra_read_own" sudah membatasi ke
+  // invoice milik order mitra ini sendiri, jadi cukup filter purpose di sini.
+  const orderIds = (orders ?? []).map((o) => o.id);
+  const { data: invoices } =
+    orderIds.length > 0
+      ? await supabase
+          .from("invoices")
+          .select("*")
+          .in("order_id", orderIds)
+          .eq("purpose", "pembayaran")
+      : { data: [] };
+
   return (
     <div className="space-y-8">
       <div>
@@ -107,6 +120,7 @@ export default async function MitraDashboardPage() {
             mitraId={user!.id}
             transactions={transactions ?? []}
             earnings={earnings ?? []}
+            invoices={invoices ?? []}
           />
         </div>
       </div>
