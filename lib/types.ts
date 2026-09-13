@@ -26,8 +26,10 @@ export type Order = {
   status: OrderStatus;
   created_at: string;
   min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007)
-  mitra_id_card_sent_at: string | null; // BARU — migrasi 017
-  mitra_id_card_sent_by: string | null; // BARU — migrasi 017
+  mitra_id_card_sent_at: string | null; // migrasi 017 — TIDAK dipakai lagi sejak notifikasi klien otomatis (migrasi 020), dibiarkan ada di DB untuk histori
+  mitra_id_card_sent_by: string | null; // migrasi 017 — idem
+  client_notified_at: string | null; // BARU — migrasi 020: waktu notifikasi WA "pesanan disetujui" berhasil terkirim otomatis
+  client_notify_error: string | null; // BARU — migrasi 020: pesan error terakhir kalau notifikasi otomatis gagal
 };
 
 export type MitraOption = {
@@ -76,6 +78,7 @@ export type Invoice = {
   order_id: number;
   invoice_number: string;
   recipient_type: "klien" | "mitra";
+  purpose: "konfirmasi" | "pembayaran"; // BARU — migrasi 020, default 'konfirmasi' untuk data lama
   file_url: string | null;
   generated_at: string;
   sent_at: string | null;

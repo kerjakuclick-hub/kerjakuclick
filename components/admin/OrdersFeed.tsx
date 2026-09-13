@@ -1,25 +1,27 @@
 // GANTI ISI components/admin/OrdersFeed.tsx Anda dengan file ini.
 //
-// Perubahan dari versi sebelumnya (streamlining alur konfirmasi klien,
-// karena Fonnte API kirim belum terkoneksi -- masih webhook/terima saja):
-//   1. Kolom "Invoice" lama (Klien + Mitra) dipecah: baris Klien pindah
-//      gabung ke kolom "Konfirmasi Klien" yang baru, kolom "Invoice Mitra"
-//      sekarang cuma urus invoice Mitra saja.
-//   2. Kolom "ID Mitra" lama diganti "Konfirmasi Klien" -- satu kolom
-//      berisi: link unduh ID Card (pakai atribut `download`, jadi
-//      langsung ke-download, tidak perlu buka tab lalu save-as manual
-//      lagi), link "Lihat Invoice" klien, tombol buka WA klien, dan SATU
-//      tombol "Tandai Terkirim" yang menandai invoice klien + ID card
-//      sekaligus (bukan dua tombol terpisah seperti sebelumnya).
-//   3. Layout tabel (spacing kolom + scrollbar horizontal) tetap seperti
-//      perbaikan sebelumnya, tidak diubah lagi di file ini.
+// Perubahan (fitur "Notifikasi Klien Otomatis + Invoice Pembayaran"):
+//   1. Kolom "Konfirmasi Klien" LAMA (unduh ID Card + tombol WA manual +
+//      "Tandai Terkirim") DIHAPUS TOTAL -- sejak assign/route.ts mengirim
+//      notifikasi WA "pesanan disetujui" ke klien secara OTOMATIS lewat
+//      Fonnte begitu mitra ditugaskan, admin tidak perlu klik apa pun lagi.
+//   2. Kolom baru "Notifikasi Klien" menggantikannya: cuma status (badge
+//      hijau "Terkirim otomatis [jam]" atau badge merah + tombol "Coba Kirim
+//      Lagi" kalau pengiriman gagal -- field client_notified_at /
+//      client_notify_error, migrasi 020). Bukan langkah rutin, cuma jaring
+//      pengaman kalau Fonnte gagal kirim.
+//   3. Kolom "Invoice Mitra" tetap ada (dokumen konfirmasi/task-slip saat
+//      penugasan, tidak berubah), difilter eksplisit purpose='konfirmasi'.
+//   4. Kolom baru "Invoice Pembayaran" (VIEW ONLY buat admin) -- muncul
+//      setelah mitra klik "Selesaikan Tugas" dari dashboard-nya. Mitra
+//      sendiri yang mengirim ke klien (karena mitra yang menerima
+//      pembayaran tunai/transfer), admin cuma bisa lihat/pantau di sini.
 
 "use client";
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah } from "@/lib/services";
-import { buildClientWaLink } from "@/lib/whatsapp";
 import type { Order, OrderStatus, EligibleMitra, Invoice } from "@/lib/types";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -53,7 +55,7 @@ export default function OrdersFeed({
   const [estimasi, setEstimasi] = useState<Record<number, string>>({});
   const [invoiceBusy, setInvoiceBusy] = useState<number | null>(null);
   const [invoiceError, setInvoiceError] = useState<Record<number, string>>({});
-  const [confirmBusy, setConfirmBusy] = useState<number | null>(null);
+  const [notifyBusy, setNotifyBusy] = useState<number | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -218,46 +220,25 @@ export default function OrdersFeed({
     }
   }
 
-  /**
-   * "Konfirmasi Klien" -- satu tombol untuk mempersingkat alur lama yang
-   * butuh buka-tab-terpisah lalu save-as manual. Sekarang: (1) ID Card
-   * ter-download otomatis lewat klik <a download> di JSX (browser tidak
-   * menganggap itu popup, jadi aman), lalu (2) chat WA klien langsung
-   * kebuka dengan teks siap kirim -- cuma 1 window.open() supaya tidak
-   * kena popup blocker (pernah kejadian sebelumnya kalau 2 sekaligus).
-   * Invoice PDF klien tetap dibuka lewat link "Lihat Invoice" terpisah di
-   * kolom yang sama (klik manual kalau memang belum kebuka), karena PDF-nya
-   * di-host Supabase Storage (beda origin) sehingga tidak bisa dipaksa ikut
-   * ter-download otomatis dari sini.
-   *
-   * Belum ada kirim otomatis lewat Fonnte API (baru webhook/terima yang
-   * aktif) -- begitu device-token Fonnte untuk kirim sudah di-setup, alur
-   * ini bisa diganti jadi benar-benar 1 klik tanpa perlu attach manual di
-   * WA sama sekali.
-   */
-  function openWaKonfirmasiKlien(order: Order) {
-    const text = `Halo ${order.customer_name}, pesanan Anda di Kerjaku.click sudah kami tugaskan ke mitra kami. Berikut ID Mitra terverifikasi & invoice pesanan (terlampir) untuk memastikan keamanan dan transparansi biaya Anda. Terima kasih! - Kerjaku.click`;
-    window.open(buildClientWaLink(order.customer_phone, text), "_blank");
-  }
-
-  /** Menandai SEKALIGUS invoice klien + ID Card sebagai terkirim -- satu tombol, bukan dua. */
-  async function markKlienConfirmed(orderId: number, klienInvoiceId?: number) {
-    setConfirmBusy(orderId);
+  /** Coba kirim ulang notifikasi WA "pesanan disetujui" -- HANYA muncul kalau
+   * pengiriman otomatis saat penugasan gagal (client_notify_error terisi). */
+  async function retryNotify(orderId: number) {
+    setNotifyBusy(orderId);
     try {
-      const res = await fetch("/api/admin/orders/mark-klien-confirmed", {
+      const res = await fetch("/api/admin/orders/retry-notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, klienInvoiceId }),
+        body: JSON.stringify({ orderId }),
       });
-      if (res.ok) {
-        const { order, invoice } = await res.json();
-        setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
-        if (invoice) {
-          setInvoices((prev) => prev.map((i) => (i.id === invoice.id ? invoice : i)));
-        }
+      const data = await res.json();
+      if (data.order) {
+        setOrders((prev) => prev.map((o) => (o.id === data.order.id ? data.order : o)));
+      }
+      if (!res.ok) {
+        alert(data.error ?? "Gagal mengirim ulang notifikasi.");
       }
     } finally {
-      setConfirmBusy(null);
+      setNotifyBusy(null);
     }
   }
 
@@ -276,7 +257,7 @@ export default function OrdersFeed({
     // banyak. Header ikut sticky supaya nama kolom tetap kelihatan saat
     // scroll ke bawah.
     <div className="max-h-[75vh] overflow-auto rounded-card border border-line bg-white shadow-card">
-      <table className="w-full min-w-[1350px] text-left text-sm">
+      <table className="w-full min-w-[1450px] text-left text-sm">
         <thead className="sticky top-0 z-10 border-b border-line bg-paper text-xs uppercase text-ink/50 shadow-sm">
           <tr className="divide-x divide-line">
             <th className="px-5 py-4">Waktu Masuk</th>
@@ -287,7 +268,8 @@ export default function OrdersFeed({
             <th className="px-5 py-4">Status</th>
             <th className="px-5 py-4">Mitra</th>
             <th className="px-5 py-4">Invoice Mitra</th>
-            <th className="px-5 py-4">Konfirmasi Klien</th>
+            <th className="px-5 py-4">Notifikasi Klien</th>
+            <th className="px-5 py-4">Invoice Pembayaran</th>
           </tr>
         </thead>
         <tbody>
@@ -295,8 +277,12 @@ export default function OrdersFeed({
             const eligible = eligibleMap[o.id] ?? [];
             const showEligibleHint = o.status === "unassigned";
             const orderInvoices = invoices.filter((i) => i.order_id === o.id);
-            const klienInvoice = orderInvoices.find((i) => i.recipient_type === "klien");
-            const mitraInvoice = orderInvoices.find((i) => i.recipient_type === "mitra");
+            const mitraInvoice = orderInvoices.find(
+              (i) => i.recipient_type === "mitra" && i.purpose === "konfirmasi"
+            );
+            const pembayaranInvoice = orderInvoices.find(
+              (i) => i.recipient_type === "klien" && i.purpose === "pembayaran"
+            );
 
             return (
               <tr
@@ -429,7 +415,7 @@ export default function OrdersFeed({
                       ) : (
                         <span className="text-red-500">Belum ter-generate</span>
                       )}
-                      {(!klienInvoice || !mitraInvoice) && (
+                      {!mitraInvoice && (
                         <button
                           onClick={() => retryGenerateInvoice(o.id)}
                           disabled={invoiceBusy === o.id}
@@ -447,50 +433,46 @@ export default function OrdersFeed({
                 <td className="px-5 py-4">
                   {!o.mitra_id ? (
                     <span className="text-xs text-ink/30">-</span>
-                  ) : (
-                    <div className="space-y-1.5 text-xs">
-                      {/* download otomatis, bukan cuma "buka tab lalu save manual" --
-                          sama origin (route API kita sendiri) jadi atribut download
-                          jalan normal di browser. */}
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <a
-                          href={`/api/admin/mitra/id-card?mitraId=${o.mitra_id}`}
-                          download={`id-card-mitra-order-${o.id}.png`}
-                          className="inline-block rounded-lg border border-bay-deep px-2.5 py-1.5 text-xs font-medium text-bay-deep hover:bg-bay-deep hover:text-white"
-                        >
-                          Unduh ID Mitra
-                        </a>
-                        {klienInvoice?.file_url && (
-                          <a
-                            href={klienInvoice.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-bay-deep underline"
-                          >
-                            Lihat Invoice
-                          </a>
-                        )}
-                      </div>
+                  ) : o.client_notified_at ? (
+                    <span className="inline-block rounded-full bg-wa/20 px-2 py-0.5 text-xs text-wa">
+                      Terkirim otomatis{" "}
+                      {new Date(o.client_notified_at).toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  ) : o.client_notify_error ? (
+                    <div className="space-y-1 text-xs">
+                      <p className="max-w-[200px] text-red-600">Gagal: {o.client_notify_error}</p>
                       <button
-                        onClick={() => openWaKonfirmasiKlien(o)}
-                        className="block rounded-lg bg-bay-deep px-2.5 py-1.5 text-xs font-medium text-white hover:bg-bay-deep/90"
+                        onClick={() => retryNotify(o.id)}
+                        disabled={notifyBusy === o.id}
+                        className="rounded-lg bg-amber-100 px-2 py-1 text-amber-700 disabled:opacity-50"
                       >
-                        Kirim ke WA Klien
+                        {notifyBusy === o.id ? "Mengirim..." : "Coba Kirim Lagi"}
                       </button>
-                      {o.mitra_id_card_sent_at ? (
-                        <span className="inline-block rounded-full bg-wa/20 px-2 py-0.5 text-wa">
-                          Terkirim
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => markKlienConfirmed(o.id, klienInvoice?.id)}
-                          disabled={confirmBusy === o.id}
-                          className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 disabled:opacity-50"
-                        >
-                          {confirmBusy === o.id ? "Memproses..." : "Tandai Terkirim"}
-                        </button>
-                      )}
                     </div>
+                  ) : (
+                    <span className="text-xs text-ink/40">Memproses...</span>
+                  )}
+                </td>
+                <td className="px-5 py-4">
+                  {pembayaranInvoice?.file_url ? (
+                    <div className="space-y-1 text-xs">
+                      <a
+                        href={pembayaranInvoice.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-bay-deep underline"
+                      >
+                        Lihat PDF
+                      </a>
+                      <p className="text-ink/40">Dikirim mitra langsung ke klien</p>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-ink/30">
+                      {o.status === "completed" ? "Belum ter-generate" : "-"}
+                    </span>
                   )}
                 </td>
               </tr>

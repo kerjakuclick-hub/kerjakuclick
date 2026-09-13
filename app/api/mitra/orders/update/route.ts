@@ -1,5 +1,15 @@
+// GANTI ISI app/api/mitra/orders/update/route.ts Anda dengan file ini.
+//
+// Perubahan (fitur "Invoice Pembayaran"): begitu mitra klik "Selesaikan
+// Tugas" (status -> completed), invoice pembayaran otomatis terbit lewat
+// generatePaymentInvoiceForOrder() -- mitra sendiri yang mengunduh & mengirim
+// ke klien via WA dari dashboard mitra (karena mitra yang menerima
+// pembayaran tunai/transfer), TIDAK dikirim otomatis lewat bot di sini.
+// Kegagalan generate invoice TIDAK menggagalkan penyelesaian tugas.
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { generatePaymentInvoiceForOrder } from "@/lib/pdf/generate-invoice";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   assigned: ["working"],
@@ -18,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, name")
     .eq("id", user.id)
     .single();
   if (profile?.role !== "mitra") {
@@ -65,5 +75,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ order });
+  // --- Invoice pembayaran terbit otomatis begitu tugas diselesaikan ---
+  let invoice = null;
+  if (status === "completed" && order) {
+    try {
+      invoice = await generatePaymentInvoiceForOrder(order, profile?.name ?? "Mitra Kerjaku.click");
+    } catch (invoiceError) {
+      console.error("Gagal generate invoice pembayaran:", invoiceError);
+    }
+  }
+
+  return NextResponse.json({ order, invoice });
 }

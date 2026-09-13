@@ -94,3 +94,108 @@ export function phoneLookupVariants(rawPhone: string): string[] {
 
   return Array.from(variants);
 }
+
+// ============================================================================
+// FILE BARU (fitur "Notifikasi Klien Otomatis + Invoice Pembayaran"):
+// kirim pesan WA PROAKTIF (bukan balasan webhook) lewat Fonnte.
+//
+// Pola kirim sama persis dengan sendFonnteReply() di
+// app/api/webhook/fonnte/route.ts, SENGAJA diduplikasi di sini (bukan
+// di-import-silang) supaya webhook yang sudah teruji tidak ikut berubah
+// risikonya kalau fungsi ini nanti diubah lagi.
+// ============================================================================
+
+/**
+ * Kirim pesan WA teks lewat Fonnte ke nomor manapun (klien, bukan cuma
+ * balasan ke pengirim webhook). Dipakai untuk notifikasi otomatis "pesanan
+ * disetujui" saat admin menugaskan mitra
+ * (app/api/admin/orders/assign/route.ts & retry-notify/route.ts).
+ *
+ * TIDAK melempar exception -- selalu mengembalikan { ok, error? } supaya
+ * pemanggil (mis. proses penugasan mitra) tetap dianggap berhasil walau
+ * notifikasi WA gagal terkirim; kegagalan cukup dicatat untuk ditampilkan
+ * ke admin.
+ */
+export async function sendFonnteMessage(
+  target: string,
+  message: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const token = process.env.FONNTE_DEVICE_TOKEN;
+  if (!token) {
+    return { ok: false, error: "FONNTE_DEVICE_TOKEN belum diset di environment variables." };
+  }
+
+  try {
+    const body = new URLSearchParams();
+    body.append("target", normalizePhoneToWa(target));
+    body.append("message", message);
+
+    const res = await fetch("https://api.fonnte.com/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: token,
+      },
+      body,
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      return { ok: false, error: `Fonnte HTTP ${res.status}: ${text}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}
+
+export type OrderApprovedInput = {
+  service_type: string;
+  address: string;
+  scheduled_date: string | null;
+  preferred_time: string | null;
+  total_price: number;
+};
+
+export type MitraApprovedInput = {
+  name: string;
+  status: "training" | "ahli" | null;
+  skill_category: string[] | null;
+  rating: number | null;
+};
+
+/**
+ * Bangun teks notifikasi "pesanan disetujui" ke klien: detail pesanan +
+ * profil singkat mitra ("ID Card sederhana", teks -- bukan gambar/PDF
+ * terlampir) + info pembayaran. Dikirim otomatis lewat sendFonnteMessage()
+ * begitu admin menugaskan mitra -- menggantikan alur lama (ID Card gambar +
+ * invoice PDF yang harus di-unduh & dikirim manual satu per satu oleh admin).
+ */
+export function buildOrderApprovedMessage(
+  order: OrderApprovedInput,
+  mitra: MitraApprovedInput
+): string {
+  const jadwal =
+    order.scheduled_date && order.preferred_time
+      ? `${order.scheduled_date}, jam ${order.preferred_time}`
+      : "sesuai jadwal yang Anda pilih";
+  const statusLabel = mitra.status === "ahli" ? "Mitra Ahli" : "Mitra Training";
+  const keahlian = (mitra.skill_category ?? []).join(" · ") || "-";
+  const ratingText = mitra.rating ? `⭐ ${mitra.rating.toFixed(1)}` : "Mitra baru";
+
+  return (
+    `Pesanan Anda sudah *disetujui* ✅ Mitra kami sudah ditugaskan.\n\n` +
+    `📋 *Detail Pesanan*\n` +
+    `Jasa: ${order.service_type}\n` +
+    `Alamat: ${order.address}\n` +
+    `Jadwal: ${jadwal}\n` +
+    `Tarif: Rp${order.total_price.toLocaleString("id-ID")}\n\n` +
+    `🧑‍🔧 *Mitra Bertugas*\n` +
+    `Nama: ${mitra.name}\n` +
+    `Status: ${statusLabel} (${ratingText})\n` +
+    `Keahlian: ${keahlian}\n\n` +
+    `💳 *Pembayaran*\n` +
+    `Tunai atau transfer langsung ke mitra saat pekerjaan selesai (bukan ke rekening kerjaku.click).\n\n` +
+    `Mitra kami akan menghubungi Anda untuk konfirmasi waktu kunjungan. Terima kasih telah menggunakan Kerjaku.click 🤍`
+  );
+}

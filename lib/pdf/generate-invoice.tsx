@@ -12,7 +12,7 @@
 //    ulang untuk order yang sama tidak pernah menimpa/ke-cache file lama.
 
 import { renderToBuffer } from '@react-pdf/renderer';
-import { InvoiceKlienPDF, InvoiceMitraPDF } from './invoice-templates';
+import { InvoiceKlienPDF, InvoiceMitraPDF, InvoicePembayaranPDF } from './invoice-templates';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import type { Order, MitraProfile } from '@/lib/types';
 
@@ -97,5 +97,62 @@ export async function generateInvoicesForOrder(
 
   throw new Error(
     `Gagal generate invoice setelah ${MAX_RETRY} percobaan (nomor selalu bentrok): ${lastErrorMessage}`
+  );
+}
+
+// ============================================================================
+// FILE BARU (fitur "Invoice Pembayaran"): dipanggil sekali saat mitra klik
+// "Selesaikan Tugas" (app/api/mitra/orders/update/route.ts). Invoice INI
+// yang mitra unduh & kirim sendiri ke klien via WA (mitra yang menerima
+// pembayaran tunai/transfer) -- beda dari generateInvoicesForOrder() di atas
+// yang jalan saat PENUGASAN (dokumen konfirmasi/task-slip, purpose default
+// 'konfirmasi'). recipient_type tetap 'klien' karena ini dokumen untuk
+// klien, hanya purpose-nya yang beda.
+// ============================================================================
+export async function generatePaymentInvoiceForOrder(order: Order, mitraName: string) {
+  const admin = getSupabaseAdmin();
+  let lastErrorMessage = '';
+
+  for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
+    const { data: invoiceNumberData, error: rpcError } = await admin.rpc('generate_invoice_number');
+    if (rpcError) throw new Error(`Gagal generate nomor invoice: ${rpcError.message}`);
+    const invoiceNumber: string = invoiceNumberData;
+    const fileSuffix = Date.now();
+
+    const buffer = await renderToBuffer(
+      <InvoicePembayaranPDF invoiceNumber={invoiceNumber} order={order} mitraName={mitraName} />
+    );
+    const fileUrl = await uploadPdf(
+      `${order.id}/${invoiceNumber}-${fileSuffix}-pembayaran.pdf`,
+      buffer
+    );
+
+    const { data: inserted, error: insertError } = await admin
+      .from('invoices')
+      .insert({
+        order_id: order.id,
+        invoice_number: invoiceNumber,
+        recipient_type: 'klien',
+        purpose: 'pembayaran',
+        file_url: fileUrl,
+        channel: 'wa_manual',
+      })
+      .select()
+      .single();
+
+    if (!insertError) {
+      return inserted;
+    }
+
+    const isDuplicateNumber =
+      insertError.code === '23505' || insertError.message.includes('duplicate key');
+    if (!isDuplicateNumber) {
+      throw new Error(`Gagal menyimpan data invoice pembayaran: ${insertError.message}`);
+    }
+    lastErrorMessage = insertError.message;
+  }
+
+  throw new Error(
+    `Gagal generate invoice pembayaran setelah ${MAX_RETRY} percobaan (nomor selalu bentrok): ${lastErrorMessage}`
   );
 }

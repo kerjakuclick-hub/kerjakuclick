@@ -1,10 +1,13 @@
 // GANTI ISI components/mitra/TaskList.tsx Anda dengan file ini.
 //
-// Perubahan: menerima prop baru `earnings` (model baru, per order). Untuk
-// tiap baris riwayat, cek dulu di `earnings` (model baru) — kalau order itu
-// completed SEBELUM migrasi 008 dan tidak ada di earnings, fallback ke
-// `transactions.mitra_share` (model lama) supaya riwayat lama tetap tampil
-// dengan benar, tidak mendadak kosong.
+// Perubahan (fitur "Invoice Pembayaran"): terima prop baru `invoices`
+// (invoice pembayaran, purpose='pembayaran', dari app/mitra/page.tsx). Baris
+// riwayat yang statusnya "completed" sekarang menampilkan tombol "Unduh
+// Invoice" + "Kirim ke WA Klien" -- mitra unduh filenya lalu kirim sendiri
+// ke klien via WA pribadinya (dilampirkan manual di WA, karena mitra yang
+// menerima pembayaran tunai/transfer, bukan bot yang kirim otomatis).
+// Invoice yang baru saja terbit (dari response advanceStatus) langsung
+// digabung ke state lokal supaya tombolnya muncul tanpa perlu refresh.
 
 "use client";
 
@@ -12,7 +15,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah } from "@/lib/services";
-import type { Order, OrderStatus, Transaction, Earning } from "@/lib/types";
+import { buildClientWaLink } from "@/lib/whatsapp";
+import type { Order, OrderStatus, Transaction, Earning, Invoice } from "@/lib/types";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   unassigned: "Belum Ditugaskan",
@@ -35,13 +39,16 @@ export default function TaskList({
   mitraId,
   transactions,
   earnings,
+  invoices: initialInvoices,
 }: {
   initialOrders: Order[];
   mitraId: string;
   transactions: Transaction[];
   earnings: Earning[];
+  invoices: Invoice[];
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
   const [savingId, setSavingId] = useState<number | null>(null);
   const router = useRouter();
 
@@ -87,8 +94,11 @@ export default function TaskList({
         body: JSON.stringify({ orderId, status: nextStatus }),
       });
       if (res.ok) {
-        const { order } = await res.json();
+        const { order, invoice } = await res.json();
         setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
+        if (invoice) {
+          setInvoices((prev) => [...prev.filter((i) => i.id !== invoice.id), invoice]);
+        }
         if (nextStatus === "completed") {
           // Saldo & pendapatan di kartu atas dihitung server-side lewat
           // trigger database — refresh supaya angkanya langsung ter-update.
@@ -108,6 +118,17 @@ export default function TaskList({
     const legacy = transactions.find((t) => t.order_id === orderId);
     if (legacy) return legacy.mitra_share;
     return null;
+  }
+
+  function invoicePembayaranUntukOrder(orderId: number): Invoice | undefined {
+    return invoices.find((i) => i.order_id === orderId && i.purpose === "pembayaran");
+  }
+
+  /** Buka WA klien dengan teks siap kirim -- invoice-nya sendiri diunduh &
+   * dilampirkan manual oleh mitra (tombol "Unduh Invoice" di sebelahnya). */
+  function openWaKirimInvoice(order: Order) {
+    const text = `Halo ${order.customer_name}, pekerjaan ${order.service_type} sudah selesai kami kerjakan. Berikut invoice pembayarannya (terlampir) — bisa dibayar tunai atau transfer langsung ke saya ya. Terima kasih sudah menggunakan Kerjaku.click 🤍`;
+    window.open(buildClientWaLink(order.customer_phone, text), "_blank");
   }
 
   const active = orders.filter((o) => o.status === "assigned" || o.status === "working");
@@ -178,7 +199,7 @@ export default function TaskList({
         <div>
           <p className="mb-2 text-xs font-semibold uppercase text-ink/50">Riwayat</p>
           <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-            <table className="w-full min-w-[560px] text-left text-sm">
+            <table className="w-full min-w-[700px] text-left text-sm">
               <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
                 <tr>
                   <th className="px-4 py-3">Layanan</th>
@@ -186,11 +207,13 @@ export default function TaskList({
                   <th className="px-4 py-3">Nilai</th>
                   <th className="px-4 py-3">Pendapatan Anda</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Invoice ke Klien</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((o) => {
                   const pendapatan = pendapatanUntukOrder(o.id);
+                  const invoice = invoicePembayaranUntukOrder(o.id);
                   return (
                     <tr key={o.id} className="border-b border-line last:border-0">
                       <td className="px-4 py-3 text-ink">{o.service_type}</td>
@@ -207,6 +230,29 @@ export default function TaskList({
                         >
                           {STATUS_LABEL[o.status]}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {o.status !== "completed" ? (
+                          <span className="text-xs text-ink/30">-</span>
+                        ) : invoice?.file_url ? (
+                          <div className="flex flex-col items-start gap-1 text-xs">
+                            <a
+                              href={invoice.file_url}
+                              download={`invoice-${invoice.invoice_number}.pdf`}
+                              className="inline-block rounded-lg border border-bay-deep px-2.5 py-1.5 font-medium text-bay-deep hover:bg-bay-deep hover:text-white"
+                            >
+                              Unduh Invoice
+                            </a>
+                            <button
+                              onClick={() => openWaKirimInvoice(o)}
+                              className="rounded-lg bg-wa px-2.5 py-1.5 font-medium text-white hover:brightness-105"
+                            >
+                              Kirim ke WA Klien
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-red-500">Belum ter-generate</span>
+                        )}
                       </td>
                     </tr>
                   );
