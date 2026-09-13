@@ -1,0 +1,24 @@
+{
+  "name": "Kerjaku.click Admin",
+  "short_name": "Kerjaku Admin",
+  "description": "Dashboard admin kerjaku.click - kelola pesanan, mitra, dan transaksi.",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#EEF2EE",
+  "theme_color": "#1D6F8C",
+  "icons": [
+    {
+      "src": "/icons/admin-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/admin-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AdminNav from "@/components/admin/AdminNav";
+
+export const metadata: Metadata = {
+  title: "Kerjaku.click Admin",
+  manifest: "/admin-manifest.webmanifest",
+};
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
