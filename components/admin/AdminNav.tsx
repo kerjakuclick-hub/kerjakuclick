@@ -8,9 +8,13 @@ export default function AdminNav({ adminName }: { adminName: string }) {
     <header className="border-b border-line bg-bay-deep">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 lg:px-8">
         <div className="flex items-center gap-8">
-          <Link href="/admin" className="font-display text-lg font-bold text-white">
-            kerjaku<span className="text-bridge">.click</span>{" "}
-            <span className="text-sm font-normal text-white/50">Admin</span>
+          <Link href="/admin" className="flex items-center gap-2 font-display text-lg font-bold text-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Kerjaku.click" className="h-8 w-8" />
+            <span>
+              kerjaku<span className="text-bridge">.click</span>{" "}
+              <span className="text-sm font-normal text-white/50">Admin</span>
+            </span>
           </Link>
           <nav className="flex gap-5 text-sm font-medium text-white/80">
             <Link href="/admin" className="hover:text-white">
