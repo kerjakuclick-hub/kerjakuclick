@@ -14,6 +14,7 @@
 import { renderToBuffer } from '@react-pdf/renderer';
 import { InvoiceKlienPDF, InvoiceMitraPDF, InvoicePembayaranPDF } from './invoice-templates';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { archiveInvoiceToDrive } from '@/lib/googleDrive';
 import type { Order, MitraProfile } from '@/lib/types';
 
 const STORAGE_BUCKET = 'invoices';
@@ -127,6 +128,17 @@ export async function generatePaymentInvoiceForOrder(order: Order, mitraName: st
       buffer
     );
 
+    // Arsip audit ke Google Drive (folder khusus, terpisah dari file yang
+    // mitra kirim manual ke klien) -- best-effort, TIDAK menggagalkan
+    // penerbitan invoice kalau Drive belum di-setup / gagal upload.
+    const driveResult = await archiveInvoiceToDrive(
+      `${invoiceNumber} - ${order.customer_name} - order ${order.id}.pdf`,
+      buffer
+    );
+    if (!driveResult.ok) {
+      console.error('Gagal arsip invoice ke Google Drive:', driveResult.error);
+    }
+
     const { data: inserted, error: insertError } = await admin
       .from('invoices')
       .insert({
@@ -135,6 +147,7 @@ export async function generatePaymentInvoiceForOrder(order: Order, mitraName: st
         recipient_type: 'klien',
         purpose: 'pembayaran',
         file_url: fileUrl,
+        drive_file_url: driveResult.ok ? driveResult.webViewLink : null,
         channel: 'wa_manual',
       })
       .select()

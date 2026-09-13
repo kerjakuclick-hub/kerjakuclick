@@ -79,6 +79,7 @@ export type Invoice = {
   invoice_number: string;
   recipient_type: "klien" | "mitra";
   purpose: "konfirmasi" | "pembayaran"; // BARU — migrasi 020, default 'konfirmasi' untuk data lama
+  drive_file_url: string | null; // BARU — migrasi 021, arsip audit Google Drive (null kalau belum/gagal)
   file_url: string | null;
   generated_at: string;
   sent_at: string | null;

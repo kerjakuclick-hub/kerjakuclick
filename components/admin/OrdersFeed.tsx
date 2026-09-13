@@ -463,10 +463,20 @@ export default function OrdersFeed({
                         href={pembayaranInvoice.file_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-bay-deep underline"
+                        className="block text-bay-deep underline"
                       >
                         Lihat PDF
                       </a>
+                      {pembayaranInvoice.drive_file_url && (
+                        <a
+                          href={pembayaranInvoice.drive_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block text-bay-deep underline"
+                        >
+                          Arsip Drive
+                        </a>
+                      )}
                       <p className="text-ink/40">Dikirim mitra langsung ke klien</p>
                     </div>
                   ) : (
