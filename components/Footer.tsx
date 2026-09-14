@@ -9,7 +9,7 @@ export default function Footer() {
         <div className="space-y-3 max-w-sm">
           <div className="flex items-center gap-2 font-semibold text-[#F5B324]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9" />
+            <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9 rounded-full" />
             <span>kerjaku.click</span>
           </div>
           <p className="text-white/70 text-sm">
@@ -79,11 +79,20 @@ export default function Footer() {
         </div>
       </div>
 
+      {/* Blok legalitas — data resmi PT Perorangan sesuai Sertifikat AHU & NIB,
+          disiapkan agar situs memenuhi syarat verifikasi bisnis Meta
+          (Facebook Business Manager) saat integrasi resmi dilakukan. */}
       <div className="max-w-[1200px] mx-auto px-6 py-4 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-2">
-        <p className="text-white/60 text-xs text-center md:text-left">
-          © {new Date().getFullYear()} PT. Kerjaku Bangun Negeri. All rights
-          reserved.
-        </p>
+        <div className="text-white/60 text-xs text-center md:text-left leading-relaxed space-y-0.5">
+          <p>
+            © {new Date().getFullYear()} PT KERJAKU BANGUN NEGERI. All rights reserved.
+          </p>
+          <p>
+            NIB 0905260042501 &middot; AHU No AHU-A000469.AH.01.30 Tahun 2026 &middot; Brand: kerjaku.click
+          </p>
+          <p>Jl. Muhammadiyah 2, Tondo, Kec. Mantikulore, Kota Palu, Sulawesi Tengah 94119</p>
+          <p>Dikelola oleh Direktur: Syifa Ruby Adzkia</p>
+        </div>
       </div>
     </footer>
   );
