@@ -6,7 +6,14 @@
 // diubah) -- disamakan sekarang dengan harga & durasi terbaru:
 // Cleaning Fast Rp55.000 (sebelumnya Rp45.000) & Cleaning PRO 3 Jam
 // (sebelumnya 2.5 Jam), jadi "Mulai dari Rp 55.000" & "Est. 1,5-3 Jam".
-// Tidak ada perubahan lain -- kartu Setrika, Cuci Kendaraan, Les Private,
+//
+// Revisi BARU (15 September 2026): durasi kerja Cleaning PRO dikoreksi
+// 3 Jam -> 2 Jam (harga TETAP Rp95.000, lihat lib/services.ts), jadi
+// rentang durasi kartu "Bersihkan Rumah" berubah dari "Est. 1,5-3 Jam"
+// -> "Est. 1,5-2 Jam". Kartu "Setrika" TIDAK berubah (Setrika PRO cuma
+// naik harga jadi Rp80.000, durasi 2 Jam tetap sama seperti sebelumnya).
+//
+// Tidak ada perubahan lain -- kartu Cuci Kendaraan, Les Private,
 // fetch gambar dari Supabase, & serviceCategory/comingSoon tetap sama.
 
 import { createClient } from "@/lib/supabase/server";
@@ -30,7 +37,7 @@ const services: Omit<ServiceCardData, "imageUrl">[] = [
     serviceCategory: "Bersihkan Rumah",
     desc: "Pembersihan menyeluruh untuk ruang tamu, kamar tidur, hingga dapur Anda.",
     priceFrom: "Rp 55.000",
-    duration: "Est. 1,5-3 Jam",
+    duration: "Est. 1,5-2 Jam",
     gradient: "from-[#F5B324] to-[#1D6F8C]",
     icon: "🧹",
   },
