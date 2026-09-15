@@ -1,6 +1,14 @@
 // GANTI ISI components/Footer.tsx Anda dengan file ini.
 // Perubahan: logo gambar (/public/logo.png) ditambahkan di sebelah teks
 // "kerjaku.click".
+//
+// Perubahan BARU (fitur "Pisah Nomor Pesanan & Nomor Keluhan/CS"): link WA
+// lama di sini diberi label "WA Pemesanan" (tetap ke OPERATOR_WA_NUMBER --
+// nomor yang tersambung Fonnte, TIDAK berubah), ditambah SATU baris baru
+// "WA Keluhan/CS" yang mengarah ke nomor keluhan terpisah (CS_COMPLAINT_WA_
+// NUMBER, di-handle manual admin) -- lihat lib/whatsapp.ts.
+
+import { OPERATOR_WA_NUMBER, buildCsLink } from "@/lib/whatsapp";
 
 export default function Footer() {
   return (
@@ -54,12 +62,22 @@ export default function Footer() {
               </li>
               <li>
                 <a
-                  href="https://wa.me/6281145504178"
+                  href={`https://wa.me/${OPERATOR_WA_NUMBER}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-white/70 hover:text-[#F5B324] transition-colors"
                 >
-                  WA: +62 811-4550-4178
+                  WA Pemesanan: +62 811-4550-4178
+                </a>
+              </li>
+              <li>
+                <a
+                  href={buildCsLink()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-[#F5B324] transition-colors"
+                >
+                  WA Keluhan/CS: +62 811-4110-9567
                 </a>
               </li>
               <li>
