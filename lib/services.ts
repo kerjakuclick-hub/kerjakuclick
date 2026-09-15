@@ -17,6 +17,16 @@
 //    - Cleaning PRO: Rp80.000 -> Rp95.000, durasi 2.5 Jam -> 3 Jam
 //    Ini mengubah harga yang tercantum di landing page & pesan WA order
 //    untuk kedua varian tsb.
+//
+// Revisi BARU (15 September 2026) -- pasca-rilis, beban kerja mitra
+// (termasuk persiapan & transportasi) ternyata lebih besar dari estimasi
+// durasi kerja yang tercantum:
+//    - Cleaning PRO: harga TETAP Rp95.000, durasi kerja dikoreksi dari
+//      3 Jam -> 2 Jam.
+//    - Setrika PRO: harga dinaikkan Rp75.000 -> Rp80.000 (durasi & jumlah
+//      pcs TIDAK berubah -- tetap 40 Pcs / 2 Jam).
+//    Cleaning Fast, Setrika Fast, Cuci Kendaraan, & Les Private TIDAK
+//    berubah.
 // Tidak ada perubahan pada findServiceByLabel, formatRupiah, atau
 // serviceCategories.
 
@@ -77,7 +87,7 @@ export const services: ServiceVariant[] = [
     id: "setrika-pro",
     category: "Setrika Pakaian",
     name: "Setrika PRO",
-    price: 75000,
+    price: 80000,
     unit: "40 Pcs / Paket",
     duration: "2 Jam",
     tier: "PRO",
@@ -102,7 +112,7 @@ export const services: ServiceVariant[] = [
     name: "Cleaning PRO",
     price: 95000,
     unit: "1 Rumah (Tipe 50/80)",
-    duration: "3 Jam",
+    duration: "2 Jam",
     tier: "PRO",
     desc: "Layanan pembersihan harian rumah/properti menengah yang dikerjakan lebih lengkap dan menyeluruh.",
     detilPekerjaan: [
