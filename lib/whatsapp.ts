@@ -6,11 +6,21 @@
 // orders.customer_phone (bisa "0812..." atau "62812..." tergantung cara
 // webhook Fonnte menyimpannya). Fungsi & tipe yang sudah ada TIDAK diubah.
 
-// Nomor WA Operator (pesanan & CS) — +62 811-4550-4178
+// Nomor WA Operator PESANAN — +62 811-4550-4178. Nomor ini yang tersambung
+// ke Fonnte (webhook parsing #BARU) -- TETAP, jangan diganti, supaya alur
+// order otomatis (OrderForm.tsx -> buildWaLink -> wa.me -> webhook Fonnte)
+// tidak putus.
 export const OPERATOR_WA_NUMBER = "6281145504178";
 
-export function buildCsLink(text: string = "Halo cs"): string {
-  return `https://wa.me/${OPERATOR_WA_NUMBER}?text=${encodeURIComponent(text)}`;
+// Nomor WA KELUHAN/CS PELANGGAN — +62 811-4110-9567. Dipisah dari nomor
+// pesanan di atas supaya keluhan tidak tercampur ke parser order otomatis;
+// nomor ini di-handle MANUAL oleh admin (bukan lewat Fonnte/webhook), pakai
+// fitur "Balasan Cepat" WhatsApp Business untuk pilihan keluhan umum.
+export const CS_COMPLAINT_WA_NUMBER = "6281141109567";
+
+/** Link tombol "Chat CS" -- ke nomor KELUHAN (manual), bukan nomor pesanan. */
+export function buildCsLink(text: string = "Halo, saya ingin bertanya/menyampaikan keluhan."): string {
+  return `https://wa.me/${CS_COMPLAINT_WA_NUMBER}?text=${encodeURIComponent(text)}`;
 }
 
 export type OrderInput = {
@@ -197,5 +207,47 @@ export function buildOrderApprovedMessage(
     `💳 *Pembayaran*\n` +
     `Tunai atau transfer langsung ke mitra saat pekerjaan selesai (bukan ke rekening kerjaku.click).\n\n` +
     `Mitra kami akan menghubungi Anda untuk konfirmasi waktu kunjungan. Terima kasih telah menggunakan Kerjaku.click 🤍`
+  );
+}
+
+// ============================================================================
+// FILE BARU (fitur "Notifikasi Mitra Otomatis"): begitu admin menugaskan
+// mitra ke sebuah pesanan, mitra langsung dapat WA berisi detail tugas +
+// kontak klien -- tidak perlu buka dasbor dulu buat tahu ada tugas baru.
+// Dikirim dari app/api/admin/orders/assign/route.ts & retry-notify/route.ts,
+// pola sama dengan notifikasi ke klien (buildOrderApprovedMessage di atas).
+// ============================================================================
+
+export type MitraAssignedInput = {
+  service_type: string;
+  address: string;
+  scheduled_date: string | null;
+  preferred_time: string | null;
+  customer_name: string;
+  customer_phone: string;
+};
+
+/**
+ * Bangun teks notifikasi "tugas baru" ke MITRA yang baru ditugaskan: detail
+ * pesanan + data kontak klien, supaya mitra bisa langsung menghubungi klien
+ * untuk konfirmasi waktu kunjungan tanpa perlu buka dasbor mitra dulu.
+ */
+export function buildMitraAssignedMessage(order: MitraAssignedInput): string {
+  const jadwal =
+    order.scheduled_date && order.preferred_time
+      ? `${order.scheduled_date}, jam ${order.preferred_time}`
+      : "sesuai jadwal yang dipilih klien";
+
+  return (
+    `🔔 *Tugas Baru Untuk Anda*\n\n` +
+    `Anda ditugaskan mengerjakan pesanan berikut:\n\n` +
+    `📋 *Detail Pesanan*\n` +
+    `Jasa: ${order.service_type}\n` +
+    `Alamat: ${order.address}\n` +
+    `Jadwal: ${jadwal}\n\n` +
+    `👤 *Data Klien*\n` +
+    `Nama: ${order.customer_name}\n` +
+    `No. WA: ${order.customer_phone}\n\n` +
+    `Silakan hubungi klien untuk konfirmasi waktu kunjungan. Detail lengkap & invoice tugas tetap bisa dilihat di dasbor mitra Anda. Semangat bekerja! 💪`
   );
 }

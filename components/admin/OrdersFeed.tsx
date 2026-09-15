@@ -16,6 +16,12 @@
 //      setelah mitra klik "Selesaikan Tugas" dari dashboard-nya. Mitra
 //      sendiri yang mengirim ke klien (karena mitra yang menerima
 //      pembayaran tunai/transfer), admin cuma bisa lihat/pantau di sini.
+//   5. Kolom BARU "Notifikasi Mitra" (fitur "Notifikasi Mitra Otomatis",
+//      migrasi 022) -- status kirim WA "tugas baru" ke mitra begitu
+//      ditugaskan, pola sama persis dengan "Notifikasi Klien" (badge hijau
+//      / badge merah + "Coba Kirim Lagi"). Tombol retry-nya sama-sama
+//      memanggil retryNotify() -- endpoint retry-notify sekarang menangani
+//      klien & mitra sekaligus, cuma mengirim ulang yang memang masih gagal.
 
 "use client";
 
@@ -257,7 +263,7 @@ export default function OrdersFeed({
     // banyak. Header ikut sticky supaya nama kolom tetap kelihatan saat
     // scroll ke bawah.
     <div className="max-h-[75vh] overflow-auto rounded-card border border-line bg-white shadow-card">
-      <table className="w-full min-w-[1450px] text-left text-sm">
+      <table className="w-full min-w-[1650px] text-left text-sm">
         <thead className="sticky top-0 z-10 border-b border-line bg-paper text-xs uppercase text-ink/50 shadow-sm">
           <tr className="divide-x divide-line">
             <th className="px-5 py-4">Waktu Masuk</th>
@@ -269,6 +275,7 @@ export default function OrdersFeed({
             <th className="px-5 py-4">Mitra</th>
             <th className="px-5 py-4">Invoice Mitra</th>
             <th className="px-5 py-4">Notifikasi Klien</th>
+            <th className="px-5 py-4">Notifikasi Mitra</th>
             <th className="px-5 py-4">Invoice Pembayaran</th>
           </tr>
         </thead>
@@ -444,6 +451,32 @@ export default function OrdersFeed({
                   ) : o.client_notify_error ? (
                     <div className="space-y-1 text-xs">
                       <p className="max-w-[200px] text-red-600">Gagal: {o.client_notify_error}</p>
+                      <button
+                        onClick={() => retryNotify(o.id)}
+                        disabled={notifyBusy === o.id}
+                        className="rounded-lg bg-amber-100 px-2 py-1 text-amber-700 disabled:opacity-50"
+                      >
+                        {notifyBusy === o.id ? "Mengirim..." : "Coba Kirim Lagi"}
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-ink/40">Memproses...</span>
+                  )}
+                </td>
+                <td className="px-5 py-4">
+                  {!o.mitra_id ? (
+                    <span className="text-xs text-ink/30">-</span>
+                  ) : o.mitra_notified_at ? (
+                    <span className="inline-block rounded-full bg-wa/20 px-2 py-0.5 text-xs text-wa">
+                      Terkirim otomatis{" "}
+                      {new Date(o.mitra_notified_at).toLocaleTimeString("id-ID", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  ) : o.mitra_notify_error ? (
+                    <div className="space-y-1 text-xs">
+                      <p className="max-w-[200px] text-red-600">Gagal: {o.mitra_notify_error}</p>
                       <button
                         onClick={() => retryNotify(o.id)}
                         disabled={notifyBusy === o.id}

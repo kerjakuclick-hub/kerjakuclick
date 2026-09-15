@@ -30,6 +30,8 @@ export type Order = {
   mitra_id_card_sent_by: string | null; // migrasi 017 — idem
   client_notified_at: string | null; // BARU — migrasi 020: waktu notifikasi WA "pesanan disetujui" berhasil terkirim otomatis
   client_notify_error: string | null; // BARU — migrasi 020: pesan error terakhir kalau notifikasi otomatis gagal
+  mitra_notified_at: string | null; // BARU — migrasi 022: waktu notifikasi WA "tugas baru" berhasil terkirim otomatis ke mitra
+  mitra_notify_error: string | null; // BARU — migrasi 022: pesan error terakhir kalau notifikasi otomatis ke mitra gagal
 };
 
 export type MitraOption = {

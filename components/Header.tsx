@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { buildCsLink } from "@/lib/whatsapp";
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -61,8 +62,10 @@ export default function Header() {
         <div className="hidden md:flex gap-8">{navLinks}</div>
 
         <div className="flex items-center gap-3">
+          {/* Nomor KELUHAN/CS (manual, di-handle admin) -- BUKAN nomor
+              pesanan yang tersambung ke Fonnte. Lihat lib/whatsapp.ts. */}
           <a
-            href="https://wa.me/6281145504178"
+            href={buildCsLink()}
             target="_blank"
             rel="noopener noreferrer"
             className="bg-[#25D366] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 active:scale-95 transition text-sm font-semibold"
