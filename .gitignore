@@ -5,3 +5,10 @@ out
 .env.local
 .vercel
 *.log
+
+# Kredensial OAuth Google (client secret) -- SENSITIF, jangan pernah dicommit.
+# Kalau butuh dipakai lokal, simpan di luar folder repo ini.
+client_secret_*.json
+
+# Folder scratch Claude Desktop app, bukan bagian dari source project.
+Claude outputs/
