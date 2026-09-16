@@ -5,8 +5,8 @@
 // berlaku sejak migrasi 008/009).
 //
 // BARU (fitur "Toggle Ketersediaan Mitra", migrasi 023): select ditambah
-// `is_available, unavailable_reason` supaya MitraTable bisa menampilkan
-// badge status ketersediaan tiap mitra ke admin.
+// `is_available, unavailable_reason, unavailable_since` supaya MitraTable
+// bisa menampilkan badge status ketersediaan tiap mitra ke admin.
 
 import { createClient } from "@/lib/supabase/server";
 import MitraTable from "@/components/admin/MitraTable";
@@ -19,7 +19,7 @@ export default async function AdminMitraPage() {
   const { data: mitraList } = await supabase
     .from("profiles")
     .select(
-      "id, name, phone, wallet_balance, total_earnings, status, is_active, gender, skill_category, photo_url, rating, is_available, unavailable_reason"
+      "id, name, phone, wallet_balance, total_earnings, status, is_active, gender, skill_category, photo_url, rating, is_available, unavailable_reason, unavailable_since"
     )
     .eq("role", "mitra")
     .order("name");
