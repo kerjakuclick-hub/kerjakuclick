@@ -21,6 +21,13 @@
 // tahu ada tugas baru. Hasil kirim (berhasil/gagal) dicatat terpisah di
 // orders.mitra_notified_at / mitra_notify_error, ditampilkan & bisa di-retry
 // dari OrdersFeed sama seperti notifikasi klien.
+//
+// Perubahan BARU (fitur "Toggle Ketersediaan Mitra", migrasi 023): mitra
+// yang sedang menyalakan status "tidak tersedia" (is_available = false --
+// istirahat/sakit/kendala lain) sudah tidak muncul di dropdown "Pilih mitra
+// eligible" (lihat eligible_mitra_for_order), tapi validasi ini ditambahkan
+// juga di sini sebagai pertahanan berlapis -- misalnya kalau dropdown admin
+// belum sempat refresh saat mitra baru saja mematikan ketersediaannya.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -81,7 +88,7 @@ export async function POST(req: NextRequest) {
 
     const { data: mitra, error: mitraError } = await admin
       .from("profiles")
-      .select("wallet_balance, is_active")
+      .select("wallet_balance, is_active, is_available, unavailable_reason")
       .eq("id", mitra_id as string)
       .single();
 
@@ -91,6 +98,15 @@ export async function POST(req: NextRequest) {
 
     if (!mitra.is_active) {
       return NextResponse.json({ error: "Mitra ini sedang nonaktif." }, { status: 400 });
+    }
+
+    if (!mitra.is_available) {
+      return NextResponse.json(
+        {
+          error: `Mitra ini sedang tidak tersedia (${mitra.unavailable_reason ?? "istirahat/sakit/kendala lain"}). Pilih mitra lain.`,
+        },
+        { status: 400 }
+      );
     }
 
     if (mitra.wallet_balance < order.min_wallet_required) {

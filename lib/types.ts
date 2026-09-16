@@ -9,6 +9,10 @@
 //      file ini belum di-update mengikuti. Kalau ada kode lain yang sempat
 //      menulis skill_category sebagai string tunggal, TypeScript sekarang
 //      akan menandainya sebagai error supaya ketahuan lebih awal.
+//   3. MitraProfile: tambah is_available, unavailable_reason,
+//      unavailable_since (BARU — fitur "Toggle Ketersediaan Mitra",
+//      migrasi 023). Terpisah dari is_active yang dikontrol admin --
+//      is_available dikontrol mitra sendiri lewat dasbor.
 
 export type OrderStatus = "unassigned" | "assigned" | "working" | "completed" | "cancelled";
 
@@ -52,6 +56,9 @@ export type MitraProfile = {
   skill_category: string[] | null; // DIKOREKSI — array sejak migrasi 014
   photo_url: string | null; // migrasi 007
   rating: number | null; // migrasi 007
+  is_available: boolean; // BARU — migrasi 023: toggle ketersediaan milik mitra sendiri
+  unavailable_reason: string | null; // BARU — migrasi 023: alasan saat is_available = false
+  unavailable_since: string | null; // BARU — migrasi 023: sejak kapan is_available = false
 };
 
 export type MitraSelfProfile = MitraProfile;

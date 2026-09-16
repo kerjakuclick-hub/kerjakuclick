@@ -5,10 +5,16 @@
 //    ID Card Digital) -- kolom lain yang sudah ada TIDAK diubah.
 // 2. Section baru <DigitalIdCard /> ditambahkan setelah ringkasan
 //    saldo/pendapatan, sebelum daftar Tugas Saya.
+// 3. BARU (fitur "Toggle Ketersediaan Mitra", migrasi 023): query profil
+//    ditambah is_available, unavailable_reason, unavailable_since; section
+//    baru <AvailabilityToggle /> ditambahkan di paling atas (sebelum
+//    ringkasan saldo) supaya mitra langsung lihat & bisa ubah status
+//    begitu buka dasbor.
 
 import { createClient } from "@/lib/supabase/server";
 import TaskList from "@/components/mitra/TaskList";
 import DigitalIdCard from "@/components/mitra/DigitalIdCard";
+import AvailabilityToggle from "@/components/mitra/AvailabilityToggle";
 import { formatRupiah, services } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +32,7 @@ export default async function MitraDashboardPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, name, phone, wallet_balance, total_earnings, status, is_active, photo_url, skill_category, rating"
+      "id, name, phone, wallet_balance, total_earnings, status, is_active, photo_url, skill_category, rating, is_available, unavailable_reason, unavailable_since"
     )
     .eq("id", user!.id)
     .single();
@@ -68,6 +74,14 @@ export default async function MitraDashboardPage() {
         </h1>
         <p className="mt-1 text-sm text-ink/60">Ringkasan dompet dan tugas Anda hari ini.</p>
       </div>
+
+      {profile && (
+        <AvailabilityToggle
+          initialIsAvailable={profile.is_available ?? true}
+          initialReason={profile.unavailable_reason ?? null}
+          initialSince={profile.unavailable_since ?? null}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-card border border-line bg-white p-5 shadow-card">
