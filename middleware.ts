@@ -68,8 +68,19 @@ function handleMaintenanceMode(request: NextRequest): NextResponse | null {
     return null;
   }
 
-  // 4) API: jawab 503 JSON singkat -- mencegah order/aksi apa pun dibuat
-  //    langsung lewat API walau UI sudah diblokir.
+  // 4) Pengecualian: webhook Fonnte (/api/webhook/fonnte) TIDAK diblokir di
+  //    sini -- kalau ikut diblokir, pelanggan yang chat ke WA pesanan selama
+  //    maintenance akan didiamkan total (kelihatan seperti nomor mati),
+  //    padahal ini bukan endpoint publik yang bisa diakses langsung dari
+  //    website (hanya dipanggil server Fonnte). Route handler-nya sendiri
+  //    yang mengecek MAINTENANCE_MODE dan membalas "sedang maintenance"
+  //    tanpa membuat order baru -- lihat app/api/webhook/fonnte/route.ts.
+  if (pathname === "/api/webhook/fonnte") {
+    return null;
+  }
+
+  // 5) API lainnya: jawab 503 JSON singkat -- mencegah order/aksi apa pun
+  //    dibuat langsung lewat API walau UI sudah diblokir.
   if (pathname.startsWith("/api")) {
     return NextResponse.json(
       {
@@ -80,7 +91,7 @@ function handleMaintenanceMode(request: NextRequest): NextResponse | null {
     );
   }
 
-  // 5) Semua halaman lain -> tampilkan halaman maintenance (rewrite, supaya
+  // 6) Semua halaman lain -> tampilkan halaman maintenance (rewrite, supaya
   //    URL di address bar pengunjung tidak berubah).
   const maintenanceUrl = request.nextUrl.clone();
   maintenanceUrl.pathname = "/maintenance";
