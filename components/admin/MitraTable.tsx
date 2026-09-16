@@ -7,6 +7,13 @@
 // dulu. Sekarang: (1) checkbox keahlian disusun 2 kolom supaya baris lebih
 // pendek, scrollbar jadi gampang dijangkau; (2) ditambah teks penunjuk di
 // atas tabel.
+//
+// BARU (fitur "Toggle Ketersediaan Mitra", migrasi 023): kolom baru
+// "Ketersediaan" menampilkan badge status yang mitra atur sendiri dari
+// dasbor mereka (Tersedia / Tidak Tersedia + alasan) -- ini murni tampilan
+// (read-only untuk admin), supaya saat operasional di lapangan admin bisa
+// langsung lihat mitra mana yang sedang istirahat/sakit/kendala lain
+// sebelum menugaskan pesanan baru.
 
 "use client";
 
@@ -154,6 +161,26 @@ function SkillCheckboxes({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function AvailabilityBadge({ mitra }: { mitra: MitraProfile }) {
+  if (mitra.is_available) {
+    return (
+      <span className="inline-block rounded-full bg-wa/20 px-2 py-1 text-xs font-medium text-wa">
+        Tersedia
+      </span>
+    );
+  }
+  return (
+    <div className="max-w-[150px]">
+      <span className="inline-block rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-600">
+        Tidak Tersedia
+      </span>
+      {mitra.unavailable_reason && (
+        <p className="mt-1 text-[11px] text-ink/60">{mitra.unavailable_reason}</p>
+      )}
     </div>
   );
 }
@@ -332,6 +359,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
               <th className="px-4 py-3">Keahlian</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Aktif</th>
+              <th className="px-4 py-3">Ketersediaan</th>
               <th className="px-4 py-3">Top Up</th>
             </tr>
           </thead>
@@ -388,6 +416,9 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                   </button>
                 </td>
                 <td className="px-4 py-3 align-top">
+                  <AvailabilityBadge mitra={m} />
+                </td>
+                <td className="px-4 py-3 align-top">
                   <div className="flex gap-1.5">
                     <input
                       type="number"
@@ -411,7 +442,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
             ))}
             {mitra.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-sm text-ink/50">
+                <td colSpan={10} className="px-4 py-8 text-center text-sm text-ink/50">
                   Belum ada mitra terdaftar.
                 </td>
               </tr>
