@@ -226,6 +226,22 @@ export async function POST(req: NextRequest) {
   const rawMessage = body.message ?? "";
   const sender = body.sender ?? "";
 
+  // --- Mode Maintenance (sementara, audit fraud mitra -- lihat middleware.ts) ---
+  // Endpoint ini SENGAJA dikecualikan dari blokir 503 umum di middleware,
+  // supaya pelanggan yang chat WA pesanan tidak didiamkan total (terlihat
+  // seperti nomor mati). Tapi selama maintenance, TIDAK ada order baru yang
+  // disimpan, TIDAK ada FAQ auto-reply, TIDAK ada reset PIN -- semua pesan
+  // masuk cukup dibalas 1 pesan singkat pemberitahuan maintenance.
+  if (process.env.MAINTENANCE_MODE === "true") {
+    if (sender) {
+      await sendFonnteReply(
+        sender,
+        "Mohon maaf kak 🙏 kerjaku.click sedang dalam pemeliharaan sistem sementara, jadi belum bisa menerima pesanan baru dulu. Silakan coba lagi dalam waktu dekat ya. Untuk pesanan yang sudah berjalan sebelumnya, mohon ditunggu — tim kami akan menghubungi langsung kalau ada info penting."
+      );
+    }
+    return NextResponse.json({ ok: true, maintenance: true });
+  }
+
   // --- Jalur 1: format order #BARU (logic asli, tidak diubah) ---
   const parsed = parseOrderMessage(rawMessage);
   if (parsed) {
