@@ -38,6 +38,8 @@
 //     sekarang cukup memberi tahu secara lisan/chat bahwa invoice sudah bisa
 //     dicek di dasbor klien atau WA yang dikirim sistem.
 
+import { getServiceMaterials } from "./services";
+
 // Nomor WA Operator PESANAN — +62 811-4550-4178. Nomor ini yang tersambung
 // ke Fonnte (webhook parsing #BARU) -- TETAP, jangan diganti, supaya alur
 // order otomatis (OrderForm.tsx -> buildWaLink -> wa.me -> webhook Fonnte)
@@ -228,6 +230,13 @@ export type MitraApprovedInput = {
  * BARU (Bagian 7.2/8.2): ditambah pointer ke Chat Pesanan in-app supaya
  * klien juga tahu kanal resmi untuk koordinasi jadwal, bukan menunggu
  * mitra menghubungi dari nomor pribadi.
+ *
+ * BARU (18 September 2026) -- fitur "Standar Kualitas Bahan Baku": kalau
+ * jasanya termasuk 4 varian yang punya bahan baku terstandar (lihat
+ * lib/services.ts SERVICE_MATERIALS -- Kispray/Vixal/Super Pel), pesan ini
+ * sekarang menyebutkan mereknya secara singkat (1 baris, tidak menambah
+ * panjang pesan secara berarti) supaya klien tahu sejak konfirmasi bahwa
+ * bahan yang dipakai mitra sudah teruji & sesuai standar kerjaku.click.
  */
 export function buildOrderApprovedMessage(
   order: OrderApprovedInput,
@@ -240,6 +249,11 @@ export function buildOrderApprovedMessage(
   const statusLabel = mitra.status === "ahli" ? "Mitra Ahli" : "Mitra Training";
   const keahlian = (mitra.skill_category ?? []).join(" · ") || "-";
   const ratingText = mitra.rating ? `⭐ ${mitra.rating.toFixed(1)}` : "Mitra baru";
+  const materials = getServiceMaterials(order.service_type);
+  const materialLine =
+    materials && materials.length > 0
+      ? `🧴 *Bahan Terstandar*: ${materials.map((m) => m.merek).join(" & ")} (sudah diuji & sesuai standar kerjaku.click)\n\n`
+      : "";
 
   return (
     `Pesanan Anda sudah *disetujui* ✅ Mitra kami sudah ditugaskan.\n\n` +
@@ -254,6 +268,7 @@ export function buildOrderApprovedMessage(
     `Keahlian: ${keahlian}\n\n` +
     `💳 *Pembayaran*\n` +
     `Tunai atau transfer langsung ke mitra saat pekerjaan selesai (bukan ke rekening kerjaku.click).\n\n` +
+    materialLine +
     `💬 Ada pertanyaan atau perlu ubah jadwal? Klik ikon chat 💬 yang muncul di pojok kanan bawah setiap halaman kerjaku.click (atau buka halaman *Riwayat Pesanan*, ${KLIEN_RIWAYAT_URL}) -- lebih cepat & tercatat rapi dibanding WA pribadi.\n\n` +
     `Terima kasih telah menggunakan Kerjaku.click 🤍`
   );
