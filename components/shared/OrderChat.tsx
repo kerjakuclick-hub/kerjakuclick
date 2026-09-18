@@ -15,12 +15,21 @@
 // order_messages milik order yang relevan -- pola yang sama persis dengan
 // subscription "orders-live"/"invoices-live" yang sudah ada di
 // OrdersFeed.tsx & TaskList.tsx.
+//
+// BARU (18 September 2026) -- fitur "Bagikan Lokasi" (migrasi
+// 026_order_messages_location.sql): tombol "📍" di sebelah kotak teks,
+// pakai Geolocation API browser (lib/location.ts) lalu insert baris chat
+// dengan message_type='location' -- dirender sebagai kartu tautan Google
+// Maps (components/shared/LocationMessageCard.tsx), bukan gelembung teks
+// biasa.
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { OrderMessage } from "@/lib/types";
+import { LOCATION_MESSAGE_BODY, getBrowserLocation } from "@/lib/location";
+import LocationMessageCard from "./LocationMessageCard";
 
 const SENDER_LABEL: Record<OrderMessage["sender_type"], string> = {
   mitra: "Mitra",
@@ -46,6 +55,7 @@ export default function OrderChat({
   const [loaded, setLoaded] = useState(initialMessages.length > 0);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [sharingLocation, setSharingLocation] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -86,35 +96,68 @@ export default function OrderChat({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  /** Insert baris chat baru (teks ATAU lokasi) -- disatukan di sini supaya
+   *  handleSend & handleShareLocation tidak duplikasi kode insert Supabase. */
+  async function insertMessage(payload: {
+    body: string;
+    message_type: "text" | "location";
+    location_lat?: number;
+    location_lng?: number;
+  }) {
+    const supabase = createClient();
+    const { data, error: insertError } = await supabase
+      .from("order_messages")
+      .insert({
+        order_id: orderId,
+        sender_type: role,
+        sender_id: currentUserId,
+        sender_name: currentUserName,
+        body: payload.body,
+        message_type: payload.message_type,
+        location_lat: payload.location_lat ?? null,
+        location_lng: payload.location_lng ?? null,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    if (data) {
+      setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data as OrderMessage]));
+    }
+  }
+
   async function handleSend() {
     const body = draft.trim();
     if (!body || sending) return;
     setSending(true);
     setError(null);
     try {
-      const supabase = createClient();
-      const { data, error: insertError } = await supabase
-        .from("order_messages")
-        .insert({
-          order_id: orderId,
-          sender_type: role,
-          sender_id: currentUserId,
-          sender_name: currentUserName,
-          body,
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        setError(insertError.message);
-        return;
-      }
+      await insertMessage({ body, message_type: "text" });
       setDraft("");
-      if (data) {
-        setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data as OrderMessage]));
-      }
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleShareLocation() {
+    if (sharingLocation) return;
+    setSharingLocation(true);
+    setError(null);
+    try {
+      const { lat, lng } = await getBrowserLocation();
+      await insertMessage({
+        body: LOCATION_MESSAGE_BODY,
+        message_type: "location",
+        location_lat: lat,
+        location_lng: lng,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal membagikan lokasi.");
+    } finally {
+      setSharingLocation(false);
     }
   }
 
@@ -148,7 +191,11 @@ export default function OrderChat({
                 <p className={`mb-0.5 text-[10px] font-semibold ${isMine ? "text-white/70" : "text-ink/50"}`}>
                   {SENDER_LABEL[m.sender_type]} · {m.sender_name}
                 </p>
-                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                {m.message_type === "location" && m.location_lat !== null && m.location_lng !== null ? (
+                  <LocationMessageCard lat={m.location_lat} lng={m.location_lng} tone={isMine ? "dark" : "light"} />
+                ) : (
+                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                )}
                 <p className={`mt-0.5 text-[10px] ${isMine ? "text-white/50" : "text-ink/30"}`}>
                   {new Date(m.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                 </p>
@@ -159,6 +206,15 @@ export default function OrderChat({
         <div ref={bottomRef} />
       </div>
       <div className="flex gap-2 border-t border-line p-2">
+        <button
+          type="button"
+          onClick={handleShareLocation}
+          disabled={sharingLocation}
+          title="Bagikan lokasi Anda saat ini"
+          className="shrink-0 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-ink/70 transition hover:bg-bay-light/10 disabled:opacity-50"
+        >
+          {sharingLocation ? "..." : "📍"}
+        </button>
         <input
           type="text"
           value={draft}

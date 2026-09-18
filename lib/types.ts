@@ -33,6 +33,11 @@
 //   6. Type BARU MitraTierInfo -- bentuk hasil RPC mitra_tier_info(), dipakai
 //      Dasbor Mitra utk menampilkan tier & rincian biaya secara transparan
 //      (Bagian 6.1).
+//
+// Perubahan BARU (18 September 2026) -- fitur "Bagikan Lokasi" di Chat
+// Pesanan, migrasi 026_order_messages_location.sql:
+//   7. Type BARU OrderMessageType ("text" | "location").
+//   8. OrderMessage: tambah message_type, location_lat, location_lng.
 
 export type OrderStatus = "unassigned" | "assigned" | "working" | "completed" | "cancelled";
 
@@ -168,6 +173,11 @@ export type MitraTierInfo = {
 
 export type OrderMessageSender = "mitra" | "admin" | "customer" | "system";
 
+// BARU (migrasi 026_order_messages_location.sql) -- Chat Pesanan sekarang
+// bisa kirim titik lokasi ("📍 Bagikan Lokasi"), bukan cuma teks. Lihat
+// lib/location.ts untuk helper terkait (getBrowserLocation, googleMapsUrl).
+export type OrderMessageType = "text" | "location";
+
 /** Satu baris chat pada Chat Pesanan (Bagian 7.2 "Komunikasi Ter-mediasi")
  *  -- kanal in-app yang menggantikan pertukaran nomor WA mentah antara
  *  mitra & klien. Dibaca/ditulis mitra & admin langsung lewat Supabase
@@ -181,6 +191,9 @@ export type OrderMessage = {
   sender_id: string | null; // null untuk pesan sistem
   sender_name: string;
   body: string;
+  message_type: OrderMessageType; // BARU — migrasi 026, default 'text' untuk data lama
+  location_lat: number | null; // BARU — migrasi 026, diisi kalau message_type = 'location'
+  location_lng: number | null; // BARU — migrasi 026, diisi kalau message_type = 'location'
   created_at: string;
 };
 

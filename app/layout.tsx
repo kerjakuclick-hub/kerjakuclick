@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import FloatingChatLauncher from "@/components/FloatingChatLauncher";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -53,7 +54,14 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id" className={`${spaceGrotesk.variable} ${inter.variable} ${plexMono.variable}`}>
-      <body className="font-body antialiased">{children}</body>
+      <body className="font-body antialiased">
+        {children}
+        {/* Tombol Chat Pesanan melayang -- lihat components/FloatingChatLauncher.tsx.
+            Dipasang di root layout supaya otomatis muncul di semua halaman publik;
+            komponennya sendiri yang menentukan kapan harus disembunyikan (belum
+            login, tidak ada pesanan aktif, atau sedang di dasbor admin/mitra). */}
+        <FloatingChatLauncher />
+      </body>
     </html>
   );
 }
