@@ -39,6 +39,18 @@
 // tangan langsung di percakapan mitra<->klien tanpa harus lihat/minta nomor
 // WA pribadi siapa pun. Terima prop baru `adminId`/`adminName` (identitas
 // pengirim kalau admin ikut mengirim pesan).
+//
+// Perubahan BARU (18 September 2026) -- fitur "Tambah Waktu Kerja" &
+// "Otomatisasi Invoice Pembayaran" (migrasi 027):
+//   8. Kolom "Layanan" sekarang menampilkan baris kecil kalau pesanan
+//      pernah ditambah waktu (extra_time_minutes > 0).
+//   9. Kolom "Invoice Pembayaran": teks statis "Dikirim mitra langsung ke
+//      klien" DIHAPUS (sudah tidak akurat -- mitra tidak lagi kirim manual)
+//      digantikan badge status dinamis persis pola "Notifikasi Klien" /
+//      "Notifikasi Mitra" (hijau "Terkirim otomatis [jam]" / merah + tombol
+//      "Coba Kirim Lagi" berdasarkan invoice_notified_at/
+//      invoice_notify_error) -- tombol retry-nya pakai retryNotify() yang
+//      sama (endpoint retry-notify sekarang juga menangani invoice).
 
 "use client";
 
@@ -339,6 +351,11 @@ export default function OrdersFeed({
                 <td className="px-5 py-4">
                   <p className="text-ink">{o.service_type}</p>
                   <p className="text-xs text-ink/50">{formatRupiah(o.total_price)}</p>
+                  {o.extra_time_minutes > 0 && (
+                    <p className="text-xs font-medium text-amber-600">
+                      ⏱️ +{o.extra_time_minutes} menit ({formatRupiah(o.extra_time_price)})
+                    </p>
+                  )}
                   <p className="text-xs text-ink/40">
                     Ambang saldo (acuan lama, 20%): {formatRupiah(o.min_wallet_required)} — ambang
                     riil kini mengikuti fee tier tiap mitra, lihat dropdown mitra
@@ -538,7 +555,30 @@ export default function OrdersFeed({
                           Arsip Drive
                         </a>
                       )}
-                      <p className="text-ink/40">Dikirim mitra langsung ke klien</p>
+                      {o.invoice_notified_at ? (
+                        <span className="inline-block rounded-full bg-wa/20 px-2 py-0.5 text-wa">
+                          Terkirim otomatis{" "}
+                          {new Date(o.invoice_notified_at).toLocaleTimeString("id-ID", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      ) : o.invoice_notify_error ? (
+                        <div className="space-y-1">
+                          <p className="max-w-[200px] text-red-600">
+                            Gagal: {o.invoice_notify_error}
+                          </p>
+                          <button
+                            onClick={() => retryNotify(o.id)}
+                            disabled={notifyBusy === o.id}
+                            className="rounded-lg bg-amber-100 px-2 py-1 text-amber-700 disabled:opacity-50"
+                          >
+                            {notifyBusy === o.id ? "Mengirim..." : "Coba Kirim Lagi"}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-ink/40">Memproses...</span>
+                      )}
                     </div>
                   ) : (
                     <span className="text-xs text-ink/30">

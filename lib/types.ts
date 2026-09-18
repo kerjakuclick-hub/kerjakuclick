@@ -38,6 +38,15 @@
 // Pesanan, migrasi 026_order_messages_location.sql:
 //   7. Type BARU OrderMessageType ("text" | "location").
 //   8. OrderMessage: tambah message_type, location_lat, location_lng.
+//
+// Perubahan BARU (18 September 2026) -- fitur "Tambah Waktu Kerja" (diangkat
+// dari DOK BISNIS SEPT 2026.pdf) + otomatisasi kirim invoice pembayaran,
+// migrasi 027_order_extra_time_and_invoice_notify.sql:
+//   9. Order: tambah extra_time_minutes, extra_time_price,
+//      extra_time_requested_at (skema tambah waktu, lihat
+//      lib/services.ts EXTRA_TIME_RATES) dan invoice_notified_at /
+//      invoice_notify_error (jejak kirim otomatis invoice pembayaran ke WA
+//      klien lewat Fonnte, MENGGANTIKAN alur lama mitra kirim manual).
 
 export type OrderStatus = "unassigned" | "assigned" | "working" | "completed" | "cancelled";
 
@@ -61,6 +70,11 @@ export type Order = {
   client_notify_error: string | null; // BARU — migrasi 020: pesan error terakhir kalau notifikasi otomatis gagal
   mitra_notified_at: string | null; // BARU — migrasi 022: waktu notifikasi WA "tugas baru" berhasil terkirim otomatis ke mitra
   mitra_notify_error: string | null; // BARU — migrasi 022: pesan error terakhir kalau notifikasi otomatis ke mitra gagal
+  extra_time_minutes: number; // BARU — migrasi 027: 0 | 30 | 60, tambah waktu yang diajukan klien
+  extra_time_price: number; // BARU — migrasi 027: nominal tambah waktu (sudah termasuk di total_price), murni jejak audit/tampilan
+  extra_time_requested_at: string | null; // BARU — migrasi 027
+  invoice_notified_at: string | null; // BARU — migrasi 027: waktu invoice pembayaran berhasil terkirim otomatis ke WA klien
+  invoice_notify_error: string | null; // BARU — migrasi 027: pesan error terakhir kalau pengiriman otomatis gagal
 };
 
 export type MitraOption = {

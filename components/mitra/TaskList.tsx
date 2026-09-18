@@ -3,11 +3,9 @@
 // Perubahan (fitur "Invoice Pembayaran"): terima prop baru `invoices`
 // (invoice pembayaran, purpose='pembayaran', dari app/mitra/page.tsx). Baris
 // riwayat yang statusnya "completed" sekarang menampilkan tombol "Unduh
-// Invoice" + "Kirim ke WA Klien" -- mitra unduh filenya lalu kirim sendiri
-// ke klien via WA pribadinya (dilampirkan manual di WA, karena mitra yang
-// menerima pembayaran tunai/transfer, bukan bot yang kirim otomatis).
-// Invoice yang baru saja terbit (dari response advanceStatus) langsung
-// digabung ke state lokal supaya tombolnya muncul tanpa perlu refresh.
+// Invoice" untuk arsip pribadi mitra. Invoice yang baru saja terbit (dari
+// response advanceStatus) langsung digabung ke state lokal supaya tombolnya
+// muncul tanpa perlu refresh.
 //
 // Perubahan BARU (18 September 2026) -- fitur "Transparansi Rincian Biaya"
 // (Bagian 6.1 Dokumen Bisnis Revisi Pasca-Audit Fraud): terima prop baru
@@ -25,6 +23,22 @@
 // menampilkan <OrderChat /> -- Chat Pesanan in-app dengan klien, pengganti
 // pertukaran nomor WA pribadi. Terima prop baru `mitraName` (dipakai sebagai
 // nama pengirim di chat).
+//
+// Perubahan BARU (18 September 2026) -- fitur "Tambah Waktu Kerja" (diangkat
+// dari DOK BISNIS SEPT 2026.pdf): kartu order aktif sekarang menampilkan
+// info kalau klien sudah mengajukan tambah waktu (extra_time_minutes > 0) --
+// MURNI INFORMASI, mitra tidak mengajukan/menyetujui apa pun di sini karena
+// tombol tambah waktu ada di dashboard KLIEN (app/riwayat/page.tsx), sesuai
+// dokumen sumbernya.
+//
+// Perubahan BARU (18 September 2026) -- fitur "Otomatisasi Invoice
+// Pembayaran": tombol "Kirim ke WA Klien" (manual) DIHAPUS -- sistem
+// sekarang otomatis mengirim invoice lewat Chat Pesanan & WA Fonnte begitu
+// tugas diselesaikan (app/api/mitra/orders/update/route.ts). Baris riwayat
+// sekarang menampilkan status pengiriman otomatis itu (badge hijau/merah,
+// field invoice_notified_at/invoice_notify_error, migrasi 027) -- mitra
+// TIDAK PERLU lagi unduh & kirim manual, cukup beri tahu klien secara
+// lisan/Chat Pesanan bahwa pekerjaan sudah selesai.
 
 "use client";
 
@@ -32,7 +46,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah } from "@/lib/services";
-import { buildClientWaLink } from "@/lib/whatsapp";
 import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, Transaction, Earning, Invoice } from "@/lib/types";
 
@@ -160,13 +173,6 @@ export default function TaskList({
     return invoices.find((i) => i.order_id === orderId && i.purpose === "pembayaran");
   }
 
-  /** Buka WA klien dengan teks siap kirim -- invoice-nya sendiri diunduh &
-   * dilampirkan manual oleh mitra (tombol "Unduh Invoice" di sebelahnya). */
-  function openWaKirimInvoice(order: Order) {
-    const text = `Halo ${order.customer_name}, pekerjaan ${order.service_type} sudah selesai kami kerjakan. Berikut invoice pembayarannya (terlampir) — bisa dibayar tunai atau transfer langsung ke saya ya. Terima kasih sudah menggunakan Kerjaku.click 🤍`;
-    window.open(buildClientWaLink(order.customer_phone, text), "_blank");
-  }
-
   const active = orders.filter((o) => o.status === "assigned" || o.status === "working");
   const history = orders.filter((o) => o.status === "completed" || o.status === "cancelled");
   const feePctLabel = `${Math.round(feePercent * 100)}%`;
@@ -188,6 +194,8 @@ export default function TaskList({
             // completed (dihitung trigger database dengan tier mitra PADA
             // SAAT itu). Ditandai "estimasi" supaya tidak disalahpahami
             // sebagai janji pasti kalau tier mitra berubah di tengah jalan.
+            // o.total_price di sini SUDAH termasuk tambah waktu kalau klien
+            // pernah mengajukannya (lihat extra_time_minutes di bawah).
             const estimasiFee = Math.round(o.total_price * feePercent);
             const estimasiTunai = o.total_price - estimasiFee;
             return (
@@ -213,6 +221,14 @@ export default function TaskList({
                     <p className="mt-2 font-mono text-sm text-ink">{formatRupiah(o.total_price)}</p>
                   </div>
                 </div>
+
+                {o.extra_time_minutes > 0 && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    ⏱️ Klien menambah waktu kerja <strong>+{o.extra_time_minutes} menit</strong> (
+                    {formatRupiah(o.extra_time_price)}) -- sudah termasuk di total pesanan di atas.
+                    Mohon sesuaikan waktu pengerjaan Anda.
+                  </div>
+                )}
 
                 <div className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink/70">
                   <p>
@@ -280,7 +296,14 @@ export default function TaskList({
                   const invoice = invoicePembayaranUntukOrder(o.id);
                   return (
                     <tr key={o.id} className="border-b border-line last:border-0">
-                      <td className="px-4 py-3 text-ink">{o.service_type}</td>
+                      <td className="px-4 py-3 text-ink">
+                        {o.service_type}
+                        {o.extra_time_minutes > 0 && (
+                          <span className="mt-0.5 block text-[11px] font-normal text-amber-700">
+                            ⏱️ +{o.extra_time_minutes} menit ({formatRupiah(o.extra_time_price)})
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-ink/70">{o.customer_name}</td>
                       <td className="px-4 py-3 font-mono text-ink/70">
                         {formatRupiah(o.total_price)}
@@ -302,7 +325,7 @@ export default function TaskList({
                         {o.status !== "completed" ? (
                           <span className="text-xs text-ink/30">-</span>
                         ) : invoice?.file_url ? (
-                          <div className="flex flex-col items-start gap-1 text-xs">
+                          <div className="flex flex-col items-start gap-1.5 text-xs">
                             <a
                               href={invoice.file_url}
                               download={`invoice-${invoice.invoice_number}.pdf`}
@@ -310,12 +333,17 @@ export default function TaskList({
                             >
                               Unduh Invoice
                             </a>
-                            <button
-                              onClick={() => openWaKirimInvoice(o)}
-                              className="rounded-lg bg-wa px-2.5 py-1.5 font-medium text-white hover:brightness-105"
-                            >
-                              Kirim ke WA Klien
-                            </button>
+                            {o.invoice_notified_at ? (
+                              <span className="rounded-full bg-wa/20 px-2 py-0.5 text-wa">
+                                ✓ Terkirim otomatis ke klien (chat &amp; WA)
+                              </span>
+                            ) : o.invoice_notify_error ? (
+                              <span className="max-w-[220px] rounded-full bg-red-100 px-2 py-0.5 text-red-600">
+                                Gagal kirim WA otomatis -- klien tetap bisa lihat di chat/dasbornya
+                              </span>
+                            ) : (
+                              <span className="text-ink/40">Mengirim ke klien...</span>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-red-500">Belum ter-generate</span>
