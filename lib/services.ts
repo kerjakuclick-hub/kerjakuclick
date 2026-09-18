@@ -314,3 +314,44 @@ export function getServiceMaterials(serviceType: string): ServiceMaterial[] | nu
   if (!variant) return null;
   return SERVICE_MATERIALS[variant.id] ?? null;
 }
+
+// ============================================================================
+// Fitur "Biaya Teknologi pada Potongan Platform" (18 September 2026) --
+// koreksi ditugaskan Anda sambil meninjau slide "Skema Fee Berjenjang":
+// potongan platform yang SEBENARNYA per order = (persentase tier mitra, lihat
+// mitra_fee_percent() di database -- 7/8/10%, TURUN seiring tier naik) +
+// Biaya Teknologi (KONSTAN per jenis produk, Rp2.000 Fast / Rp5.000 PRO --
+// TIDAK ikut turun walau tier mitra naik ke Terpercaya/Unggulan).
+//
+// Sebelumnya potongan yang benar-benar dipotong dari saldo deposit mitra
+// (trigger handle_order_completed_deposit_model(), migrasi 008/024) HANYA
+// persentase tier -- Biaya Teknologi belum pernah ikut dipotong walau sudah
+// disebut di dokumen bisnis & slide. Migrasi 028_platform_fee_tech_component
+// menutup celah itu di sisi database (trigger + eligible_mitra_for_order()).
+// Angka di sini HARUS disinkron manual dengan fungsi SQL
+// public.order_tech_fee() di migrasi tsb kalau berubah -- dipakai untuk
+// menampilkan ESTIMASI yang konsisten di sisi klien (Dasbor Mitra,
+// components/mitra/TaskList.tsx; dropdown "Pilih mitra eligible",
+// components/admin/OrdersFeed.tsx) SEBELUM potongan sebenarnya dieksekusi
+// server-side oleh trigger di atas.
+//
+// Sengaja DIBATASI ke 4 varian orderable saat ini (sama seperti
+// EXTRA_TIME_RATES) -- kalau Cuci Kendaraan/Les Private nanti orderable,
+// tambahkan case-nya di sini SEKALIGUS di order_tech_fee() (migrasi SQL).
+export const TECH_FEE_RATES: Record<string, number> = {
+  "setrika-fast": 2000,
+  "setrika-pro": 5000,
+  "cleaning-fast": 2000,
+  "cleaning-pro": 5000,
+};
+
+/** Biaya Teknologi konstan untuk sebuah pesanan, berdasarkan `service_type`
+ *  (sama pola dengan getExtraTimeOptions/getServiceMaterials). Balikan `0`
+ *  kalau layanan ini belum punya Biaya Teknologi terdaftar (varian yang
+ *  belum orderable). TIDAK dipengaruhi tier mitra -- itu bagian terpisah
+ *  (mitra_fee_percent() di database), lihat komentar di atas. */
+export function getServiceTechFee(serviceType: string): number {
+  const variant = findServiceByLabel(serviceType);
+  if (!variant) return 0;
+  return TECH_FEE_RATES[variant.id] ?? 0;
+}

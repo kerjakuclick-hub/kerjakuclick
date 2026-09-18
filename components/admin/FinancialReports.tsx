@@ -215,7 +215,7 @@ export default function FinancialReports({
         formatRupiah(t.amount),
       ]),
       fileName: `laporan-fee-platform-${period}-${Date.now()}.pdf`,
-      note: "Fee 20% yang dipotong dari saldo deposito mitra tiap pesanan selesai — pendapatan resmi Kerjaku.click. PDF ini memuat seluruh transaksi periode terpilih (tabel di layar hanya menampilkan 50 terbaru).",
+      note: "Fee berjenjang (7-10% sesuai tier mitra yang bertugas) yang dipotong dari saldo deposito mitra tiap pesanan selesai — pendapatan resmi Kerjaku.click. PDF ini memuat seluruh transaksi periode terpilih (tabel di layar hanya menampilkan 50 terbaru).",
     });
   }
 
@@ -364,8 +364,9 @@ export default function FinancialReports({
               Laporan Fee / Pendapatan Platform
             </h2>
             <p className="text-sm text-ink/60 mt-1">
-              Fee 20% yang dipotong dari saldo deposito mitra tiap pesanan selesai — ini pendapatan
-              resmi Kerjaku.click.
+              Fee berjenjang (7–10% sesuai tier mitra yang bertugas, lihat Dashboard Mitra) yang
+              dipotong dari saldo deposito mitra tiap pesanan selesai — ini pendapatan resmi
+              Kerjaku.click.
             </p>
           </div>
           <DownloadPdfButton onClick={handleDownloadFeePlatform} />

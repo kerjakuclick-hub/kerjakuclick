@@ -181,7 +181,8 @@ export default async function MitraDashboardPage() {
         <p className="mt-1 text-sm text-ink/60">
           Daftar ini otomatis diperbarui saat admin menugaskan pesanan baru untuk Anda. Rincian
           biaya di bawah dihitung memakai fee tier Anda saat ini ({tierInfo?.tier_name ?? "Baru"},{" "}
-          {Math.round(feePercent * 100)}%).
+          {Math.round(feePercent * 100)}%) ditambah biaya teknologi tetap per pesanan (Rp2.000
+          layanan Fast, Rp5.000 layanan PRO) -- bagian ini tidak ikut turun walau tier Anda naik.
         </p>
         <div className="mt-4">
           <TaskList
