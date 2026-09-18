@@ -45,7 +45,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { formatRupiah } from "@/lib/services";
+import { formatRupiah, getServiceTechFee } from "@/lib/services";
 import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, Transaction, Earning, Invoice } from "@/lib/types";
 
@@ -196,7 +196,12 @@ export default function TaskList({
             // sebagai janji pasti kalau tier mitra berubah di tengah jalan.
             // o.total_price di sini SUDAH termasuk tambah waktu kalau klien
             // pernah mengajukannya (lihat extra_time_minutes di bawah).
-            const estimasiFee = Math.round(o.total_price * feePercent);
+            //
+            // BARU (migrasi 028) -- potongan platform = persentase tier (di
+            // atas, TURUN seiring tier naik) + Biaya Teknologi KONSTAN
+            // (Rp2.000 Fast / Rp5.000 PRO, TIDAK ikut turun per tier).
+            const techFee = getServiceTechFee(o.service_type);
+            const estimasiFee = Math.round(o.total_price * feePercent) + techFee;
             const estimasiTunai = o.total_price - estimasiFee;
             return (
               <div key={o.id} className="rounded-card border border-line bg-white p-5 shadow-card">
@@ -232,7 +237,8 @@ export default function TaskList({
 
                 <div className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink/70">
                   <p>
-                    Potongan platform (tier {tierName}, {feePctLabel}):{" "}
+                    Potongan platform (tier {tierName} {feePctLabel}
+                    {techFee > 0 ? ` + ${formatRupiah(techFee)} teknologi` : ""}):{" "}
                     <span className="font-mono">{formatRupiah(estimasiFee)}</span>
                   </p>
                   <p className="mt-0.5">

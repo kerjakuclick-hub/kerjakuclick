@@ -56,7 +56,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { formatRupiah } from "@/lib/services";
+import { formatRupiah, getServiceTechFee } from "@/lib/services";
 import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, EligibleMitra, Invoice } from "@/lib/types";
 
@@ -320,6 +320,11 @@ export default function OrdersFeed({
         <tbody>
           {orders.map((o) => {
             const eligible = eligibleMap[o.id] ?? [];
+            // BARU (migrasi 028) -- Biaya Teknologi konstan per order
+            // (Rp2.000 Fast / Rp5.000 PRO), TIDAK ikut turun per tier mitra
+            // -- sama untuk semua mitra eligible di order ini, jadi dihitung
+            // sekali di sini (bukan per-baris dari RPC eligible_mitra_for_order).
+            const techFee = getServiceTechFee(o.service_type);
             const showEligibleHint = o.status === "unassigned";
             const orderInvoices = invoices.filter((i) => i.order_id === o.id);
             const mitraInvoice = orderInvoices.find(
@@ -358,7 +363,8 @@ export default function OrdersFeed({
                   )}
                   <p className="text-xs text-ink/40">
                     Ambang saldo (acuan lama, 20%): {formatRupiah(o.min_wallet_required)} — ambang
-                    riil kini mengikuti fee tier tiap mitra, lihat dropdown mitra
+                    riil kini mengikuti fee tier tiap mitra + biaya teknologi
+                    {techFee > 0 ? ` (${formatRupiah(techFee)})` : ""}, lihat dropdown mitra
                   </p>
                 </td>
                 <td className="px-5 py-4 text-xs text-ink/70">
@@ -407,6 +413,7 @@ export default function OrdersFeed({
                           <option key={m.mitra_id} value={m.mitra_id}>
                             {m.name} · {formatRupiah(m.wallet_balance)} · {m.gender ?? "?"} ·{" "}
                             {m.status} · fee {Math.round(m.fee_percent * 100)}%
+                            {techFee > 0 ? ` + ${formatRupiah(techFee)}` : ""}
                           </option>
                         ))}
                         {eligible.length === 0 && loadingEligible !== o.id && (

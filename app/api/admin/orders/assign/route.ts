@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("total_price")
+      .select("total_price, service_type")
       .eq("id", orderId)
       .single();
 
@@ -141,12 +141,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const requiredBalance = Math.round(order.total_price * Number(feePercent));
+    // BARU (migrasi 028) -- potongan platform sebenarnya = persentase tier
+    // (di atas) + Biaya Teknologi KONSTAN (Rp2.000 Fast / Rp5.000 PRO, TIDAK
+    // ikut turun walau tier mitra naik). Ambang saldo di sini pertahanan
+    // berlapis yang SAMA seperti eligible_mitra_for_order() di database
+    // (migrasi 028) -- kalau dropdown admin belum sempat refresh.
+    const { data: techFee, error: techFeeError } = await admin.rpc("order_tech_fee", {
+      p_service_type: order.service_type,
+    });
+
+    if (techFeeError) {
+      return NextResponse.json(
+        { error: techFeeError.message ?? "Gagal menghitung biaya teknologi order." },
+        { status: 500 }
+      );
+    }
+
+    const requiredBalance = Math.round(order.total_price * Number(feePercent)) + Number(techFee ?? 0);
 
     if (mitra.wallet_balance < requiredBalance) {
       return NextResponse.json(
         {
-          error: `Saldo mitra (Rp${mitra.wallet_balance.toLocaleString("id-ID")}) di bawah ambang minimum Rp${requiredBalance.toLocaleString("id-ID")} (${Math.round(Number(feePercent) * 100)}% dari nilai layanan, sesuai tier fee mitra ini).`,
+          error: `Saldo mitra (Rp${mitra.wallet_balance.toLocaleString("id-ID")}) di bawah ambang minimum Rp${requiredBalance.toLocaleString("id-ID")} (${Math.round(Number(feePercent) * 100)}% dari nilai layanan + Rp${Number(techFee ?? 0).toLocaleString("id-ID")} biaya teknologi, sesuai tier fee mitra ini).`,
         },
         { status: 400 }
       );
