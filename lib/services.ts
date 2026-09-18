@@ -113,6 +113,12 @@ export const services: ServiceVariant[] = [
     unit: "20 Pcs / Paket",
     duration: "1 Jam",
     tier: "Fast",
+    desc: "Layanan setrika pakaian harian yang dikerjakan dengan waktu singkat dan padat.",
+    detilPekerjaan: [
+      "Setrika rapi hingga 20 Pcs pakaian (dewasa & anak)",
+      "Pakaian disemprot pelembut & pewangi Kispray sebelum disetrika",
+      "Pilihan finishing: dilipat rapi atau digantung (hanger)",
+    ],
   },
   {
     id: "setrika-pro",
@@ -122,6 +128,12 @@ export const services: ServiceVariant[] = [
     unit: "40 Pcs / Paket",
     duration: "2 Jam",
     tier: "PRO",
+    desc: "Layanan setrika pakaian lebih banyak yang dikerjakan lebih lengkap dan menyeluruh.",
+    detilPekerjaan: [
+      "Setrika rapi hingga 40 Pcs pakaian (dewasa & anak)",
+      "Pakaian disemprot pelembut & pewangi Kispray sebelum disetrika",
+      "Pilihan finishing: dilipat rapi atau digantung (hanger)",
+    ],
   },
   {
     id: "cleaning-fast",
@@ -259,4 +271,46 @@ export function getExtraTimeOptions(serviceType: string): { 30: number; 60: numb
   const variant = findServiceByLabel(serviceType);
   if (!variant) return null;
   return EXTRA_TIME_RATES[variant.id] ?? null;
+}
+
+// ============================================================================
+// Fitur "Standar Kualitas Bahan Baku" (18 September 2026) -- ditugaskan
+// Anda: demi transparansi & kontrol kualitas di seluruh ekosistem
+// kerjaku.click (mitra dapat upah jelas, klien tahu persis apa yang dia
+// dapat, platform tetap berkembang), mitra WAJIB memakai bahan baku cairan
+// yang sudah diuji & distandarisasi kerjaku.click -- BUKAN sembarang merek.
+// Standar yang dikonfirmasi Anda:
+//   - Pelembut & pewangi pakaian (Setrika Fast/PRO)  -> Kispray
+//   - Pembersih toilet (Cleaning Fast/PRO)           -> Vixal
+//   - Cairan pel lantai (Cleaning Fast/PRO)          -> Super Pel
+// Ini properti STATIS per jenis layanan (bukan kolom database per order --
+// tidak ada migrasi baru yang diperlukan), jadi cukup didata di sini,
+// persis seperti EXTRA_TIME_RATES di atas. Dipakai untuk menampilkan
+// jaminan kualitas bahan baku di invoice konfirmasi & invoice pembayaran
+// (lib/pdf/invoice-templates.tsx) serta pesan WA konfirmasi pesanan
+// (buildOrderApprovedMessage, lib/whatsapp.ts).
+export type ServiceMaterial = { label: string; merek: string };
+
+export const SERVICE_MATERIALS: Record<string, ServiceMaterial[]> = {
+  "setrika-fast": [{ label: "Pelembut & pewangi pakaian", merek: "Kispray" }],
+  "setrika-pro": [{ label: "Pelembut & pewangi pakaian", merek: "Kispray" }],
+  "cleaning-fast": [
+    { label: "Pembersih toilet", merek: "Vixal" },
+    { label: "Cairan pel lantai", merek: "Super Pel" },
+  ],
+  "cleaning-pro": [
+    { label: "Pembersih toilet", merek: "Vixal" },
+    { label: "Cairan pel lantai", merek: "Super Pel" },
+  ],
+};
+
+/** Cari daftar bahan baku terstandar untuk sebuah pesanan, berdasarkan
+ *  `service_type` yang tersimpan di tabel orders (sama seperti
+ *  getExtraTimeOptions). Balikan `null` kalau layanan ini tidak termasuk
+ *  4 varian yang punya standar bahan baku (mis. Cuci Kendaraan, Les
+ *  Private -- tidak pakai cairan pembersih terstandar). */
+export function getServiceMaterials(serviceType: string): ServiceMaterial[] | null {
+  const variant = findServiceByLabel(serviceType);
+  if (!variant) return null;
+  return SERVICE_MATERIALS[variant.id] ?? null;
 }

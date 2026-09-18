@@ -7,6 +7,7 @@
 
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { Order, MitraProfile } from '@/lib/types';
+import { findServiceByLabel, getServiceMaterials } from '@/lib/services';
 
 const styles = StyleSheet.create({
   page: { padding: 32, fontSize: 11, fontFamily: 'Helvetica' },
@@ -14,10 +15,57 @@ const styles = StyleSheet.create({
   sub: { fontSize: 10, color: '#595959', marginBottom: 16 },
   section: { marginBottom: 14, padding: 10, borderWidth: 1, borderColor: '#DCE6F1' },
   label: { color: '#595959', fontSize: 9 },
+  labelSpaced: { color: '#595959', fontSize: 9, marginTop: 8 },
   value: { fontSize: 12, marginBottom: 6 },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   badge: { fontSize: 10, color: '#1E7145', marginTop: 4 },
+  bullet: { fontSize: 10, marginBottom: 3 },
+  materialBadge: { fontSize: 10, color: '#1E7145', marginTop: 2 },
 });
+
+// ============================================================================
+// FITUR BARU (18 September 2026) -- "Detil Komponen Pesanan & Standar
+// Kualitas Bahan Baku": ditugaskan Anda supaya klien tahu PERSIS apa yang
+// dia dapat saat pesanan dikonfirmasi (detil pekerjaan per paket) & bahwa
+// bahan baku yang dipakai mitra sudah diuji & distandarisasi kerjaku.click
+// (Kispray untuk setrika, Vixal & Super Pel untuk cleaning -- lihat
+// lib/services.ts SERVICE_MATERIALS/detilPekerjaan), bukan lagi cuma nama
+// jasa & tarif polos.
+//
+// SENGAJA TIDAK menampilkan rincian Rupiah Upah Mitra/Fee Platform di sini
+// -- itu transparansi khusus Dashboard Mitra (Bagian 6.1 Dokumen Bisnis
+// Revisi Pasca-Audit Fraud), bukan untuk klien. Fee real per order juga
+// mengikuti tier mitra yang bertugas (migrasi 024, 7-10%), jadi tabel
+// komponen biaya tetap (dek presentasi internal) tidak akurat kalau
+// ditampilkan apa adanya per-pesanan ke klien.
+function DetilPekerjaanDanBahan({ serviceType }: { serviceType: string }) {
+  const variant = findServiceByLabel(serviceType);
+  const detil = variant?.detilPekerjaan ?? [];
+  const materials = getServiceMaterials(serviceType) ?? [];
+
+  if (detil.length === 0 && materials.length === 0) return null;
+
+  return (
+    <View style={styles.section}>
+      {detil.length > 0 && (
+        <>
+          <Text style={styles.label}>Detil Pekerjaan</Text>
+          {detil.map((item, i) => (
+            <Text key={i} style={styles.bullet}>• {item}</Text>
+          ))}
+        </>
+      )}
+      {materials.length > 0 && (
+        <>
+          <Text style={styles.labelSpaced}>Bahan Baku Terstandar Kerjaku.click</Text>
+          {materials.map((m, i) => (
+            <Text key={i} style={styles.materialBadge}>✓ {m.label}: {m.merek}</Text>
+          ))}
+        </>
+      )}
+    </View>
+  );
+}
 
 interface InvoiceKlienProps {
   invoiceNumber: string;
@@ -43,6 +91,8 @@ export function InvoiceKlienPDF({ invoiceNumber, order, mitra, estimasiWaktu }: 
           <Text style={styles.label}>Estimasi Kedatangan</Text>
           <Text style={styles.value}>{estimasiWaktu}</Text>
         </View>
+
+        <DetilPekerjaanDanBahan serviceType={order.service_type} />
 
         <View style={styles.section}>
           <Text style={styles.label}>Profil Mitra Bertugas</Text>
@@ -164,6 +214,8 @@ export function InvoicePembayaranPDF({ invoiceNumber, order, mitraName }: Invoic
             </>
           )}
         </View>
+
+        <DetilPekerjaanDanBahan serviceType={order.service_type} />
 
         <View style={styles.section}>
           <Text style={styles.label}>Pekerjaan Diselesaikan Oleh</Text>
