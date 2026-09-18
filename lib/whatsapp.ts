@@ -24,6 +24,19 @@
 // buildOrderApprovedMessage() diperbarui, sekarang menyebut ikon chat
 // melayang yang otomatis muncul di semua halaman publik (bukan cuma
 // menyuruh klien buka halaman Riwayat Pesanan secara manual).
+//
+// Perubahan BARU (18 September 2026) -- fitur "Tambah Waktu Kerja" (diangkat
+// dari DOK BISNIS SEPT 2026.pdf) & otomatisasi kirim invoice pembayaran,
+// migrasi 027_order_extra_time_and_invoice_notify.sql:
+//   - buildExtraTimeAddedMessage(): konfirmasi WA ke klien begitu tambah
+//     waktu berhasil diajukan (app/api/customer/orders/[id]/extra-time/
+//     route.ts).
+//   - buildPaymentInvoiceMessage(): notifikasi WA ke klien begitu mitra
+//     menyelesaikan tugas & invoice pembayaran terbit
+//     (app/api/mitra/orders/update/route.ts) -- MENGGANTIKAN alur lama
+//     "mitra unduh PDF lalu kirim manual sendiri via WA pribadinya"; mitra
+//     sekarang cukup memberi tahu secara lisan/chat bahwa invoice sudah bisa
+//     dicek di dasbor klien atau WA yang dikirim sistem.
 
 // Nomor WA Operator PESANAN — +62 811-4550-4178. Nomor ini yang tersambung
 // ke Fonnte (webhook parsing #BARU) -- TETAP, jangan diganti, supaya alur
@@ -294,5 +307,65 @@ export function buildMitraAssignedMessage(order: MitraAssignedInput): string {
     `Jadwal: ${jadwal}\n\n` +
     `👤 *Klien*: ${order.customer_name}\n\n` +
     `💬 Koordinasi jadwal, pertanyaan, atau perubahan sekarang lewat *Chat Pesanan* di Dasbor Mitra Anda (${MITRA_DASHBOARD_URL}) -- bukan lewat WA pribadi. Semua riwayat komunikasi tercatat di sana untuk keamanan & transparansi kedua belah pihak. Detail lengkap & invoice tugas juga ada di dasbor. Semangat bekerja! 💪`
+  );
+}
+
+// ============================================================================
+// FILE BARU (fitur "Tambah Waktu Kerja", diangkat dari DOK BISNIS SEPT
+// 2026.pdf): konfirmasi WA ke klien begitu permintaan tambah waktu berhasil
+// diproses. Dikirim dari app/api/customer/orders/[id]/extra-time/route.ts,
+// SETELAH update database berhasil -- best-effort, kegagalan kirim WA tidak
+// membatalkan tambah waktu yang sudah tercatat.
+// ============================================================================
+
+export type ExtraTimeAddedInput = {
+  minutes: 30 | 60;
+  extraPrice: number;
+  newTotalPrice: number;
+  serviceType: string;
+};
+
+export function buildExtraTimeAddedMessage(input: ExtraTimeAddedInput): string {
+  return (
+    `⏱️ *Tambah Waktu Kerja Berhasil Diajukan*\n\n` +
+    `Jasa: ${input.serviceType}\n` +
+    `Tambahan: +${input.minutes} menit (Rp${input.extraPrice.toLocaleString("id-ID")})\n` +
+    `Total pesanan sekarang: *Rp${input.newTotalPrice.toLocaleString("id-ID")}*\n\n` +
+    `Mitra kami sudah diberi tahu otomatis lewat Chat Pesanan. Catatan: tambah waktu hanya bisa diajukan sekali per pesanan (maks. 1 jam) -- kalau perlu lebih, silakan buat pesanan baru dan minta mitra yang sama.\n\n` +
+    `Terima kasih telah menggunakan Kerjaku.click 🤍`
+  );
+}
+
+// ============================================================================
+// FILE BARU (fitur "Otomatisasi Invoice Pembayaran"): notifikasi WA ke klien
+// begitu mitra menyelesaikan tugas & invoice pembayaran terbit. Dikirim dari
+// app/api/mitra/orders/update/route.ts. MENGGANTIKAN alur lama "mitra unduh
+// PDF lalu kirim manual sendiri via WA pribadinya" -- mitra sekarang cukup
+// memberi tahu secara lisan/Chat Pesanan bahwa pekerjaan sudah selesai,
+// sistem yang mengirim invoicenya (di sini + Chat Pesanan + Dasbor Klien).
+// ============================================================================
+
+export type PaymentInvoiceInput = {
+  service_type: string;
+  total_price: number;
+  extra_time_minutes: number;
+  extra_time_price: number;
+};
+
+export function buildPaymentInvoiceMessage(order: PaymentInvoiceInput, invoiceUrl: string): string {
+  const extraLine =
+    order.extra_time_minutes > 0
+      ? `Termasuk tambah waktu +${order.extra_time_minutes} menit: Rp${order.extra_time_price.toLocaleString("id-ID")}\n`
+      : "";
+
+  return (
+    `✅ *Pekerjaan Selesai* — Terima kasih sudah menggunakan Kerjaku.click!\n\n` +
+    `📋 Jasa: ${order.service_type}\n` +
+    extraLine +
+    `💰 Total Tagihan: *Rp${order.total_price.toLocaleString("id-ID")}*\n\n` +
+    `🧾 Invoice pembayaran: ${invoiceUrl}\n` +
+    `(Juga bisa dilihat & diunduh kapan saja di halaman *Riwayat Pesanan* Anda: ${KLIEN_RIWAYAT_URL})\n\n` +
+    `💳 Pembayaran tunai atau transfer langsung ke mitra kami sesuai kesepakatan di lokasi (bukan ke rekening kerjaku.click).\n\n` +
+    `Ada pertanyaan seputar invoice ini? Chat lewat ikon 💬 di kerjaku.click.`
   );
 }

@@ -219,3 +219,44 @@ export function formatRupiah(value: number): string {
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+// ============================================================================
+// Fitur "Tambah Waktu Kerja" (18 September 2026) -- diangkat langsung dari
+// "DOK BISNIS SEPT 2026.pdf" (dokumen sebelum revisi pasca-audit fraud),
+// bagian "Skema TAMBAH WAKTU KERJA" per produk. HANYA berlaku untuk 4 varian
+// di bawah (Setrika Fast/PRO, Cleaning Fast/PRO) -- dokumen eksplisit
+// menyebut "Tidak berlaku untuk paket pekerjaan lain di luar urusan
+// pakaian & setrika / bersihkan rumah", jadi Cuci Kendaraan & Les Private
+// SENGAJA tidak dimasukkan ke tabel ini.
+//
+// Aturan dari dokumen (diterapkan di app/api/customer/orders/[id]/extra-time/
+// route.ts, BUKAN di sini -- file ini murni tabel tarif):
+//   - Tambah waktu HANYA 30 menit atau 60 menit, dispensasi maksimal 1 jam
+//     kerja per pesanan (tidak bisa ditambah berkali-kali).
+//   - Kalau perlu lebih dari 1 jam, klien wajib repeat order baru dengan
+//     request mitra yang sama -- BUKAN menambah waktu lagi di order yang sama.
+//   - Diajukan KLIEN sendiri dari dashboard (bukan mitra) -- sesuai bagian
+//     "SISTEM DIBUTUHKAN > DASHBOARD PELANGGAN" di dokumen: "Edit pesanan /
+//     tombol tambah waktu pilihan 30 menit dan 60 menit".
+//
+// Angka di bawah adalah harga tambah waktu UTUH (bukan cuma upah mitra) --
+// sudah termasuk komponen "Biaya Teknologi" sesuai rincian di dokumen, jadi
+// bisa langsung ditambahkan ke total_price pesanan tanpa perhitungan lain.
+export const EXTRA_TIME_RATES: Record<string, { 30: number; 60: number }> = {
+  "setrika-fast": { 30: 20500, 60: 39500 },
+  "setrika-pro": { 30: 31500, 60: 61000 },
+  "cleaning-fast": { 30: 21250, 60: 40500 },
+  "cleaning-pro": { 30: 31500, 60: 61000 },
+};
+
+export type ExtraTimeMinutes = 30 | 60;
+
+/** Cari opsi tambah waktu (harga per 30/60 menit) untuk sebuah pesanan,
+ *  berdasarkan `service_type` yang tersimpan di tabel orders (teks bebas,
+ *  sama seperti yang dipakai findServiceByLabel). Balikan `null` kalau
+ *  layanan ini TIDAK termasuk 4 varian yang didukung skema tambah waktu. */
+export function getExtraTimeOptions(serviceType: string): { 30: number; 60: number } | null {
+  const variant = findServiceByLabel(serviceType);
+  if (!variant) return null;
+  return EXTRA_TIME_RATES[variant.id] ?? null;
+}

@@ -13,14 +13,29 @@
 // (<OrderChatCustomer />) -- kanal in-app untuk koordinasi jadwal &
 // pertanyaan dengan mitra, menggantikan pertukaran nomor WA pribadi mentah
 // yang jadi celah di temuan audit.
+//
+// Perubahan BARU (18 September 2026) -- fitur "Tambah Waktu Kerja" &
+// "Otomatisasi Invoice Pembayaran" (migrasi
+// 027_order_extra_time_and_invoice_notify.sql):
+//   1. Kartu pesanan assigned/working yang jasanya termasuk 4 varian
+//      didukung (Setrika/Cleaning Fast/PRO) & BELUM pernah ditambah waktu
+//      menampilkan <ExtraTimeButton /> -- klien sendiri yang mengajukan,
+//      bukan mitra (lihat catatan lengkap di komponen itu &
+//      app/api/customer/orders/[id]/extra-time/route.ts).
+//   2. Kartu pesanan yang sudah pernah ditambah waktu menampilkan info
+//      baris kecil (bukan tombol lagi -- sudah dipakai jatahnya).
+//   3. Kartu pesanan completed yang sudah punya invoice pembayaran
+//      menampilkan link unduh langsung -- klien tidak perlu lagi menunggu
+//      dikirim mitra, cukup buka halaman ini kapan saja.
 
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatRupiah } from "@/lib/services";
+import { formatRupiah, getExtraTimeOptions } from "@/lib/services";
 import CustomerAuthPanel, { type SessionCustomer } from "@/components/CustomerAuthPanel";
 import OrderChatCustomer from "@/components/OrderChatCustomer";
+import ExtraTimeButton from "@/components/ExtraTimeButton";
 
 type OrderStatus = "unassigned" | "assigned" | "working" | "completed" | "cancelled";
 
@@ -36,6 +51,10 @@ type RiwayatOrder = {
   created_at: string;
   customer_name: string;
   customer_phone: string;
+  extra_time_minutes: number;
+  extra_time_price: number;
+  invoice_notified_at: string | null;
+  invoice: { file_url: string; created_at: string } | null;
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -99,6 +118,15 @@ export default function RiwayatPage() {
     setOrders(null);
   }
 
+  // Dipanggil ExtraTimeButton setelah berhasil menambah waktu -- update
+  // state lokal langsung dari order terbaru yang dibalikkan API (tidak
+  // perlu fetch ulang seluruh riwayat).
+  function handleExtraTimeSuccess(updatedOrder: RiwayatOrder) {
+    setOrders((prev) =>
+      prev ? prev.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o)) : prev
+    );
+  }
+
   return (
     <section className="bg-bay-deep">
       <div className="mx-auto max-w-3xl px-6 py-20 lg:px-8">
@@ -158,6 +186,46 @@ export default function RiwayatPage() {
                     </p>
                     <p className="mt-1 max-w-md text-sm text-white/60">{o.address}</p>
                     <p className="mt-1 text-sm font-medium text-white/85">{formatRupiah(o.total_price)}</p>
+
+                    {o.extra_time_minutes > 0 && (
+                      <p className="mt-1 text-xs font-medium text-bridge">
+                        ⏱️ Sudah ditambah waktu +{o.extra_time_minutes} menit (
+                        {formatRupiah(o.extra_time_price)}) -- jatah tambah waktu pesanan ini sudah
+                        terpakai.
+                      </p>
+                    )}
+
+                    {(o.status === "assigned" || o.status === "working") &&
+                      o.extra_time_minutes === 0 &&
+                      (() => {
+                        const rates = getExtraTimeOptions(o.service_type);
+                        if (!rates) return null;
+                        return (
+                          <ExtraTimeButton
+                            orderId={o.id}
+                            rates={rates}
+                            onSuccess={handleExtraTimeSuccess}
+                          />
+                        );
+                      })()}
+
+                    {o.status === "completed" && o.invoice && (
+                      <div className="mt-3 rounded-lg border border-wa/30 bg-wa/10 px-3 py-2">
+                        <p className="text-xs text-white/70">
+                          🧾 Invoice pembayaran sudah terbit
+                          {o.invoice_notified_at ? " & terkirim ke chat/WhatsApp Anda" : ""}.
+                        </p>
+                        <a
+                          href={o.invoice.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-block text-xs font-semibold text-wa underline"
+                        >
+                          Unduh Invoice Pembayaran
+                        </a>
+                      </div>
+                    )}
+
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         onClick={() => pesanLagi(o)}

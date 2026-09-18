@@ -110,9 +110,18 @@ export function InvoiceMitraPDF({ invoiceNumber, order }: InvoiceMitraProps) {
 // "Selesaikan Tugas" di dashboard mitra (lib/pdf/generate-invoice.tsx ->
 // generatePaymentInvoiceForOrder). Ini invoice/struk PEMBAYARAN yang
 // sesungguhnya -- beda dari InvoiceKlienPDF di atas yang terbit saat
-// PENUGASAN (dokumen konfirmasi/task-slip). Mitra sendiri yang mengunduh &
-// mengirim invoice ini ke klien via WA, karena mitra yang menerima
-// pembayaran tunai/transfer langsung.
+// PENUGASAN (dokumen konfirmasi/task-slip).
+//
+// DIUBAH (18 September 2026) -- fitur "Tambah Waktu Kerja": kalau pesanan
+// pernah ditambah waktu (extra_time_minutes > 0), invoice sekarang
+// menampilkan rincian "Tarif Dasar" + "Tambah Waktu" terpisah sebelum
+// "Total Tagihan" -- supaya klien bisa melihat jelas dari mana angka total
+// itu berasal (transparansi, konsisten dengan semangat anti-fraud).
+//
+// DIUBAH (18 September 2026) -- fitur "Otomatisasi Invoice Pembayaran":
+// catatan di footer diperbarui, invoice ini sekarang dikirim OTOMATIS oleh
+// sistem (chat in-app + WA Fonnte), bukan lagi diunduh & dikirim manual
+// oleh mitra.
 // ============================================================================
 
 interface InvoicePembayaranProps {
@@ -122,6 +131,9 @@ interface InvoicePembayaranProps {
 }
 
 export function InvoicePembayaranPDF({ invoiceNumber, order, mitraName }: InvoicePembayaranProps) {
+  const hasExtraTime = order.extra_time_minutes > 0;
+  const basePrice = order.total_price - order.extra_time_price;
+
   return (
     <Document>
       <Page size="A5" style={styles.page}>
@@ -135,8 +147,22 @@ export function InvoicePembayaranPDF({ invoiceNumber, order, mitraName }: Invoic
           <Text style={styles.value}>{order.service_type}</Text>
           <Text style={styles.label}>Alamat</Text>
           <Text style={styles.value}>{order.address}</Text>
-          <Text style={styles.label}>Total Tagihan</Text>
-          <Text style={styles.value}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
+
+          {hasExtraTime ? (
+            <>
+              <Text style={styles.label}>Tarif Dasar</Text>
+              <Text style={styles.value}>Rp {basePrice.toLocaleString('id-ID')}</Text>
+              <Text style={styles.label}>Tambah Waktu (+{order.extra_time_minutes} menit)</Text>
+              <Text style={styles.value}>Rp {order.extra_time_price.toLocaleString('id-ID')}</Text>
+              <Text style={styles.label}>Total Tagihan</Text>
+              <Text style={styles.value}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>Total Tagihan</Text>
+              <Text style={styles.value}>Rp {order.total_price.toLocaleString('id-ID')}</Text>
+            </>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -147,7 +173,9 @@ export function InvoicePembayaranPDF({ invoiceNumber, order, mitraName }: Invoic
 
         <Text style={styles.sub}>
           Pembayaran tunai atau transfer langsung ke mitra sesuai kesepakatan di lokasi
-          (bukan ke rekening kerjaku.click). Terima kasih telah menggunakan Kerjaku.click.
+          (bukan ke rekening kerjaku.click). Invoice ini terkirim otomatis lewat Chat
+          Pesanan & WhatsApp, dan juga selalu bisa dicek ulang di halaman Riwayat
+          Pesanan Anda. Terima kasih telah menggunakan Kerjaku.click.
         </Text>
       </Page>
     </Document>

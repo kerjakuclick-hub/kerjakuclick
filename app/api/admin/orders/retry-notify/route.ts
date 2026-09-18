@@ -8,10 +8,22 @@
 // (mis. notifikasi klien berhasil tapi mitra gagal saat penugasan), retry
 // ini tidak mengirim ulang yang sudah sukses -- cuma menutup yang gagal.
 //
+// Perubahan BARU (18 September 2026) -- fitur "Otomatisasi Invoice
+// Pembayaran" (migrasi 027): endpoint ini sekarang juga retry pengiriman WA
+// invoice pembayaran kalau order sudah completed, sudah punya invoice
+// pembayaran ter-generate, TAPI belum berhasil terkirim
+// (invoice_notified_at masih null). Pola sama persis dengan retry klien/
+// mitra di atas -- HANYA mengirim ulang yang memang masih gagal, tidak
+// menyentuh yang sudah sukses. Pesan sistem di Chat Pesanan (order_messages)
+// TIDAK dikirim ulang di sini -- itu sudah tercatat sekali saat invoice
+// pertama kali terbit (app/api/mitra/orders/update/route.ts); yang sering
+// gagal & butuh retry adalah pengiriman Fonnte-nya, bukan chat in-app-nya.
+//
 // Dipakai admin lewat tombol "Coba Kirim Lagi" di OrdersFeed, muncul di
-// kolom manapun (Notifikasi Klien / Notifikasi Mitra) yang masih menunjukkan
-// error. Bukan langkah rutin -- pengiriman normal sudah otomatis saat mitra
-// ditugaskan (assign/route.ts).
+// kolom manapun (Notifikasi Klien / Notifikasi Mitra / Invoice Pembayaran)
+// yang masih menunjukkan error. Bukan langkah rutin -- pengiriman normal
+// sudah otomatis saat mitra ditugaskan (assign/route.ts) atau saat tugas
+// diselesaikan (mitra/orders/update/route.ts).
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -20,6 +32,7 @@ import {
   sendFonnteMessage,
   buildOrderApprovedMessage,
   buildMitraAssignedMessage,
+  buildPaymentInvoiceMessage,
 } from "@/lib/whatsapp";
 
 export async function POST(req: NextRequest) {
@@ -99,6 +112,32 @@ export async function POST(req: NextRequest) {
     } else {
       updates.mitra_notify_error = mitraResult.error;
       errors.push(`Mitra: ${mitraResult.error}`);
+    }
+  }
+
+  // Retry WA invoice pembayaran -- hanya relevan kalau order sudah completed
+  // & memang belum pernah sukses terkirim.
+  if (order.status === "completed" && !order.invoice_notified_at) {
+    const { data: invoice } = await admin
+      .from("invoices")
+      .select("file_url")
+      .eq("order_id", orderId)
+      .eq("purpose", "pembayaran")
+      .eq("recipient_type", "klien")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (invoice?.file_url) {
+      const invoiceMessage = buildPaymentInvoiceMessage(order, invoice.file_url);
+      const invoiceResult = await sendFonnteMessage(order.customer_phone, invoiceMessage);
+      if (invoiceResult.ok) {
+        updates.invoice_notified_at = new Date().toISOString();
+        updates.invoice_notify_error = null;
+      } else {
+        updates.invoice_notify_error = invoiceResult.error;
+        errors.push(`Invoice: ${invoiceResult.error}`);
+      }
     }
   }
 
