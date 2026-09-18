@@ -32,6 +32,69 @@ const ADMIN_HOST = "admin.kerjaku.click";
 
 const MAINTENANCE_BYPASS_COOKIE = "kk_maintenance_bypass";
 
+// ============================================================================
+// PENGECUALIAN SELAMA SOSIALISASI & TRAINING MITRA (18 September 2026)
+//
+// Maintenance diaktifkan LAGI oleh Anda supaya publik tidak bisa membuat
+// pesanan baru selama proses sosialisasi & edukasi training SOP/sistem
+// anti-fraud baru ke mitra masih berjalan. TAPI, beda dari mode maintenance
+// sebelumnya (audit fraud, komentar di atas -- itu memblokir SEMUA termasuk
+// admin/mitra), kali ini Dasbor Admin, Dasbor Mitra, dan halaman Riwayat
+// Pesanan pelanggan (dipakai bersama untuk simulasi end-to-end: klien pesan
+// -> admin tugaskan -> mitra kerjakan -> klien cek status/tambah waktu/
+// invoice) TETAP bisa diakses LANGSUNG tanpa perlu link bypass rahasia --
+// supaya simulasi bersama mitra & tim tetap bisa jalan sepenuhnya.
+//
+// Rute yang DIKECUALIKAN dari blokir (lanjut ke pengecekan login/role biasa
+// di bawah, PERSIS seperti kalau maintenance mati -- kalau belum login tetap
+// diarahkan ke /login seperti biasa, BUKAN ke halaman maintenance):
+//   - /admin, /api/admin/*  (+ subdomain admin.kerjaku.click)
+//   - /mitra, /api/mitra/*
+//   - /riwayat, /api/customer/* (termasuk login/PIN klien)
+//   - /reset-pin (lupa PIN klien -- bagian dari alur login Riwayat Pesanan)
+//   - /login (form login admin/mitra), /auth/* (mis. /auth/signout)
+//
+// Rute yang TETAP DIBLOKIR ke publik (tidak dikecualikan di sini):
+//   - Homepage (/) & seluruh halaman marketing publik lainnya
+//   - /daftar-mitra & /api/mitra-applications/* (pendaftaran mitra BARU --
+//     sengaja tetap ditutup, calon mitra baru belum ikut sosialisasi SOP)
+//   - Form pesan (link WA di homepage) -- webhook Fonnte sendiri memang
+//     sudah dikecualikan terpisah (lihat langkah di bawah), tapi halaman
+//     yang menampilkan tombol/link pesan ke publik tetap tertutup.
+//
+// Kalau nanti scope pengecualian ini perlu diubah, cukup ubah daftar prefix
+// di EXEMPT_DURING_MAINTENANCE_PREFIXES / EXEMPT_DURING_MAINTENANCE_EXACT di
+// bawah -- tidak perlu ubah logika lainnya.
+// ============================================================================
+
+const EXEMPT_DURING_MAINTENANCE_PREFIXES = [
+  "/admin",
+  "/api/admin",
+  "/mitra",
+  "/api/mitra",
+  "/riwayat",
+  "/api/customer",
+  "/reset-pin",
+  "/auth",
+];
+
+const EXEMPT_DURING_MAINTENANCE_EXACT = ["/login"];
+
+/** `pathname` sama persis dengan `prefix`, ATAU `prefix` diikuti "/" --
+ *  supaya "/api/mitra" tidak ikut mencocokkan "/api/mitra-applications"
+ *  (beda rute, kebetulan sama-sama diawali huruf "mitra"). */
+function isPathUnderPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + "/");
+}
+
+function isExemptFromMaintenance(pathname: string, host: string): boolean {
+  if (host === ADMIN_HOST) return true;
+  if (EXEMPT_DURING_MAINTENANCE_EXACT.includes(pathname)) return true;
+  return EXEMPT_DURING_MAINTENANCE_PREFIXES.some((prefix) =>
+    isPathUnderPrefix(pathname, prefix)
+  );
+}
+
 function handleMaintenanceMode(request: NextRequest): NextResponse | null {
   const isMaintenanceOn = process.env.MAINTENANCE_MODE === "true";
   if (!isMaintenanceOn) return null;
@@ -65,6 +128,15 @@ function handleMaintenanceMode(request: NextRequest): NextResponse | null {
   // 3) Halaman /maintenance sendiri (dan asetnya) harus tetap bisa diakses,
   //    supaya pengunjung publik lihat pesannya, bukan malah error/looping.
   if (pathname === "/maintenance") {
+    return null;
+  }
+
+  // 3.5) BARU (18 September 2026) -- selama sosialisasi & training mitra:
+  //    admin, mitra, dan Riwayat Pesanan pelanggan tetap terbuka langsung
+  //    (lihat komentar EXEMPT_DURING_MAINTENANCE_* di atas), lanjut ke
+  //    pengecekan login/role biasa di bawah -- BUKAN dialihkan ke halaman
+  //    maintenance atau dijawab 503.
+  if (isExemptFromMaintenance(pathname, request.headers.get("host") ?? "")) {
     return null;
   }
 
