@@ -7,6 +7,13 @@
 // BARU (fitur "Toggle Ketersediaan Mitra", migrasi 023): select ditambah
 // `is_available, unavailable_reason, unavailable_since` supaya MitraTable
 // bisa menampilkan badge status ketersediaan tiap mitra ke admin.
+//
+// FIX BUILD (18 September 2026): select ditambah `violation_count` (kolom
+// dari migrasi 024, dipakai kolom "Trust & Safety" baru di MitraTable.tsx
+// sejak migrasi 025) -- tanpa ini, deploy Vercel gagal compile: "Type error:
+// Property 'violation_count' is missing" di baris <MitraTable /> di bawah,
+// karena tipe MitraProfile di lib/types.ts mewajibkan field ini tapi query
+// di sini belum ikut mengambilnya.
 
 import { createClient } from "@/lib/supabase/server";
 import MitraTable from "@/components/admin/MitraTable";
@@ -19,7 +26,7 @@ export default async function AdminMitraPage() {
   const { data: mitraList } = await supabase
     .from("profiles")
     .select(
-      "id, name, phone, wallet_balance, total_earnings, status, is_active, gender, skill_category, photo_url, rating, is_available, unavailable_reason, unavailable_since"
+      "id, name, phone, wallet_balance, total_earnings, status, is_active, gender, skill_category, photo_url, rating, is_available, unavailable_reason, unavailable_since, violation_count"
     )
     .eq("role", "mitra")
     .order("name");
