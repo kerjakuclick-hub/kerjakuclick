@@ -13,19 +13,34 @@
 // -> "Est. 1,5-2 Jam". Kartu "Setrika" TIDAK berubah (Setrika PRO cuma
 // naik harga jadi Rp80.000, durasi 2 Jam tetap sama seperti sebelumnya).
 //
+// PERBAIKAN BARU (18 September 2026): angka "priceFrom" di atas SEMPAT
+// ketinggalan lagi setelah harga di lib/services.ts diupdate ikut Dokumen
+// Bisnis Revisi Pasca-Audit Fraud (Setrika Rp40rb->Rp55rb, Cleaning
+// Rp55rb->Rp65rb) -- ini persis akibat yang sudah diperingatkan di catatan
+// atas: `priceFrom` di-hardcode terpisah, jadi tidak ikut berubah otomatis.
+// Supaya tidak berulang lagi, `priceFrom` SEKARANG DIHITUNG LANGSUNG dari
+// harga termurah tiap kategori di lib/services.ts (cheapestPriceInCategory)
+// -- field `priceFrom` string di data di bawah DIHAPUS, tidak perlu di-
+// update manual lagi kalau harga berubah lagi nanti. `duration` tetap teks
+// manual di sini (rentang durasi tidak bisa diturunkan otomatis dengan
+// akurat dari data harga).
+//
 // Tidak ada perubahan lain -- kartu Cuci Kendaraan, Les Private,
-// fetch gambar dari Supabase, & serviceCategory/comingSoon tetap sama.
+// fetch gambar dari Supabase, & serviceCategory/comingSoon tetap sama
+// (comingSoon: true untuk keduanya sudah benar & TIDAK terkait dengan
+// pengecualian `orderable: false` di form pemesanan -- dua hal yang
+// berbeda, kartu beranda ini boleh tetap tampil sebagai preview).
 
 import { createClient } from "@/lib/supabase/server";
+import { cheapestPriceInCategory, formatRupiah } from "@/lib/services";
 import ServicesGridInteractive, { type ServiceCardData } from "./ServicesGridInteractive";
 
-const services: Omit<ServiceCardData, "imageUrl">[] = [
+const services: Omit<ServiceCardData, "imageUrl" | "priceFrom">[] = [
   {
     slug: "service_setrika",
     name: "Setrika",
     serviceCategory: "Setrika Pakaian",
     desc: "Pakaian rapi tanpa lelah. Mitra kami ahli dalam menangani berbagai jenis kain.",
-    priceFrom: "Rp 40.000",
     duration: "Est. 1-2 Jam",
     badge: "TERPOPULER",
     gradient: "from-[#1D6F8C] to-[#12202A]",
@@ -36,7 +51,6 @@ const services: Omit<ServiceCardData, "imageUrl">[] = [
     name: "Bersihkan Rumah",
     serviceCategory: "Bersihkan Rumah",
     desc: "Pembersihan menyeluruh untuk ruang tamu, kamar tidur, hingga dapur Anda.",
-    priceFrom: "Rp 55.000",
     duration: "Est. 1,5-2 Jam",
     gradient: "from-[#F5B324] to-[#1D6F8C]",
     icon: "🧹",
@@ -47,7 +61,6 @@ const services: Omit<ServiceCardData, "imageUrl">[] = [
     serviceCategory: "Cuci Kendaraan",
     comingSoon: true,
     desc: "Cuci motor atau mobil langsung di rumah Anda tanpa perlu antre di luar.",
-    priceFrom: "Rp 35.000",
     duration: "Est. 1-2 Jam",
     gradient: "from-[#12202A] to-[#1D6F8C]",
     icon: "🚗",
@@ -58,7 +71,6 @@ const services: Omit<ServiceCardData, "imageUrl">[] = [
     serviceCategory: "Les Private",
     comingSoon: true,
     desc: "Bantu anak selesaikan PR & pahami pelajaran sekolah — mengaji, matematika, IPA, hingga komputer.",
-    priceFrom: "Rp 65.000",
     duration: "2 Jam / Sesi",
     gradient: "from-[#1D6F8C] to-[#F5B324]",
     icon: "📚",
@@ -77,10 +89,14 @@ export default async function ServicesGrid() {
 
   const imageBySlug = new Map((media ?? []).map((m) => [m.slug, m.image_url]));
 
-  const resolvedServices: ServiceCardData[] = services.map((s) => ({
-    ...s,
-    imageUrl: imageBySlug.get(s.slug) ?? null,
-  }));
+  const resolvedServices: ServiceCardData[] = services.map((s) => {
+    const cheapest = cheapestPriceInCategory(s.serviceCategory);
+    return {
+      ...s,
+      imageUrl: imageBySlug.get(s.slug) ?? null,
+      priceFrom: cheapest !== null ? formatRupiah(cheapest) : "-",
+    };
+  });
 
   return (
     <section id="services" className="max-w-[1200px] mx-auto px-6 py-16 md:py-20">

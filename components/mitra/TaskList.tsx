@@ -8,6 +8,23 @@
 // menerima pembayaran tunai/transfer, bukan bot yang kirim otomatis).
 // Invoice yang baru saja terbit (dari response advanceStatus) langsung
 // digabung ke state lokal supaya tombolnya muncul tanpa perlu refresh.
+//
+// Perubahan BARU (18 September 2026) -- fitur "Transparansi Rincian Biaya"
+// (Bagian 6.1 Dokumen Bisnis Revisi Pasca-Audit Fraud): terima prop baru
+// `feePercent` & `tierName` dari app/mitra/page.tsx (hasil RPC
+// mitra_tier_info()). Setiap order aktif (assigned/working) sekarang
+// menampilkan rincian: nilai order, potongan platform (nominal + tier +
+// persen), dan estimasi tunai bersih yang akan diterima mitra dari klien --
+// SEBELUM order itu diselesaikan, bukan cuma sesudahnya. Tabel riwayat juga
+// ditambah kolom "Potongan Platform" supaya angka fee yang benar-benar
+// terpotong (bukan estimasi) tetap terlihat berdampingan dengan "Pendapatan
+// Anda".
+//
+// Perubahan BARU (18 September 2026) -- Bagian 7.2 "Komunikasi Ter-mediasi"
+// & 8.2 "Hybrid WA + In-App": setiap order aktif (assigned/working) sekarang
+// menampilkan <OrderChat /> -- Chat Pesanan in-app dengan klien, pengganti
+// pertukaran nomor WA pribadi. Terima prop baru `mitraName` (dipakai sebagai
+// nama pengirim di chat).
 
 "use client";
 
@@ -16,6 +33,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah } from "@/lib/services";
 import { buildClientWaLink } from "@/lib/whatsapp";
+import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, Transaction, Earning, Invoice } from "@/lib/types";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -37,15 +55,24 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 export default function TaskList({
   initialOrders,
   mitraId,
+  mitraName,
   transactions,
   earnings,
   invoices: initialInvoices,
+  feePercent,
+  tierName,
 }: {
   initialOrders: Order[];
   mitraId: string;
+  /** Nama mitra ini -- dipakai sebagai nama pengirim di Chat Pesanan (Bagian 7.2). */
+  mitraName: string;
   transactions: Transaction[];
   earnings: Earning[];
   invoices: Invoice[];
+  /** Persentase fee tier mitra saat ini (0.07/0.08/0.10) -- Bagian 6.2. */
+  feePercent: number;
+  /** Nama tier mitra saat ini ("Baru"/"Reguler"/"Terpercaya"/"Unggulan"). */
+  tierName: string;
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
@@ -120,6 +147,15 @@ export default function TaskList({
     return null;
   }
 
+  /** Potongan platform AKTUAL untuk order yang sudah completed (nilai order
+   * dikurangi pendapatan bersih yang benar-benar tercatat) -- bukan estimasi,
+   * supaya tetap akurat walau tier mitra berubah setelah order itu selesai. */
+  function potonganAktualUntukOrder(orderId: number, totalPrice: number): number | null {
+    const pendapatan = pendapatanUntukOrder(orderId);
+    if (pendapatan === null) return null;
+    return totalPrice - pendapatan;
+  }
+
   function invoicePembayaranUntukOrder(orderId: number): Invoice | undefined {
     return invoices.find((i) => i.order_id === orderId && i.purpose === "pembayaran");
   }
@@ -133,6 +169,7 @@ export default function TaskList({
 
   const active = orders.filter((o) => o.status === "assigned" || o.status === "working");
   const history = orders.filter((o) => o.status === "completed" || o.status === "cancelled");
+  const feePctLabel = `${Math.round(feePercent * 100)}%`;
 
   if (orders.length === 0) {
     return (
@@ -146,52 +183,77 @@ export default function TaskList({
     <div className="space-y-6">
       {active.length > 0 && (
         <div className="space-y-3">
-          {active.map((o) => (
-            <div key={o.id} className="rounded-card border border-line bg-white p-5 shadow-card">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-display text-base font-semibold text-ink">
-                    {o.service_type}
-                  </p>
-                  <p className="text-sm text-ink/70">{o.customer_name}</p>
-                  <p className="text-xs text-ink/50">{o.customer_phone}</p>
-                  <p className="mt-1 text-xs text-ink/50">{o.address}</p>
-                  <p className="mt-1 text-xs text-ink/60">
-                    {o.scheduled_date ?? "-"} &middot; {o.preferred_time ?? "-"}
-                  </p>
+          {active.map((o) => {
+            // Estimasi -- fee sebenarnya baru dikunci saat order berstatus
+            // completed (dihitung trigger database dengan tier mitra PADA
+            // SAAT itu). Ditandai "estimasi" supaya tidak disalahpahami
+            // sebagai janji pasti kalau tier mitra berubah di tengah jalan.
+            const estimasiFee = Math.round(o.total_price * feePercent);
+            const estimasiTunai = o.total_price - estimasiFee;
+            return (
+              <div key={o.id} className="rounded-card border border-line bg-white p-5 shadow-card">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-display text-base font-semibold text-ink">
+                      {o.service_type}
+                    </p>
+                    <p className="text-sm text-ink/70">{o.customer_name}</p>
+                    <p className="text-xs text-ink/50">{o.customer_phone}</p>
+                    <p className="mt-1 text-xs text-ink/50">{o.address}</p>
+                    <p className="mt-1 text-xs text-ink/60">
+                      {o.scheduled_date ?? "-"} &middot; {o.preferred_time ?? "-"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span
+                      className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLOR[o.status]}`}
+                    >
+                      {STATUS_LABEL[o.status]}
+                    </span>
+                    <p className="mt-2 font-mono text-sm text-ink">{formatRupiah(o.total_price)}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span
-                    className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_COLOR[o.status]}`}
-                  >
-                    {STATUS_LABEL[o.status]}
-                  </span>
-                  <p className="mt-2 font-mono text-sm text-ink">{formatRupiah(o.total_price)}</p>
-                </div>
-              </div>
 
-              <div className="mt-4 flex justify-end gap-2">
-                {o.status === "assigned" && (
-                  <button
-                    onClick={() => advanceStatus(o.id, "working")}
-                    disabled={savingId === o.id}
-                    className="rounded-full bg-bay-deep px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
-                  >
-                    {savingId === o.id ? "Memproses..." : "Mulai Kerjakan"}
-                  </button>
-                )}
-                {o.status === "working" && (
-                  <button
-                    onClick={() => advanceStatus(o.id, "completed")}
-                    disabled={savingId === o.id}
-                    className="rounded-full bg-wa px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
-                  >
-                    {savingId === o.id ? "Memproses..." : "Selesaikan Tugas"}
-                  </button>
-                )}
+                <div className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink/70">
+                  <p>
+                    Potongan platform (tier {tierName}, {feePctLabel}):{" "}
+                    <span className="font-mono">{formatRupiah(estimasiFee)}</span>
+                  </p>
+                  <p className="mt-0.5">
+                    Estimasi tunai bersih dari klien:{" "}
+                    <span className="font-mono font-semibold text-wa">
+                      {formatRupiah(estimasiTunai)}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="mt-4">
+                  <OrderChat orderId={o.id} role="mitra" currentUserId={mitraId} currentUserName={mitraName} />
+                </div>
+
+                <div className="mt-4 flex justify-end gap-2">
+                  {o.status === "assigned" && (
+                    <button
+                      onClick={() => advanceStatus(o.id, "working")}
+                      disabled={savingId === o.id}
+                      className="rounded-full bg-bay-deep px-5 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+                    >
+                      {savingId === o.id ? "Memproses..." : "Mulai Kerjakan"}
+                    </button>
+                  )}
+                  {o.status === "working" && (
+                    <button
+                      onClick={() => advanceStatus(o.id, "completed")}
+                      disabled={savingId === o.id}
+                      className="rounded-full bg-wa px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105 disabled:opacity-60"
+                    >
+                      {savingId === o.id ? "Memproses..." : "Selesaikan Tugas"}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -199,12 +261,13 @@ export default function TaskList({
         <div>
           <p className="mb-2 text-xs font-semibold uppercase text-ink/50">Riwayat</p>
           <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-            <table className="w-full min-w-[700px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
                 <tr>
                   <th className="px-4 py-3">Layanan</th>
                   <th className="px-4 py-3">Pelanggan</th>
                   <th className="px-4 py-3">Nilai</th>
+                  <th className="px-4 py-3">Potongan Platform</th>
                   <th className="px-4 py-3">Pendapatan Anda</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Invoice ke Klien</th>
@@ -213,6 +276,7 @@ export default function TaskList({
               <tbody>
                 {history.map((o) => {
                   const pendapatan = pendapatanUntukOrder(o.id);
+                  const potongan = potonganAktualUntukOrder(o.id, o.total_price);
                   const invoice = invoicePembayaranUntukOrder(o.id);
                   return (
                     <tr key={o.id} className="border-b border-line last:border-0">
@@ -220,6 +284,9 @@ export default function TaskList({
                       <td className="px-4 py-3 text-ink/70">{o.customer_name}</td>
                       <td className="px-4 py-3 font-mono text-ink/70">
                         {formatRupiah(o.total_price)}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-ink/50">
+                        {potongan !== null ? formatRupiah(potongan) : "-"}
                       </td>
                       <td className="px-4 py-3 font-mono text-wa">
                         {pendapatan !== null ? formatRupiah(pendapatan) : "-"}

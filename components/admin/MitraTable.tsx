@@ -14,12 +14,20 @@
 // (read-only untuk admin), supaya saat operasional di lapangan admin bisa
 // langsung lihat mitra mana yang sedang istirahat/sakit/kendala lain
 // sebelum menugaskan pesanan baru.
+//
+// BARU (18 September 2026) -- "Modul Trust & Safety" (Bagian 8.4 Dokumen
+// Bisnis Revisi Pasca-Audit Fraud), migrasi 025: kolom baru "Trust &
+// Safety" menampilkan violation_count mitra (syarat naik tier Terpercaya/
+// Unggulan sejak migrasi 024) + tombol untuk buka panel riwayat pelanggaran
+// & tambah catatan baru lewat app/api/admin/mitra/violations/route.ts.
+// violation_count TIDAK diedit langsung di sini -- selalu lewat catatan
+// beralasan supaya ada jejak audit (persis semangat "Modul Trust & Safety").
 
 "use client";
 
 import { useRef, useState } from "react";
 import { formatRupiah, services } from "@/lib/services";
-import type { MitraProfile } from "@/lib/types";
+import type { MitraProfile, MitraViolation } from "@/lib/types";
 
 const MIN_TARIF = Math.min(...services.map((s) => s.price));
 const SALDO_WARNING_THRESHOLD = Math.round(MIN_TARIF * 0.2);
@@ -185,6 +193,143 @@ function AvailabilityBadge({ mitra }: { mitra: MitraProfile }) {
   );
 }
 
+function TrustSafetyCell({
+  mitra,
+  onUpdated,
+}: {
+  mitra: MitraProfile;
+  onUpdated: (updated: MitraProfile) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [violations, setViolations] = useState<MitraViolation[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadViolations() {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/mitra/violations?mitraId=${mitra.id}`);
+      const data = await res.json();
+      if (res.ok) setViolations(data.violations ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function toggleOpen() {
+    const next = !open;
+    setOpen(next);
+    if (next && violations === null) loadViolations();
+  }
+
+  async function handleAdd() {
+    const trimmed = note.trim();
+    if (!trimmed || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/mitra/violations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mitraId: mitra.id, note: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Gagal menambah catatan.");
+        return;
+      }
+      onUpdated(data.profile as MitraProfile);
+      setNote("");
+      loadViolations();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete(violationId: number) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/mitra/violations?violationId=${violationId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Gagal menghapus catatan.");
+        return;
+      }
+      onUpdated(data.profile as MitraProfile);
+      loadViolations();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="min-w-[220px]">
+      <button
+        onClick={toggleOpen}
+        className={`rounded-full px-3 py-1 text-xs font-medium ${
+          mitra.violation_count > 0 ? "bg-red-100 text-red-600" : "bg-wa/20 text-wa"
+        }`}
+      >
+        {mitra.violation_count} pelanggaran
+      </button>
+
+      {open && (
+        <div className="mt-2 space-y-2 rounded-lg border border-line bg-paper p-2">
+          {loading && <p className="text-[11px] text-ink/40">Memuat riwayat...</p>}
+          {!loading && violations && violations.length === 0 && (
+            <p className="text-[11px] text-ink/40">Belum ada catatan pelanggaran.</p>
+          )}
+          {!loading &&
+            violations?.map((v) => (
+              <div key={v.id} className="flex items-start justify-between gap-1 text-[11px]">
+                <div>
+                  <p className="text-ink">{v.note}</p>
+                  <p className="text-ink/40">
+                    {new Date(v.created_at).toLocaleDateString("id-ID", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDelete(v.id)}
+                  disabled={busy}
+                  className="shrink-0 text-red-500 underline disabled:opacity-50"
+                >
+                  Hapus
+                </button>
+              </div>
+            ))}
+          <div className="flex gap-1">
+            <input
+              type="text"
+              placeholder="Catat pelanggaran baru..."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              disabled={busy}
+              className="flex-1 rounded border border-line px-1.5 py-1 text-[11px]"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={busy || !note.trim()}
+              className="shrink-0 rounded bg-bay-deep px-2 py-1 text-[11px] text-white disabled:opacity-50"
+            >
+              Tambah
+            </button>
+          </div>
+          {error && <p className="text-[11px] text-red-600">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MitraTable({ initialMitra }: { initialMitra: MitraProfile[] }) {
   const [mitra, setMitra] = useState<MitraProfile[]>(initialMitra);
   const [topupAmount, setTopupAmount] = useState<Record<string, string>>({});
@@ -195,7 +340,10 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
   const [addError, setAddError] = useState<string | null>(null);
   const [addLoading, setAddLoading] = useState(false);
 
-  function handlePhotoUploaded(updated: MitraProfile) {
+  /** Ganti 1 baris mitra di state lokal dengan versi terbaru dari server --
+   *  dipakai oleh upload foto, top up, toggle aktif, update atribut, DAN
+   *  (BARU) TrustSafetyCell setelah tambah/hapus catatan pelanggaran. */
+  function updateMitraInState(updated: MitraProfile) {
     setMitra((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
   }
 
@@ -360,6 +508,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Aktif</th>
               <th className="px-4 py-3">Ketersediaan</th>
+              <th className="px-4 py-3">Trust &amp; Safety</th>
               <th className="px-4 py-3">Top Up</th>
             </tr>
           </thead>
@@ -367,7 +516,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
             {mitra.map((m) => (
               <tr key={m.id} className="border-b border-line last:border-0">
                 <td className="px-4 py-3 align-top">
-                  <PhotoUploadAvatar mitra={m} onUploaded={handlePhotoUploaded} />
+                  <PhotoUploadAvatar mitra={m} onUploaded={updateMitraInState} />
                 </td>
                 <td className="px-4 py-3 font-medium text-ink align-top">{m.name}</td>
                 <td className="px-4 py-3 text-ink/70 align-top">{m.phone}</td>
@@ -419,6 +568,9 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                   <AvailabilityBadge mitra={m} />
                 </td>
                 <td className="px-4 py-3 align-top">
+                  <TrustSafetyCell mitra={m} onUpdated={updateMitraInState} />
+                </td>
+                <td className="px-4 py-3 align-top">
                   <div className="flex gap-1.5">
                     <input
                       type="number"
@@ -442,7 +594,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
             ))}
             {mitra.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-sm text-ink/50">
+                <td colSpan={11} className="px-4 py-8 text-center text-sm text-ink/50">
                   Belum ada mitra terdaftar.
                 </td>
               </tr>

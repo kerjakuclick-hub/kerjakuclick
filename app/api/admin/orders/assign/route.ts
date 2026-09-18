@@ -14,7 +14,7 @@
 //      generate invoice DAN untuk pesan notifikasi (sebelumnya cuma dipakai
 //      untuk invoice).
 //
-// Perubahan BARU (fitur "Notifikasi Mitra Otomatis", migrasi 022): begitu
+// Perubahan (fitur "Notifikasi Mitra Otomatis", migrasi 022): begitu
 // mitra ditugaskan, SELAIN pesan "pesanan disetujui" ke klien, sistem juga
 // otomatis kirim WA "tugas baru" ke MITRA (buildMitraAssignedMessage) berisi
 // detail pesanan + kontak klien -- mitra tidak perlu buka dasbor dulu buat
@@ -22,12 +22,31 @@
 // orders.mitra_notified_at / mitra_notify_error, ditampilkan & bisa di-retry
 // dari OrdersFeed sama seperti notifikasi klien.
 //
-// Perubahan BARU (fitur "Toggle Ketersediaan Mitra", migrasi 023): mitra
+// Perubahan (fitur "Toggle Ketersediaan Mitra", migrasi 023): mitra
 // yang sedang menyalakan status "tidak tersedia" (is_available = false --
 // istirahat/sakit/kendala lain) sudah tidak muncul di dropdown "Pilih mitra
 // eligible" (lihat eligible_mitra_for_order), tapi validasi ini ditambahkan
 // juga di sini sebagai pertahanan berlapis -- misalnya kalau dropdown admin
 // belum sempat refresh saat mitra baru saja mematikan ketersediaannya.
+//
+// Perubahan BARU (18 September 2026) -- fitur "Skema Fee Berjenjang" (Bagian
+// 6.2 Dokumen Bisnis Revisi Pasca-Audit Fraud), migrasi 024:
+//   4. Validasi ambang saldo TIDAK lagi membandingkan ke order.min_wallet_
+//      required (flat 20% lama, migrasi 007) -- sekarang dihitung dinamis
+//      dari fee tier mitra yang bersangkutan lewat RPC mitra_fee_percent()
+//      (mitra tier Unggulan cukup 7% dari nilai order, bukan 20% untuk
+//      semua). Ini pertahanan berlapis yang SAMA seperti eligible_mitra_
+//      for_order() di database (migrasi 024) -- kalau dropdown admin belum
+//      sempat refresh, endpoint ini tetap menolak penugasan yang saldonya
+//      benar-benar tidak cukup untuk tier mitra tsb saat ini.
+//
+// Perubahan BARU (18 September 2026) -- Bagian 7.2/8.2 (migrasi
+// 025_order_messages_trust_safety.sql): begitu mitra berhasil ditugaskan,
+// sebuah pesan SISTEM otomatis ditulis ke order_messages (Chat Pesanan)
+// menandai awal percakapan untuk order ini -- supaya mitra & klien sama-
+// sama tahu kanal ini sudah aktif tanpa perlu saling tukar nomor WA
+// pribadi. Kegagalan menulis pesan ini TIDAK menggagalkan penugasan (log
+// saja), sama seperti pola notifikasi WA di atas.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -78,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("min_wallet_required, total_price")
+      .select("total_price")
       .eq("id", orderId)
       .single();
 
@@ -109,10 +128,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (mitra.wallet_balance < order.min_wallet_required) {
+    // Ambang saldo dinamis sesuai tier fee mitra ini (Bagian 6.2) --
+    // menggantikan flat 20% lama (order.min_wallet_required, migrasi 007).
+    const { data: feePercent, error: feeError } = await admin.rpc("mitra_fee_percent", {
+      p_mitra_id: mitra_id as string,
+    });
+
+    if (feeError || feePercent === null) {
+      return NextResponse.json(
+        { error: feeError?.message ?? "Gagal menghitung fee tier mitra." },
+        { status: 500 }
+      );
+    }
+
+    const requiredBalance = Math.round(order.total_price * Number(feePercent));
+
+    if (mitra.wallet_balance < requiredBalance) {
       return NextResponse.json(
         {
-          error: `Saldo mitra (Rp${mitra.wallet_balance.toLocaleString("id-ID")}) di bawah ambang minimum Rp${order.min_wallet_required.toLocaleString("id-ID")} (20% dari nilai layanan).`,
+          error: `Saldo mitra (Rp${mitra.wallet_balance.toLocaleString("id-ID")}) di bawah ambang minimum Rp${requiredBalance.toLocaleString("id-ID")} (${Math.round(Number(feePercent) * 100)}% dari nilai layanan, sesuai tier fee mitra ini).`,
         },
         { status: 400 }
       );
@@ -175,6 +209,20 @@ export async function POST(req: NextRequest) {
 
       const mitraMessage = buildMitraAssignedMessage(order);
       const mitraSendResult = await sendFonnteMessage(mitraProfile.phone, mitraMessage);
+
+      // Pesan sistem pembuka Chat Pesanan (Bagian 7.2/8.2) -- gagal tulis
+      // di sini tidak menggagalkan penugasan, cukup dicatat ke console
+      // (chat tetap bisa dipakai tanpa pesan pembuka ini).
+      const { error: systemMessageError } = await admin.from("order_messages").insert({
+        order_id: orderId,
+        sender_type: "system",
+        sender_id: null,
+        sender_name: "Sistem",
+        body: `Mitra ${mitraProfile.name} telah ditugaskan untuk pesanan ini. Gunakan chat ini untuk koordinasi jadwal & pertanyaan -- bukan WA pribadi.`,
+      });
+      if (systemMessageError) {
+        console.error("Gagal menulis pesan sistem pembuka chat:", systemMessageError);
+      }
 
       const { data: updatedOrder } = await admin
         .from("orders")
