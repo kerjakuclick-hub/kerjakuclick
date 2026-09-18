@@ -22,12 +22,30 @@
 //      / badge merah + "Coba Kirim Lagi"). Tombol retry-nya sama-sama
 //      memanggil retryNotify() -- endpoint retry-notify sekarang menangani
 //      klien & mitra sekaligus, cuma mengirim ulang yang memang masih gagal.
+//
+// Perubahan BARU (18 September 2026) -- fitur "Skema Fee Berjenjang" (Bagian
+// 6.2 Dokumen Bisnis Revisi Pasca-Audit Fraud), migrasi 024:
+//   6. eligible_mitra_for_order() sekarang juga mengembalikan fee_percent
+//      tier mitra ybs -- ditampilkan di dropdown "Pilih mitra eligible" biar
+//      admin tahu potongan platform per mitra tidak lagi flat 20%.
+//   7. Label "Ambang saldo" (kolom Layanan) diperjelas: angka itu SEKARANG
+//      cuma acuan lama (flat 20%, migrasi 007), ambang kelayakan riil per
+//      mitra mengikuti fee_percent masing-masing (lihat dropdown mitra).
+//
+// Perubahan BARU (18 September 2026) -- Bagian 7.2 "Komunikasi Ter-mediasi",
+// 8.2 "Hybrid WA + In-App" & 8.4 "Dashboard & Modul Pendukung": kolom baru
+// "Chat" -- tombol untuk membuka/tutup panel <OrderChat /> per pesanan
+// (order yang sudah punya mitra), supaya admin bisa memantau atau turun
+// tangan langsung di percakapan mitra<->klien tanpa harus lihat/minta nomor
+// WA pribadi siapa pun. Terima prop baru `adminId`/`adminName` (identitas
+// pengirim kalau admin ikut mengirim pesan).
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah } from "@/lib/services";
+import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, EligibleMitra, Invoice } from "@/lib/types";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -49,9 +67,15 @@ const STATUS_COLOR: Record<OrderStatus, string> = {
 export default function OrdersFeed({
   initialOrders,
   initialInvoices,
+  adminId,
+  adminName,
 }: {
   initialOrders: Order[];
   initialInvoices: Invoice[];
+  /** Identitas admin yang sedang login -- dipakai kalau admin ikut mengirim
+   *  pesan lewat Chat Pesanan (Bagian 7.2/8.4). */
+  adminId: string;
+  adminName: string;
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
@@ -62,6 +86,7 @@ export default function OrdersFeed({
   const [invoiceBusy, setInvoiceBusy] = useState<number | null>(null);
   const [invoiceError, setInvoiceError] = useState<Record<number, string>>({});
   const [notifyBusy, setNotifyBusy] = useState<number | null>(null);
+  const [openChatId, setOpenChatId] = useState<number | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -277,6 +302,7 @@ export default function OrdersFeed({
             <th className="px-5 py-4">Notifikasi Klien</th>
             <th className="px-5 py-4">Notifikasi Mitra</th>
             <th className="px-5 py-4">Invoice Pembayaran</th>
+            <th className="px-5 py-4">Chat</th>
           </tr>
         </thead>
         <tbody>
@@ -290,10 +316,11 @@ export default function OrdersFeed({
             const pembayaranInvoice = orderInvoices.find(
               (i) => i.recipient_type === "klien" && i.purpose === "pembayaran"
             );
+            const chatOpen = openChatId === o.id;
 
             return (
+              <Fragment key={o.id}>
               <tr
-                key={o.id}
                 className="divide-x divide-line border-b border-line align-top last:border-0"
               >
                 <td className="whitespace-nowrap px-5 py-4 text-xs text-ink/60">
@@ -313,7 +340,8 @@ export default function OrdersFeed({
                   <p className="text-ink">{o.service_type}</p>
                   <p className="text-xs text-ink/50">{formatRupiah(o.total_price)}</p>
                   <p className="text-xs text-ink/40">
-                    Ambang saldo: {formatRupiah(o.min_wallet_required)}
+                    Ambang saldo (acuan lama, 20%): {formatRupiah(o.min_wallet_required)} — ambang
+                    riil kini mengikuti fee tier tiap mitra, lihat dropdown mitra
                   </p>
                 </td>
                 <td className="px-5 py-4 text-xs text-ink/70">
@@ -361,7 +389,7 @@ export default function OrdersFeed({
                         {eligible.map((m) => (
                           <option key={m.mitra_id} value={m.mitra_id}>
                             {m.name} · {formatRupiah(m.wallet_balance)} · {m.gender ?? "?"} ·{" "}
-                            {m.status}
+                            {m.status} · fee {Math.round(m.fee_percent * 100)}%
                           </option>
                         ))}
                         {eligible.length === 0 && loadingEligible !== o.id && (
@@ -518,7 +546,29 @@ export default function OrdersFeed({
                     </span>
                   )}
                 </td>
+                <td className="px-5 py-4">
+                  {!o.mitra_id ? (
+                    <span className="text-xs text-ink/30">-</span>
+                  ) : (
+                    <button
+                      onClick={() => setOpenChatId(chatOpen ? null : o.id)}
+                      className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-bay-deep hover:bg-bay-deep hover:text-white"
+                    >
+                      {chatOpen ? "Tutup Chat" : "💬 Lihat Chat"}
+                    </button>
+                  )}
+                </td>
               </tr>
+              {chatOpen && (
+                <tr className="border-b border-line bg-paper">
+                  <td colSpan={12} className="px-5 py-4">
+                    <div className="max-w-xl">
+                      <OrderChat orderId={o.id} role="admin" currentUserId={adminId} currentUserName={adminName} />
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>

@@ -4,6 +4,11 @@
 // mengirimkannya ke OrdersFeed, supaya admin bisa melihat & mengunduh file
 // invoice yang sudah ter-generate, serta menandainya "Sudah Dikirim".
 // Sebelumnya kolom ini kehapus saat penyesuaian ke struktur repo asli Anda.
+//
+// Perubahan BARU (18 September 2026) -- Bagian 7.2/8.2/8.4: ambil profil
+// admin yang sedang login (id + name) dan teruskan ke <OrdersFeed /> sebagai
+// `adminId`/`adminName` -- dipakai sebagai identitas pengirim kalau admin
+// perlu turun tangan langsung di Chat Pesanan sebuah order.
 
 import { createClient } from "@/lib/supabase/server";
 import OrdersFeed from "@/components/admin/OrdersFeed";
@@ -12,6 +17,16 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
   const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: adminProfile } = await supabase
+    .from("profiles")
+    .select("id, name")
+    .eq("id", user!.id)
+    .single();
 
   const { data: orders } = await supabase
     .from("orders")
@@ -33,7 +48,12 @@ export default async function AdminDashboardPage() {
         refresh manual.
       </p>
       <div className="mt-6">
-        <OrdersFeed initialOrders={orders ?? []} initialInvoices={invoices ?? []} />
+        <OrdersFeed
+          initialOrders={orders ?? []}
+          initialInvoices={invoices ?? []}
+          adminId={user!.id}
+          adminName={adminProfile?.name ?? "Admin"}
+        />
       </div>
     </div>
   );

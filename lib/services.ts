@@ -18,7 +18,7 @@
 //    Ini mengubah harga yang tercantum di landing page & pesan WA order
 //    untuk kedua varian tsb.
 //
-// Revisi BARU (15 September 2026) -- pasca-rilis, beban kerja mitra
+// Revisi (15 September 2026) -- pasca-rilis, beban kerja mitra
 // (termasuk persiapan & transportasi) ternyata lebih besar dari estimasi
 // durasi kerja yang tercantum:
 //    - Cleaning PRO: harga TETAP Rp95.000, durasi kerja dikoreksi dari
@@ -27,8 +27,33 @@
 //      pcs TIDAK berubah -- tetap 40 Pcs / 2 Jam).
 //    Cleaning Fast, Setrika Fast, Cuci Kendaraan, & Les Private TIDAK
 //    berubah.
+//
+// Revisi BARU (18 September 2026) -- update harga mengikuti Dokumen Bisnis
+// Revisi & Strategi Pasca-Audit Fraud (September 2026), Bagian 5.1 "Koreksi
+// Komponen Biaya", sudah dikonfirmasi Anda sebagai acuan resmi:
+//    - Setrika Fast : Rp40.000 -> Rp55.000 (durasi/unit tidak berubah)
+//    - Setrika PRO  : Rp80.000 -> Rp85.000 (durasi/unit tidak berubah)
+//    - Cleaning Fast: Rp55.000 -> Rp65.000 (durasi/unit tidak berubah)
+//    - Cleaning PRO : Rp95.000 -> Rp100.000 (durasi/unit tidak berubah)
+//    Cuci Kendaraan & Les Private TIDAK berubah. Struktur fee platform yang
+//    dipotong dari saldo deposit mitra saat order selesai TIDAK lagi flat
+//    20% -- sudah jadi tier berjenjang (7-10%) sejak migrasi
+//    024_tier_based_platform_fee.sql, lihat lib/types.ts (MitraTierInfo) &
+//    fungsi mitra_fee_percent()/mitra_tier_info() di database.
 // Tidak ada perubahan pada findServiceByLabel, formatRupiah, atau
 // serviceCategories.
+//
+// Revisi BARU (18 September 2026) -- Cuci Kendaraan & Les Private masih
+// dalam proses pembangunan tim mitra & operasional, jadi untuk sementara
+// TIDAK ditampilkan sebagai pilihan di form pemesanan (ServiceSelect.tsx),
+// walau kartunya tetap tampil di beranda sebagai "Coming Soon" (lihat
+// components/ServicesGrid.tsx, comingSoon: true -- itu independen dari
+// perubahan ini). Ditandai lewat field baru `orderable` (default true kalau
+// tidak diisi) supaya datanya TETAP ada di sini (masih dipakai
+// findServiceByLabel untuk parsing webhook & referensi harga di modal
+// detail jasa), cuma tidak muncul di dropdown pemesanan. Begitu tim &
+// operasional untuk 2 layanan ini siap, cukup hapus `orderable: false` di
+// bawah -- tidak perlu ubah kode di tempat lain.
 
 export type ServiceVariant = {
   id: string;
@@ -40,6 +65,10 @@ export type ServiceVariant = {
   tier: "Fast" | "PRO";
   desc?: string;
   detilPekerjaan?: string[];
+  /** false = disembunyikan dari dropdown form pemesanan (ServiceSelect.tsx)
+   *  -- dipakai untuk layanan yang belum siap operasional. Default true
+   *  kalau field ini tidak diisi. */
+  orderable?: boolean;
 };
 
 const LES_PRIVATE_SUBJECTS = [
@@ -61,6 +90,7 @@ const lesPrivateVariants: ServiceVariant[] = LES_PRIVATE_SUBJECTS.flatMap(({ slu
     unit: "1x Pertemuan",
     duration: "2 Jam",
     tier: "Fast" as const,
+    orderable: false, // BARU (18 Sep 2026) -- masih proses building tim & operasional
   },
   {
     id: `les-${slug}-pro`,
@@ -70,6 +100,7 @@ const lesPrivateVariants: ServiceVariant[] = LES_PRIVATE_SUBJECTS.flatMap(({ slu
     unit: "3x Pertemuan / Minggu",
     duration: "2 Jam per sesi",
     tier: "PRO" as const,
+    orderable: false, // BARU (18 Sep 2026) -- masih proses building tim & operasional
   },
 ]);
 
@@ -78,7 +109,7 @@ export const services: ServiceVariant[] = [
     id: "setrika-fast",
     category: "Setrika Pakaian",
     name: "Setrika Fast",
-    price: 40000,
+    price: 55000,
     unit: "20 Pcs / Paket",
     duration: "1 Jam",
     tier: "Fast",
@@ -87,7 +118,7 @@ export const services: ServiceVariant[] = [
     id: "setrika-pro",
     category: "Setrika Pakaian",
     name: "Setrika PRO",
-    price: 80000,
+    price: 85000,
     unit: "40 Pcs / Paket",
     duration: "2 Jam",
     tier: "PRO",
@@ -96,7 +127,7 @@ export const services: ServiceVariant[] = [
     id: "cleaning-fast",
     category: "Bersihkan Rumah",
     name: "Cleaning Fast",
-    price: 55000,
+    price: 65000,
     unit: "1 Rumah (Tipe 36/45)",
     duration: "1.5 Jam",
     tier: "Fast",
@@ -110,7 +141,7 @@ export const services: ServiceVariant[] = [
     id: "cleaning-pro",
     category: "Bersihkan Rumah",
     name: "Cleaning PRO",
-    price: 95000,
+    price: 100000,
     unit: "1 Rumah (Tipe 50/80)",
     duration: "2 Jam",
     tier: "PRO",
@@ -129,6 +160,7 @@ export const services: ServiceVariant[] = [
     unit: "1 Motor",
     duration: "1 Jam",
     tier: "Fast",
+    orderable: false, // BARU (18 Sep 2026) -- masih proses building tim & operasional
   },
   {
     id: "cuci-mobil",
@@ -138,6 +170,7 @@ export const services: ServiceVariant[] = [
     unit: "1 Mobil",
     duration: "2 Jam",
     tier: "PRO",
+    orderable: false, // BARU (18 Sep 2026) -- masih proses building tim & operasional
   },
   ...lesPrivateVariants,
 ];
@@ -145,6 +178,24 @@ export const services: ServiceVariant[] = [
 export const serviceCategories = Array.from(
   new Set(services.map((s) => s.category))
 );
+
+// BARU (18 September 2026): dipakai ServiceSelect.tsx (dropdown form
+// pemesanan) supaya layanan yang belum siap operasional (orderable: false)
+// tidak muncul sebagai pilihan -- `services`/`serviceCategories` di atas
+// TETAP berisi semuanya (masih dipakai findServiceByLabel untuk parsing
+// webhook & modal detail jasa di ServicesGridInteractive.tsx).
+export const orderableServices = services.filter((s) => s.orderable !== false);
+export const orderableServiceCategories = Array.from(
+  new Set(orderableServices.map((s) => s.category))
+);
+
+/** Harga termurah pada satu kategori (dipakai kartu "Layanan Unggulan" di
+ *  beranda, components/ServicesGrid.tsx, supaya angka "Mulai dari" selalu
+ *  ikut harga terbaru di sini -- tidak lagi di-hardcode terpisah). */
+export function cheapestPriceInCategory(category: string): number | null {
+  const prices = services.filter((s) => s.category === category).map((s) => s.price);
+  return prices.length > 0 ? Math.min(...prices) : null;
+}
 
 /**
  * Mencocokkan teks bebas (misalnya dari pesan WhatsApp: "Cleaning Fast",

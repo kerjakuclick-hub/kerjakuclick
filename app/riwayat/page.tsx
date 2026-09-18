@@ -6,6 +6,13 @@
 // pelanggan LOGIN (CustomerAuthPanel) dulu, baru riwayat miliknya sendiri
 // yang tampil -- diambil dari app/api/riwayat/route.ts yang sudah
 // berbasis sesi, bukan input bebas.
+//
+// Perubahan BARU (18 September 2026) -- Bagian 7.2/8.2 Dokumen Bisnis
+// Revisi Pasca-Audit Fraud: setiap kartu pesanan yang sudah punya mitra
+// (assigned/working/completed) sekarang menampilkan tombol "Chat Pesanan"
+// (<OrderChatCustomer />) -- kanal in-app untuk koordinasi jadwal &
+// pertanyaan dengan mitra, menggantikan pertukaran nomor WA pribadi mentah
+// yang jadi celah di temuan audit.
 
 "use client";
 
@@ -13,6 +20,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah } from "@/lib/services";
 import CustomerAuthPanel, { type SessionCustomer } from "@/components/CustomerAuthPanel";
+import OrderChatCustomer from "@/components/OrderChatCustomer";
 
 type OrderStatus = "unassigned" | "assigned" | "working" | "completed" | "cancelled";
 
@@ -150,12 +158,17 @@ export default function RiwayatPage() {
                     </p>
                     <p className="mt-1 max-w-md text-sm text-white/60">{o.address}</p>
                     <p className="mt-1 text-sm font-medium text-white/85">{formatRupiah(o.total_price)}</p>
-                    <button
-                      onClick={() => pesanLagi(o)}
-                      className="mt-3 rounded-full bg-wa px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105"
-                    >
-                      Pesan Lagi
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => pesanLagi(o)}
+                        className="rounded-full bg-wa px-5 py-2 text-sm font-semibold text-white transition hover:brightness-105"
+                      >
+                        Pesan Lagi
+                      </button>
+                    </div>
+                    {(o.status === "assigned" || o.status === "working" || o.status === "completed") && (
+                      <OrderChatCustomer orderId={o.id} customerName={customer.name} />
+                    )}
                   </div>
                 ))}
               </div>

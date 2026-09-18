@@ -5,6 +5,19 @@
 // diketik pelanggan ke format yang mungkin tersimpan di kolom
 // orders.customer_phone (bisa "0812..." atau "62812..." tergantung cara
 // webhook Fonnte menyimpannya). Fungsi & tipe yang sudah ada TIDAK diubah.
+//
+// Perubahan BARU (18 September 2026) -- Bagian 7.2 "Komunikasi Ter-mediasi"
+// & 8.2 "Pendekatan Hybrid WA + In-App" (Dokumen Bisnis Revisi Pasca-Audit
+// Fraud): temuan audit menunjukkan mitra memakai nomor WA klien yang
+// diterima lewat notifikasi otomatis untuk menawarkan kerja di luar
+// platform pada pesanan berikutnya. buildMitraAssignedMessage() SEKARANG
+// TIDAK LAGI mencantumkan nomor WA klien -- koordinasi teknis (jadwal,
+// perubahan, pertanyaan) diarahkan ke Chat Pesanan in-app (tabel
+// order_messages, migrasi 025) yang tercatat & bisa dipantau admin. WA/
+// Fonnte tetap dipakai, tapi HANYA untuk notifikasi transaksional otomatis
+// -- bukan lagi jalur pertukaran kontak mentah. buildOrderApprovedMessage()
+// ke klien juga ditambah pointer yang sama, supaya kedua sisi diarahkan ke
+// kanal yang sama.
 
 // Nomor WA Operator PESANAN — +62 811-4550-4178. Nomor ini yang tersambung
 // ke Fonnte (webhook parsing #BARU) -- TETAP, jangan diganti, supaya alur
@@ -17,6 +30,15 @@ export const OPERATOR_WA_NUMBER = "6281145504178";
 // nomor ini di-handle MANUAL oleh admin (bukan lewat Fonnte/webhook), pakai
 // fitur "Balasan Cepat" WhatsApp Business untuk pilihan keluhan umum.
 export const CS_COMPLAINT_WA_NUMBER = "6281141109567";
+
+// URL Chat Pesanan in-app -- dipakai di teks notifikasi WA supaya mitra &
+// klien sama-sama diarahkan ke kanal yang sama alih-alih saling tukar
+// nomor pribadi (Bagian 7.2/8.2). Mitra login dulu di /mitra, klien di
+// /riwayat -- keduanya sudah minta login, jadi cukup arahkan ke halaman
+// dasbor masing-masing (link dalam ke order tertentu tidak diperlukan
+// karena keduanya langsung melihat daftar tugas/riwayat begitu login).
+const MITRA_DASHBOARD_URL = "https://kerjaku.click/mitra";
+const KLIEN_RIWAYAT_URL = "https://kerjaku.click/riwayat";
 
 /** Link tombol "Chat CS" -- ke nomor KELUHAN (manual), bukan nomor pesanan. */
 export function buildCsLink(text: string = "Halo, saya ingin bertanya/menyampaikan keluhan."): string {
@@ -76,7 +98,10 @@ export function normalizePhoneToWa(phone: string): string {
   return digits;
 }
 
-/** Bikin link wa.me ke NOMOR KLIEN (bukan operator), dengan teks siap kirim. */
+/** Bikin link wa.me ke NOMOR KLIEN (bukan operator), dengan teks siap kirim.
+ *  CATATAN (Bagian 7.2): fungsi ini masih dipakai untuk kasus admin/CS perlu
+ *  menghubungi klien langsung (bukan mitra) -- mis. konfirmasi keluhan.
+ *  Tidak lagi dipakai untuk memberi nomor klien ke mitra. */
 export function buildClientWaLink(phone: string, message: string): string {
   return `https://wa.me/${normalizePhoneToWa(phone)}?text=${encodeURIComponent(message)}`;
 }
@@ -180,6 +205,10 @@ export type MitraApprovedInput = {
  * terlampir) + info pembayaran. Dikirim otomatis lewat sendFonnteMessage()
  * begitu admin menugaskan mitra -- menggantikan alur lama (ID Card gambar +
  * invoice PDF yang harus di-unduh & dikirim manual satu per satu oleh admin).
+ *
+ * BARU (Bagian 7.2/8.2): ditambah pointer ke Chat Pesanan in-app supaya
+ * klien juga tahu kanal resmi untuk koordinasi jadwal, bukan menunggu
+ * mitra menghubungi dari nomor pribadi.
  */
 export function buildOrderApprovedMessage(
   order: OrderApprovedInput,
@@ -206,16 +235,24 @@ export function buildOrderApprovedMessage(
     `Keahlian: ${keahlian}\n\n` +
     `💳 *Pembayaran*\n` +
     `Tunai atau transfer langsung ke mitra saat pekerjaan selesai (bukan ke rekening kerjaku.click).\n\n` +
-    `Mitra kami akan menghubungi Anda untuk konfirmasi waktu kunjungan. Terima kasih telah menggunakan Kerjaku.click 🤍`
+    `💬 Ada pertanyaan atau perlu ubah jadwal? Chat lewat halaman *Riwayat Pesanan* Anda (${KLIEN_RIWAYAT_URL}) -- lebih cepat & tercatat rapi dibanding WA pribadi.\n\n` +
+    `Terima kasih telah menggunakan Kerjaku.click 🤍`
   );
 }
 
 // ============================================================================
 // FILE BARU (fitur "Notifikasi Mitra Otomatis"): begitu admin menugaskan
-// mitra ke sebuah pesanan, mitra langsung dapat WA berisi detail tugas +
-// kontak klien -- tidak perlu buka dasbor dulu buat tahu ada tugas baru.
+// mitra ke sebuah pesanan, mitra langsung dapat WA berisi detail tugas --
+// tidak perlu buka dasbor dulu buat tahu ada tugas baru.
 // Dikirim dari app/api/admin/orders/assign/route.ts & retry-notify/route.ts,
 // pola sama dengan notifikasi ke klien (buildOrderApprovedMessage di atas).
+//
+// DIUBAH (Bagian 7.2, 18 September 2026): pesan ini DULU mencantumkan nomor
+// WA klien mentah -- temuan audit fraud menunjukkan ini jadi jalur utama
+// mitra menyimpan kontak klien untuk menawarkan kerja di luar platform pada
+// pesanan berikutnya. Nomor klien TIDAK LAGI dicantumkan di sini; mitra
+// diarahkan ke Chat Pesanan in-app (order_messages, migrasi 025) yang
+// tercatat dan bisa dipantau admin untuk koordinasi jadwal/pertanyaan.
 // ============================================================================
 
 export type MitraAssignedInput = {
@@ -224,13 +261,17 @@ export type MitraAssignedInput = {
   scheduled_date: string | null;
   preferred_time: string | null;
   customer_name: string;
+  /** Tidak lagi dicantumkan di teks pesan (lihat catatan Bagian 7.2 di atas)
+   *  -- field dibiarkan ada di tipe ini supaya pemanggil yang sudah ada
+   *  (app/api/admin/orders/assign/route.ts) tidak perlu diubah bentuk
+   *  datanya, hanya isi pesannya yang berubah. */
   customer_phone: string;
 };
 
 /**
  * Bangun teks notifikasi "tugas baru" ke MITRA yang baru ditugaskan: detail
- * pesanan + data kontak klien, supaya mitra bisa langsung menghubungi klien
- * untuk konfirmasi waktu kunjungan tanpa perlu buka dasbor mitra dulu.
+ * pesanan + nama klien (TANPA nomor WA, Bagian 7.2) + pointer ke Chat
+ * Pesanan in-app untuk koordinasi jadwal.
  */
 export function buildMitraAssignedMessage(order: MitraAssignedInput): string {
   const jadwal =
@@ -245,9 +286,7 @@ export function buildMitraAssignedMessage(order: MitraAssignedInput): string {
     `Jasa: ${order.service_type}\n` +
     `Alamat: ${order.address}\n` +
     `Jadwal: ${jadwal}\n\n` +
-    `👤 *Data Klien*\n` +
-    `Nama: ${order.customer_name}\n` +
-    `No. WA: ${order.customer_phone}\n\n` +
-    `Silakan hubungi klien untuk konfirmasi waktu kunjungan. Detail lengkap & invoice tugas tetap bisa dilihat di dasbor mitra Anda. Semangat bekerja! 💪`
+    `👤 *Klien*: ${order.customer_name}\n\n` +
+    `💬 Koordinasi jadwal, pertanyaan, atau perubahan sekarang lewat *Chat Pesanan* di Dasbor Mitra Anda (${MITRA_DASHBOARD_URL}) -- bukan lewat WA pribadi. Semua riwayat komunikasi tercatat di sana untuk keamanan & transparansi kedua belah pihak. Detail lengkap & invoice tugas juga ada di dasbor. Semangat bekerja! 💪`
   );
 }

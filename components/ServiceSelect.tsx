@@ -17,11 +17,24 @@
 // itu ikut tampil juga lewat logic generik ini -- konsisten dengan seluruh
 // kategori lain, dan datanya memang benar. Kalau ternyata tidak mau
 // ditampilkan untuk 2 layanan ini, tinggal beri tahu saya.
+//
+// Perubahan BARU (18 September 2026): dropdown ini sekarang memakai
+// `orderableServices`/`orderableServiceCategories` (bukan `services`/
+// `serviceCategories` biasa) dari lib/services.ts -- Cuci Kendaraan & Les
+// Private disembunyikan dari pilihan form pemesanan karena tim mitra &
+// operasionalnya masih dalam proses pembangunan (belum siap terima order).
+// Data layanan itu SENDIRI tidak dihapus dari lib/services.ts (di-alias di
+// bawah supaya sisa komponen ini tidak perlu diubah lagi).
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { services, formatRupiah, serviceCategories, type ServiceVariant } from "@/lib/services";
+import {
+  orderableServices as services,
+  formatRupiah,
+  orderableServiceCategories as serviceCategories,
+  type ServiceVariant,
+} from "@/lib/services";
 
 interface ServiceSelectProps {
   id?: string;
