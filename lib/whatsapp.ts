@@ -18,6 +18,12 @@
 // -- bukan lagi jalur pertukaran kontak mentah. buildOrderApprovedMessage()
 // ke klien juga ditambah pointer yang sama, supaya kedua sisi diarahkan ke
 // kanal yang sama.
+//
+// Perubahan BARU (18 September 2026) -- fitur "Tombol Chat Melayang"
+// (components/FloatingChatLauncher.tsx): teks pointer di
+// buildOrderApprovedMessage() diperbarui, sekarang menyebut ikon chat
+// melayang yang otomatis muncul di semua halaman publik (bukan cuma
+// menyuruh klien buka halaman Riwayat Pesanan secara manual).
 
 // Nomor WA Operator PESANAN — +62 811-4550-4178. Nomor ini yang tersambung
 // ke Fonnte (webhook parsing #BARU) -- TETAP, jangan diganti, supaya alur
@@ -235,7 +241,7 @@ export function buildOrderApprovedMessage(
     `Keahlian: ${keahlian}\n\n` +
     `💳 *Pembayaran*\n` +
     `Tunai atau transfer langsung ke mitra saat pekerjaan selesai (bukan ke rekening kerjaku.click).\n\n` +
-    `💬 Ada pertanyaan atau perlu ubah jadwal? Chat lewat halaman *Riwayat Pesanan* Anda (${KLIEN_RIWAYAT_URL}) -- lebih cepat & tercatat rapi dibanding WA pribadi.\n\n` +
+    `💬 Ada pertanyaan atau perlu ubah jadwal? Klik ikon chat 💬 yang muncul di pojok kanan bawah setiap halaman kerjaku.click (atau buka halaman *Riwayat Pesanan*, ${KLIEN_RIWAYAT_URL}) -- lebih cepat & tercatat rapi dibanding WA pribadi.\n\n` +
     `Terima kasih telah menggunakan Kerjaku.click 🤍`
   );
 }

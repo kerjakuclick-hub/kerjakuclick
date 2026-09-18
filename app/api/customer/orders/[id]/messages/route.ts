@@ -15,11 +15,14 @@
 //
 // GET  -> daftar pesan untuk order ini (dipakai OrderChatCustomer.tsx,
 //         di-poll berkala karena pelanggan tidak punya sesi Realtime).
-// POST -> kirim pesan baru dari pelanggan, { body: string }.
+// POST -> kirim pesan baru dari pelanggan, { body: string } (teks) ATAU
+//         { body, messageType: "location", lat, lng } (lokasi -- BARU,
+//         migrasi 026_order_messages_location.sql, fitur "Bagikan Lokasi").
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
+import { isValidCoordinate } from "@/lib/location";
 
 /** Sama persis dengan app/api/customer/riwayat/route.ts -- SENGAJA
  *  diduplikasi (bukan diimpor-silang) supaya endpoint riwayat yang sudah
@@ -88,13 +91,23 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const { body } = (await req.json()) as { body?: string };
+  const { body, messageType, lat, lng } = (await req.json()) as {
+    body?: string;
+    messageType?: "text" | "location";
+    lat?: number;
+    lng?: number;
+  };
   const text = (body ?? "").trim();
   if (!text) {
     return NextResponse.json({ error: "Pesan tidak boleh kosong." }, { status: 400 });
   }
   if (text.length > 2000) {
     return NextResponse.json({ error: "Pesan terlalu panjang (maks. 2000 karakter)." }, { status: 400 });
+  }
+
+  const isLocation = messageType === "location";
+  if (isLocation && (typeof lat !== "number" || typeof lng !== "number" || !isValidCoordinate(lat, lng))) {
+    return NextResponse.json({ error: "Koordinat lokasi tidak valid." }, { status: 400 });
   }
 
   const { data, error } = await auth.admin
@@ -105,6 +118,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       sender_id: auth.customer.id,
       sender_name: auth.customer.name,
       body: text,
+      message_type: isLocation ? "location" : "text",
+      location_lat: isLocation ? lat : null,
+      location_lng: isLocation ? lng : null,
     })
     .select()
     .single();
