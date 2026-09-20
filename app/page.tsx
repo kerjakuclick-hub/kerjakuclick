@@ -9,10 +9,16 @@
 // - Section Testimoni & FAQ SENGAJA BELUM dimasukkan — menunggu jawaban
 //   Anda soal testimoni asli & 3 klaim FAQ (verifikasi KTP, vaksinasi,
 //   jam CS 24/7 vs 07.00-20.00 WIB). Begitu dikonfirmasi, saya tambahkan.
+//
+// REVISI LAYOUT (20 September 2026, mengikuti referensi kliknclean.com):
+// <TrustBar /> (bar gelap terpisah) DIHAPUS dari sini -- 3 badge
+// kepercayaannya sudah dipindah ke DALAM <Hero /> sendiri (baris ikon +
+// label di bawah headline/CTA, menyatu 1 section, sesuai pola referensi).
+// Komponennya sendiri TIDAK dihapus dari components/, cuma tidak dipanggil
+// di sini -- lihat catatan di TrustBar.tsx.
 
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import TrustBar from "@/components/TrustBar";
 import ServicesGrid from "@/components/ServicesGrid";
 import HowItWorks from "@/components/HowItWorks";
 import MitraShowcase from "@/components/MitraShowcase";
@@ -27,7 +33,6 @@ export default function HomePage() {
       <Header />
       <main>
         <Hero />
-        <TrustBar />
         <ServicesGrid />
         <HowItWorks />
         <MitraShowcase />

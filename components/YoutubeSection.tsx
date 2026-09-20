@@ -5,9 +5,12 @@
 // diklik, BARU iframe video-nya dimuat & langsung diputar di tempat
 // (tidak pindah ke YouTube).
 //
-// TODO: tambahkan video ke-3 ("Wajib Tahu! cara pakai aplikasi mitra...")
-// kalau mau ditampilkan juga — tinggal kirim linknya, tambah 1 baris ke
-// VIDEOS di bawah.
+// Video ke-3 ditambahkan 20 September 2026 (dari Anda langsung, link
+// youtu.be/v0TF8NqkwG8) -- TODO di atas sudah selesai.
+//
+// REDESAIN PREMIUM: heading section disamakan ke token design system
+// (text-ink, bukan hex "#12202A"/"#3f484d" arbitrary) supaya konsisten
+// dengan section lain di beranda yang sudah didesain ulang.
 
 "use client";
 
@@ -23,6 +26,7 @@ interface YoutubeVideo {
 const VIDEOS: YoutubeVideo[] = [
   { id: "LQ_uWHM5-18", title: "Di Balik Layar Kerjaku.click" },
   { id: "SOGejLZtvkY", title: "Jasa Panggilan ke Rumah Anda, Sekali Klik!" },
+  { id: "v0TF8NqkwG8", title: "Wajib Tahu! Cara Pakai Aplikasi Mitra" },
 ];
 
 function VideoCard({ video }: { video: YoutubeVideo }) {
@@ -74,10 +78,10 @@ export default function YoutubeSection() {
   return (
     <section className="max-w-[1200px] mx-auto px-6 py-16 md:py-20">
       <div className="mb-10 text-center">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-[#12202A] md:text-3xl">
+        <h2 className="font-display text-2xl font-bold text-ink md:text-3xl">
           Kenali Kerjaku.click Lebih Dekat
         </h2>
-        <p className="mx-auto mt-2 max-w-2xl text-[#3f484d]">
+        <p className="mx-auto mt-2 max-w-2xl text-ink/60">
           Lihat langsung cerita di balik layar dan bagaimana kami bekerja lewat channel YouTube
           kami.
         </p>

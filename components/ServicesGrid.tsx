@@ -37,6 +37,16 @@
 //     Fast=1 Jam / PRO=2 Jam tsb.
 // Tidak ada perubahan lain -- fetch gambar dari Supabase &
 // serviceCategory tetap sama untuk kartu yang tersisa.
+//
+// REDESAIN PREMIUM (20 September 2026): field `icon` yang tadinya emoji
+// mentah ("🧺" dst) diganti SLUG ("setrika"/"bersihkan-rumah"/
+// "les-private") -- rendering ikon sesungguhnya (SVG custom dari
+// Icons.tsx) sekarang jadi tanggung jawab ServicesGridInteractive.tsx
+// lewat SERVICE_ICON_MAP, supaya tidak ada emoji lagi di kartu layanan.
+// Field `gradient` (yang sebelumnya memakai #1D6F8C -- warna itu sekarang
+// KHUSUS section Form Order) sudah tidak dipakai lagi di
+// ServicesGridInteractive.tsx yang baru, tapi tetap disimpan di data ini
+// untuk kompatibilitas tipe & jaga-jaga.
 
 import { createClient } from "@/lib/supabase/server";
 import { cheapestPriceInCategory, formatRupiah } from "@/lib/services";
@@ -50,8 +60,7 @@ const services: Omit<ServiceCardData, "imageUrl" | "priceFrom">[] = [
     desc: "Pakaian rapi tanpa lelah. Mitra kami ahli dalam menangani berbagai jenis kain.",
     duration: "Est. 1-2 Jam",
     badge: "TERPOPULER",
-    gradient: "from-[#1D6F8C] to-[#12202A]",
-    icon: "🧺",
+    icon: "setrika",
   },
   {
     slug: "service_bersihkan_rumah",
@@ -59,8 +68,7 @@ const services: Omit<ServiceCardData, "imageUrl" | "priceFrom">[] = [
     serviceCategory: "Bersihkan Rumah",
     desc: "Pembersihan menyeluruh untuk ruang tamu, kamar tidur, hingga dapur Anda.",
     duration: "Est. 1,5-2 Jam",
-    gradient: "from-[#F5B324] to-[#1D6F8C]",
-    icon: "🧹",
+    icon: "bersihkan-rumah",
   },
   {
     slug: "service_les_private",
@@ -68,8 +76,7 @@ const services: Omit<ServiceCardData, "imageUrl" | "priceFrom">[] = [
     serviceCategory: "Les Private",
     desc: "Bantu anak selesaikan PR & pahami pelajaran sekolah — mengaji, matematika, IPA, hingga komputer.",
     duration: "1-2 Jam / Sesi",
-    gradient: "from-[#1D6F8C] to-[#F5B324]",
-    icon: "📚",
+    icon: "les-private",
   },
 ];
 
@@ -95,13 +102,16 @@ export default async function ServicesGrid() {
   });
 
   return (
-    <section id="services" className="max-w-[1200px] mx-auto px-6 py-16 md:py-20">
-      <div className="text-center mb-10">
-        <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl md:text-3xl font-bold text-[#12202A] mb-2">
-          Layanan Unggulan Kami
+    <section id="services" className="mx-auto max-w-[1200px] px-6 py-16 md:py-20">
+      <div className="mb-10 text-center">
+        <p className="eyebrow font-mono text-xs font-semibold uppercase text-ink/50">
+          Layanan Unggulan
+        </p>
+        <h2 className="mt-2 font-display text-2xl font-bold text-ink md:text-3xl">
+          Pilih Kebutuhan Rumah Anda
         </h2>
-        <p className="text-[#3f484d] max-w-2xl mx-auto">
-          Pilih layanan yang sesuai dengan kebutuhan rumah tangga Anda hari ini.
+        <p className="mx-auto mt-2 max-w-2xl text-ink/60">
+          Tiga layanan inti kami, siap dipesan langsung lewat WhatsApp.
         </p>
       </div>
 

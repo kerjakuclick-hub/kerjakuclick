@@ -1,5 +1,12 @@
 // GANTI ISI components/admin/MitraApplicationsList.tsx Anda dengan file ini.
 // Perubahan: tampilkan pendidikan terakhir + tombol lihat KTM (kalau ada).
+//
+// Perubahan BESAR (20 September 2026, migrasi 031) -- upload KTP & KK
+// dihapus dari form pendaftaran, diganti checklist self-declaration
+// (has_ktp/has_kk). Tombol "Lihat KTP"/"Lihat KK" SEKARANG hanya tampil
+// untuk pendaftaran LAMA yang masih punya ktp_path/kk_path (upload dari
+// sebelum migrasi 031) -- untuk pendaftaran BARU (path-nya NULL), tampil
+// badge checklist "KTP: Ada"/"Tidak Ada" berdasarkan has_ktp/has_kk saja.
 
 "use client";
 
@@ -13,6 +20,8 @@ interface MitraApplication {
   social_media: string | null;
   last_education: string | null;
   is_student: boolean;
+  has_ktp: boolean;
+  has_kk: boolean;
   skill_category: string[];
   photo_path: string | null;
   ktp_path: string | null;
@@ -156,20 +165,44 @@ export default function MitraApplicationsList({
               >
                 {loadingDoc === `photo-${app.id}` ? "Membuka..." : "Lihat Foto Profil"}
               </button>
-              <button
-                onClick={() => viewDocument(app.ktp_path, `ktp-${app.id}`)}
-                disabled={loadingDoc === `ktp-${app.id}`}
-                className="text-xs rounded-lg border border-line px-3 py-1.5 hover:bg-paper"
-              >
-                {loadingDoc === `ktp-${app.id}` ? "Membuka..." : "Lihat KTP"}
-              </button>
-              <button
-                onClick={() => viewDocument(app.kk_path, `kk-${app.id}`)}
-                disabled={loadingDoc === `kk-${app.id}`}
-                className="text-xs rounded-lg border border-line px-3 py-1.5 hover:bg-paper"
-              >
-                {loadingDoc === `kk-${app.id}` ? "Membuka..." : "Lihat KK"}
-              </button>
+              {app.ktp_path ? (
+                <button
+                  onClick={() => viewDocument(app.ktp_path, `ktp-${app.id}`)}
+                  disabled={loadingDoc === `ktp-${app.id}`}
+                  className="text-xs rounded-lg border border-line px-3 py-1.5 hover:bg-paper"
+                >
+                  {loadingDoc === `ktp-${app.id}` ? "Membuka..." : "Lihat KTP"}
+                </button>
+              ) : (
+                <span
+                  className={`text-xs rounded-lg border px-3 py-1.5 ${
+                    app.has_ktp
+                      ? "border-wa/30 bg-wa/10 text-wa"
+                      : "border-red-200 bg-red-50 text-red-600"
+                  }`}
+                >
+                  KTP: {app.has_ktp ? "Ada ✓" : "Tidak Ada ✗"}
+                </span>
+              )}
+              {app.kk_path ? (
+                <button
+                  onClick={() => viewDocument(app.kk_path, `kk-${app.id}`)}
+                  disabled={loadingDoc === `kk-${app.id}`}
+                  className="text-xs rounded-lg border border-line px-3 py-1.5 hover:bg-paper"
+                >
+                  {loadingDoc === `kk-${app.id}` ? "Membuka..." : "Lihat KK"}
+                </button>
+              ) : (
+                <span
+                  className={`text-xs rounded-lg border px-3 py-1.5 ${
+                    app.has_kk
+                      ? "border-wa/30 bg-wa/10 text-wa"
+                      : "border-red-200 bg-red-50 text-red-600"
+                  }`}
+                >
+                  KK: {app.has_kk ? "Ada ✓" : "Tidak Ada ✗"}
+                </span>
+              )}
               {app.student_id_path && (
                 <button
                   onClick={() => viewDocument(app.student_id_path, `ktm-${app.id}`)}

@@ -1,6 +1,16 @@
 // GANTI ISI components/MitraShowcase.tsx Anda dengan file ini.
 // Perubahan: skill_category sekarang array, ditampilkan digabung koma.
+//
+// REDESAIN PREMIUM (20 September 2026): semua pemakaian #1D6F8C (border
+// kartu, strip header "ID Card Mitra", label keahlian) diganti Ink --
+// warna Bay sekarang eksklusif untuk section Form Order (OrderForm.tsx).
+// Aksen bintang rating tetap Bridge (#F5B324), sesuai brand.
+//
+// REVISI (20 September 2026, dari Anda langsung): tombol "Daftar Mitra"
+// (Ink #12202A) ditambahkan di bawah kartu foto mitra -- ajakan jadi mitra
+// tepat setelah pengunjung lihat mitra asli yang sudah bergabung.
 
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MitraShowcase() {
@@ -25,69 +35,79 @@ export default async function MitraShowcase() {
     .slice(0, 3);
 
   return (
-    <section id="mitra" className="bg-[#EEF2EE] py-16 md:py-20">
-      <div className="max-w-[1200px] mx-auto px-6">
-        <div className="text-center mb-10">
-          <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl md:text-3xl font-bold text-[#12202A] mb-2">
+    <section id="mitra" className="bg-paper py-16 md:py-20">
+      <div className="mx-auto max-w-[1200px] px-6">
+        <div className="mb-10 text-center">
+          <p className="eyebrow font-mono text-xs font-semibold uppercase text-ink/50">
+            Mitra Kami
+          </p>
+          <h2 className="mt-2 font-display text-2xl font-bold text-ink md:text-3xl">
             Mitra Profesional Kami
           </h2>
-          <p className="text-[#3f484d]">
+          <p className="mt-2 text-ink/60">
             Sebagian mitra terverifikasi yang siap membantu rumah Anda.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-3xl mx-auto">
+        <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {featured.map((m) => {
             const skills: string[] = Array.isArray(m.skill_category) ? m.skill_category : [];
             return (
               <div
                 key={m.id}
-                className="bg-white border-2 border-[#1D6F8C]/20 rounded-2xl overflow-hidden shadow-lg relative"
+                className="relative overflow-hidden rounded-2xl border-2 border-ink/10 bg-white shadow-card"
               >
-                <div className="bg-[#1D6F8C] h-16 flex items-end justify-center pb-2">
-                  <div className="bg-white text-[#1D6F8C] font-bold px-3 py-1 rounded-full text-[10px] uppercase tracking-wider shadow-sm">
+                <div className="flex h-16 items-end justify-center bg-ink pb-2">
+                  <div className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-ink shadow-sm">
                     ID Card Mitra
                   </div>
                 </div>
-                <div className="px-5 pb-5 flex flex-col items-center -mt-9">
-                  <div className="w-20 h-20 rounded-full border-4 border-white overflow-hidden shadow-md bg-[#dfe3e0] flex items-center justify-center">
+                <div className="-mt-9 flex flex-col items-center px-5 pb-5">
+                  <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-[#dfe3e0] shadow-md">
                     {m.photo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={m.photo_url}
                         alt={m.name}
-                        className="w-full h-full object-cover"
+                        className="h-full w-full object-cover"
                       />
                     ) : (
-                      <span className="text-xl font-bold text-[#3f484d]">
+                      <span className="text-xl font-bold text-ink/60">
                         {m.name?.charAt(0) ?? "M"}
                       </span>
                     )}
                   </div>
                   <div className="mt-2 text-center">
-                    <h4 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-[#12202A]">
-                      {m.name}
-                    </h4>
-                    <p className="text-[#1D6F8C] text-xs font-bold uppercase tracking-wide">
+                    <h4 className="font-display font-semibold text-ink">{m.name}</h4>
+                    <p className="text-xs font-bold uppercase tracking-wide text-ink/60">
                       {skills.length > 0 ? skills.join(" · ") : m.status === "ahli" ? "Ahli" : "Training"}
                     </p>
                   </div>
                   {m.rating != null && (
-                    <div className="flex items-center gap-1 mt-2">
-                      <span className="text-[#F5B324]">★</span>
-                      <span className="font-bold text-sm">{m.rating}</span>
+                    <div className="mt-2 flex items-center gap-1">
+                      <span className="text-bridge">★</span>
+                      <span className="text-sm font-bold text-ink">{m.rating}</span>
                     </div>
                   )}
-                  <div className="mt-4 w-full bg-[#f1f5f1] p-2 rounded-lg flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-[#3f484d] uppercase">
+                  <div className="mt-4 flex w-full items-center justify-between rounded-lg bg-[#f1f5f1] p-2">
+                    <span className="text-[10px] font-bold uppercase text-ink/60">
                       {m.status === "ahli" ? "Mitra Ahli" : "Mitra Training"}
                     </span>
-                    <span className="text-[#25D366]">✓</span>
+                    <span className="text-wa">✓</span>
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link
+            href="/daftar-mitra"
+            className="inline-block rounded-full bg-ink px-8 py-3.5 font-display text-sm font-semibold text-white transition hover:bg-ink/90"
+          >
+            Daftar Mitra
+          </Link>
         </div>
       </div>
     </section>

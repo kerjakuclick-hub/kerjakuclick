@@ -2,6 +2,13 @@
 //
 // Perubahan: terima field baru last_education, is_student, dan file
 // student_id (KTM) yang WAJIB diupload kalau is_student = true.
+//
+// Perubahan BESAR (20 September 2026, migrasi 031) -- upload foto KTP & KK
+// DIHAPUS dari alur ini: sekarang cuma terima 2 field boolean has_ktp/
+// has_kk (checklist self-declaration dari form), TIDAK ADA LAGI upload file
+// ktp/kk ke storage (ktp_path/kk_path selalu NULL untuk pendaftaran baru).
+// photo (Foto Profil) & student_id (KTM) TIDAK berubah, tetap wajib
+// diupload seperti sebelumnya.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -38,10 +45,10 @@ export async function POST(req: NextRequest) {
   const social_media = (formData.get("social_media") as string)?.trim() || null;
   const last_education = (formData.get("last_education") as string)?.trim();
   const is_student = formData.get("is_student") === "true";
+  const has_ktp = formData.get("has_ktp") === "true";
+  const has_kk = formData.get("has_kk") === "true";
   const skillCategory = formData.getAll("skill_category") as string[];
   const photo = formData.get("photo") as File | null;
-  const ktp = formData.get("ktp") as File | null;
-  const kk = formData.get("kk") as File | null;
   const studentId = formData.get("student_id") as File | null;
 
   if (
@@ -50,12 +57,17 @@ export async function POST(req: NextRequest) {
     !phone ||
     !last_education ||
     skillCategory.length === 0 ||
-    !photo ||
-    !ktp ||
-    !kk
+    !photo
   ) {
     return NextResponse.json(
-      { error: "Semua field wajib diisi, termasuk foto profil, KTP, dan KK." },
+      { error: "Semua field wajib diisi, termasuk foto profil." },
+      { status: 400 }
+    );
+  }
+
+  if (!has_ktp || !has_kk) {
+    return NextResponse.json(
+      { error: "Checklist KTP & KK wajib dicentang -- keduanya harus dimiliki untuk jadi mitra." },
       { status: 400 }
     );
   }
@@ -70,17 +82,9 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
 
   try {
-    const uploads: Promise<string>[] = [
-      uploadDoc(admin, photo, "foto-profil"),
-      uploadDoc(admin, ktp, "ktp"),
-      uploadDoc(admin, kk, "kk"),
-    ];
-    if (is_student && studentId) {
-      uploads.push(uploadDoc(admin, studentId, "ktm"));
-    }
-
-    const results = await Promise.all(uploads);
-    const [photoPath, ktpPath, kkPath, studentIdPath] = results;
+    const photoPath = await uploadDoc(admin, photo, "foto-profil");
+    const studentIdPath =
+      is_student && studentId ? await uploadDoc(admin, studentId, "ktm") : null;
 
     const { error: insertError } = await admin.from("mitra_applications").insert({
       full_name,
@@ -89,11 +93,13 @@ export async function POST(req: NextRequest) {
       social_media,
       last_education,
       is_student,
+      has_ktp,
+      has_kk,
       skill_category: skillCategory,
       photo_path: photoPath,
-      ktp_path: ktpPath,
-      kk_path: kkPath,
-      student_id_path: studentIdPath ?? null,
+      ktp_path: null,
+      kk_path: null,
+      student_id_path: studentIdPath,
     });
 
     if (insertError) throw new Error(insertError.message);
