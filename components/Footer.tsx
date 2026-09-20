@@ -1,16 +1,20 @@
 // GANTI ISI components/Footer.tsx Anda dengan file ini.
-// Perubahan: logo gambar (/public/logo.png) ditambahkan di sebelah teks
-// "kerjaku.click".
 //
 // Perubahan (fitur "Pisah Nomor Pesanan & Nomor Keluhan/CS", SUDAH TIDAK
 // BERLAKU): sebelumnya ada 2 baris link WA terpisah -- "WA Pemesanan"
 // (OPERATOR_WA_NUMBER) & "WA Keluhan/CS" (CS_COMPLAINT_WA_NUMBER, nomor
 // beda).
 //
-// Perubahan BARU (20 September 2026): kedua nomor digabung jadi SATU nomor/
+// Perubahan (20 September 2026): kedua nomor digabung jadi SATU nomor/
 // device WhatsApp Business (lihat lib/whatsapp.ts) -- baris di bawah
 // disatukan lagi jadi satu link WA, supaya tidak menampilkan "2 nomor" yang
 // sekarang sebetulnya persis sama.
+//
+// Perubahan (20 September 2026, revisi 2): logo footer diganti ke lockup
+// resmi dari Brand Kit (LOGO FINAL/LOGOFIX.svg) -- "kerjaku.click" versi
+// lama (ikon /logo.png bulat + teks satu warna oranye) diganti dengan satu
+// gambar lockup "KERJAKU CLICK" + ikon K, versi teks warna Paper (terang)
+// supaya kontras di footer yang latarnya gelap (Ink).
 
 import { OPERATOR_WA_NUMBER } from "@/lib/whatsapp";
 
@@ -19,11 +23,14 @@ export default function Footer() {
     <footer className="bg-[#12202A] mt-16">
       <div className="max-w-[1200px] mx-auto px-6 py-16 flex flex-col md:flex-row justify-between items-start gap-10">
         <div className="space-y-3 max-w-sm">
-          <div className="flex items-center gap-2 font-semibold text-[#F5B324]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9 rounded-full" />
-            <span>kerjaku.click</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-lockup-footer.png"
+            alt="kerjaku.click"
+            width={181}
+            height={56}
+            className="h-14 w-auto"
+          />
           <p className="text-white/70 text-sm">
             Penyedia jasa tenaga kerja harian terpercaya untuk area Kota Palu
             dan sekitarnya. Membantu memudahkan urusan rumah tangga Anda.
