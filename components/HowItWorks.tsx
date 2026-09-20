@@ -1,4 +1,8 @@
 // GANTI ISI components/HowItWorks.tsx Anda dengan file ini.
+//
+// REDESAIN PREMIUM (20 September 2026): badge nomor langkah & lingkaran
+// ikon yang tadinya pakai #1D6F8C (Bay) diganti Ink -- warna Bay sekarang
+// eksklusif untuk section Form Order (OrderForm.tsx).
 
 import {
   ClipboardListIcon,
@@ -37,34 +41,35 @@ const steps = [
 export default function HowItWorks() {
   return (
     <section id="how-it-works" className="bg-[#ebefeb] py-16 md:py-20">
-      <div className="max-w-[1200px] mx-auto px-6">
-        <div className="text-center mb-10">
-          <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl md:text-3xl font-bold text-[#12202A] mb-2">
-            Cara Pesan Mudah
+      <div className="mx-auto max-w-[1200px] px-6">
+        <div className="mb-10 text-center">
+          <p className="eyebrow font-mono text-xs font-semibold uppercase text-ink/50">
+            Cara Pesan
+          </p>
+          <h2 className="mt-2 font-display text-2xl font-bold text-ink md:text-3xl">
+            Empat Langkah Sederhana
           </h2>
-          <p className="text-[#3f484d]">
+          <p className="mt-2 text-ink/60">
             Hanya perlu 4 langkah sederhana untuk mendapatkan bantuan.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step) => (
             <div
               key={step.number}
-              className="relative p-6 bg-white rounded-xl border border-[#12202A]/5 text-center space-y-2"
+              className="relative space-y-2 rounded-card border border-ink/5 bg-white p-6 text-center"
             >
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 bg-[#1D6F8C] text-white rounded-full flex items-center justify-center font-bold text-sm">
+              <div className="absolute -top-4 left-1/2 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full bg-ink text-sm font-bold text-white">
                 {step.number}
               </div>
-              <div className="pt-4 flex items-center justify-center">
-                <div className="w-12 h-12 rounded-full bg-[#1D6F8C]/10 flex items-center justify-center">
-                  <step.icon className="w-6 h-6 text-[#1D6F8C]" />
+              <div className="flex items-center justify-center pt-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-ink/8">
+                  <step.icon className="h-6 w-6 text-ink" />
                 </div>
               </div>
-              <h4 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-[#12202A]">
-                {step.title}
-              </h4>
-              <p className="text-sm text-[#3f484d]">{step.desc}</p>
+              <h4 className="font-display font-semibold text-ink">{step.title}</h4>
+              <p className="text-sm text-ink/60">{step.desc}</p>
             </div>
           ))}
         </div>

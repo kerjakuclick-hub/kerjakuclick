@@ -13,11 +13,23 @@
 // kartu kategori di atas sekarang cuma 3 kartu (Cuci Kendaraan dihapus
 // total dari components/ServicesGrid.tsx), jadi `lg:grid-cols-4` diganti
 // `lg:grid-cols-3` supaya baris pertama tidak menyisakan 1 kolom kosong.
+//
+// REDESAIN PREMIUM (20 September 2026): mengikuti disiplin brand identity
+// baru --
+//   - `icon` sekarang SLUG ("setrika"/"bersihkan-rumah"/"les-private"),
+//     dipetakan lewat SERVICE_ICON_MAP ke ikon custom SVG dari Icons.tsx
+//     -- emoji (🧺🧹📚) & field `gradient` (yang pakai warna #1D6F8C, kini
+//     eksklusif Form Order) DIHAPUS. Panel ikon sekarang solid Ink dengan
+//     aksen Bridge, konsisten dengan bahasa visual TrustBar.
+//   - Semua sisa pemakaian #1D6F8C (badge "TERPOPULER", link "Lihat
+//     detail") diganti Ink, supaya Bay benar-benar eksklusif untuk
+//     OrderForm.tsx.
 
 "use client";
 
 import { useState } from "react";
 import { services as serviceVariants, formatRupiah } from "@/lib/services";
+import { IronIcon, HomeSparkleIcon, BookOpenIcon } from "./Icons";
 
 export type ServiceCardData = {
   slug: string;
@@ -26,11 +38,16 @@ export type ServiceCardData = {
   priceFrom: string;
   duration: string;
   badge?: string;
-  gradient: string;
   icon: string;
   serviceCategory: string;
   comingSoon?: boolean;
   imageUrl?: string | null;
+};
+
+const SERVICE_ICON_MAP: Record<string, typeof IronIcon> = {
+  setrika: IronIcon,
+  "bersihkan-rumah": HomeSparkleIcon,
+  "les-private": BookOpenIcon,
 };
 
 export default function ServicesGridInteractive({ services }: { services: ServiceCardData[] }) {
@@ -51,9 +68,10 @@ export default function ServicesGridInteractive({ services }: { services: Servic
 
   return (
     <>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {services.map((s) => {
           const clickable = !s.comingSoon;
+          const Icon = SERVICE_ICON_MAP[s.icon];
           return (
             <div
               key={s.slug}
@@ -70,45 +88,39 @@ export default function ServicesGridInteractive({ services }: { services: Servic
                     }
                   : undefined
               }
-              className={`bg-white rounded-xl overflow-hidden border border-[#12202A]/5 shadow-[0px_4px_20px_rgba(18,32,42,0.05)] transition-all ${
-                clickable
-                  ? "cursor-pointer hover:shadow-[0px_8px_30px_rgba(18,32,42,0.08)] hover:-translate-y-0.5"
-                  : ""
+              className={`overflow-hidden rounded-card border border-ink/5 bg-white shadow-card transition-all ${
+                clickable ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg" : ""
               }`}
             >
               {s.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={s.imageUrl} alt={s.name} className="h-40 w-full object-cover" />
               ) : (
-                <div
-                  className={`h-40 w-full bg-gradient-to-br ${s.gradient} flex items-center justify-center text-5xl`}
-                >
-                  {s.icon}
+                <div className="flex h-40 w-full items-center justify-center bg-ink">
+                  {Icon && <Icon className="h-12 w-12 text-bridge" strokeWidth={1.4} />}
                 </div>
               )}
-              <div className="p-5 space-y-3">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-[family-name:var(--font-space-grotesk)] font-semibold text-lg text-[#12202A]">
-                    {s.name}
-                  </h3>
+              <div className="space-y-3 p-5">
+                <div className="flex items-start justify-between">
+                  <h3 className="font-display text-lg font-semibold text-ink">{s.name}</h3>
                   {s.badge && (
-                    <span className="bg-[#1D6F8C]/10 text-[#1D6F8C] text-[10px] font-bold px-2 py-1 rounded uppercase">
+                    <span className="rounded bg-bridge/20 px-2 py-1 text-[10px] font-bold uppercase text-ink">
                       {s.badge}
                     </span>
                   )}
                 </div>
-                <p className="text-[#3f484d] text-sm">{s.desc}</p>
-                <div className="flex justify-between items-center pt-3 border-t border-[#dfe3e0]">
+                <p className="text-sm text-ink/60">{s.desc}</p>
+                <div className="flex items-center justify-between border-t border-line pt-3">
                   <div>
-                    <p className="text-xs text-[#3f484d] uppercase font-bold tracking-wide">
+                    <p className="text-xs font-bold uppercase tracking-wide text-ink/50">
                       Mulai dari
                     </p>
-                    <p className="font-semibold text-[#12202A]">{s.priceFrom}</p>
+                    <p className="font-semibold text-ink">{s.priceFrom}</p>
                   </div>
-                  <span className="text-xs text-[#3f484d]">{s.duration}</span>
+                  <span className="text-xs text-ink/50">{s.duration}</span>
                 </div>
                 {clickable && (
-                  <p className="pt-1 text-xs font-medium text-[#1D6F8C]">Lihat detail &amp; harga →</p>
+                  <p className="pt-1 text-xs font-semibold text-ink">Lihat detail &amp; harga →</p>
                 )}
               </div>
             </div>
@@ -118,7 +130,7 @@ export default function ServicesGridInteractive({ services }: { services: Servic
 
       {activeCard && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4"
           onClick={() => setOpenCategory(null)}
         >
           <div
@@ -129,14 +141,12 @@ export default function ServicesGridInteractive({ services }: { services: Servic
             aria-label={`Detail jasa ${activeCard.name}`}
           >
             <div className="mb-4 flex items-start justify-between gap-4">
-              <h3 className="font-[family-name:var(--font-space-grotesk)] text-xl font-bold text-[#12202A]">
-                {activeCard.name}
-              </h3>
+              <h3 className="font-display text-xl font-bold text-ink">{activeCard.name}</h3>
               <button
                 type="button"
                 onClick={() => setOpenCategory(null)}
                 aria-label="Tutup"
-                className="shrink-0 rounded-full p-1 text-[#3f484d] hover:bg-[#12202A]/5"
+                className="shrink-0 rounded-full p-1 text-ink/60 hover:bg-ink/5"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path
@@ -148,27 +158,27 @@ export default function ServicesGridInteractive({ services }: { services: Servic
                 </svg>
               </button>
             </div>
-            <p className="mb-5 text-sm text-[#3f484d]">{activeCard.desc}</p>
+            <p className="mb-5 text-sm text-ink/60">{activeCard.desc}</p>
 
             <div className="space-y-3">
               {variants.map((v) => (
-                <div key={v.id} className="rounded-lg border border-[#dfe3e0] p-4">
+                <div key={v.id} className="rounded-lg border border-line p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-[#12202A]">{v.name}</p>
-                      <p className="mt-0.5 text-xs text-[#3f484d]">
+                      <p className="font-semibold text-ink">{v.name}</p>
+                      <p className="mt-0.5 text-xs text-ink/60">
                         {v.unit} · {v.duration}
                       </p>
                     </div>
-                    <p className="whitespace-nowrap font-semibold text-[#12202A]">
+                    <p className="whitespace-nowrap font-semibold text-ink">
                       {formatRupiah(v.price)}
                     </p>
                   </div>
 
-                  {v.desc && <p className="mt-2 text-xs text-[#3f484d]">{v.desc}</p>}
+                  {v.desc && <p className="mt-2 text-xs text-ink/60">{v.desc}</p>}
 
                   {v.detilPekerjaan && v.detilPekerjaan.length > 0 && (
-                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-[#3f484d]">
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-ink/60">
                       {v.detilPekerjaan.map((item) => (
                         <li key={item}>{item}</li>
                       ))}
@@ -178,14 +188,14 @@ export default function ServicesGridInteractive({ services }: { services: Servic
                   <button
                     type="button"
                     onClick={() => handlePesanSekarang(v.name)}
-                    className="mt-3 w-full rounded-full bg-[#F5B324] px-4 py-2 text-sm font-semibold text-[#12202A] transition hover:brightness-105"
+                    className="mt-3 w-full rounded-full bg-bridge px-4 py-2 text-sm font-semibold text-ink transition hover:brightness-105"
                   >
                     Pesan Sekarang
                   </button>
                 </div>
               ))}
               {variants.length === 0 && (
-                <p className="text-sm text-[#3f484d]">Belum ada varian jasa untuk kategori ini.</p>
+                <p className="text-sm text-ink/60">Belum ada varian jasa untuk kategori ini.</p>
               )}
             </div>
           </div>
