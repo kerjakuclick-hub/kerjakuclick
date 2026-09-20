@@ -30,15 +30,17 @@
 // belum sempat refresh saat mitra baru saja mematikan ketersediaannya.
 //
 // Perubahan BARU (18 September 2026) -- fitur "Skema Fee Berjenjang" (Bagian
-// 6.2 Dokumen Bisnis Revisi Pasca-Audit Fraud), migrasi 024:
+// 6.2 Dokumen Bisnis Revisi Pasca-Audit Fraud), migrasi 024 (SUDAH DIGANTI
+// TOTAL, lihat catatan 20 September 2026 di bawah):
 //   4. Validasi ambang saldo TIDAK lagi membandingkan ke order.min_wallet_
 //      required (flat 20% lama, migrasi 007) -- sekarang dihitung dinamis
-//      dari fee tier mitra yang bersangkutan lewat RPC mitra_fee_percent()
-//      (mitra tier Unggulan cukup 7% dari nilai order, bukan 20% untuk
-//      semua). Ini pertahanan berlapis yang SAMA seperti eligible_mitra_
-//      for_order() di database (migrasi 024) -- kalau dropdown admin belum
-//      sempat refresh, endpoint ini tetap menolak penugasan yang saldonya
-//      benar-benar tidak cukup untuk tier mitra tsb saat ini.
+//      dari fee tier mitra yang bersangkutan lewat RPC mitra_fee_percent().
+//
+// Perubahan BESAR (20 September 2026) -- migrasi 030: validasi ambang saldo
+// di atas (dinamis per tier + Biaya Teknologi migrasi 028) DIGANTI TOTAL
+// jadi ambang FLAT lewat RPC mitra_wallet_threshold() (15% x harga Setrika
+// Fast = Rp8.250, berlaku sama untuk semua pesanan) -- konsisten dengan
+// eligible_mitra_for_order() di database (migrasi 030).
 //
 // Perubahan BARU (18 September 2026) -- Bagian 7.2/8.2 (migrasi
 // 025_order_messages_trust_safety.sql): begitu mitra berhasil ditugaskan,
@@ -128,41 +130,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Ambang saldo dinamis sesuai tier fee mitra ini (Bagian 6.2) --
-    // menggantikan flat 20% lama (order.min_wallet_required, migrasi 007).
-    const { data: feePercent, error: feeError } = await admin.rpc("mitra_fee_percent", {
-      p_mitra_id: mitra_id as string,
-    });
+    // BARU (migrasi 030) -- ambang kelayakan sekarang FLAT (15% x harga
+    // Setrika Fast = Rp8.250), MENGGANTIKAN pengecekan dinamis per-order
+    // (persentase tier + Biaya Teknologi, migrasi 024/028 -- Biaya Teknologi
+    // sudah dihapus total). Ini pertahanan berlapis yang SAMA seperti
+    // eligible_mitra_for_order() di database (migrasi 030) -- kalau dropdown
+    // admin belum sempat refresh.
+    const { data: requiredBalance, error: thresholdError } = await admin.rpc(
+      "mitra_wallet_threshold"
+    );
 
-    if (feeError || feePercent === null) {
+    if (thresholdError || requiredBalance === null) {
       return NextResponse.json(
-        { error: feeError?.message ?? "Gagal menghitung fee tier mitra." },
+        { error: thresholdError?.message ?? "Gagal menghitung ambang saldo minimum mitra." },
         { status: 500 }
       );
     }
 
-    // BARU (migrasi 028) -- potongan platform sebenarnya = persentase tier
-    // (di atas) + Biaya Teknologi KONSTAN (Rp2.000 Fast / Rp5.000 PRO, TIDAK
-    // ikut turun walau tier mitra naik). Ambang saldo di sini pertahanan
-    // berlapis yang SAMA seperti eligible_mitra_for_order() di database
-    // (migrasi 028) -- kalau dropdown admin belum sempat refresh.
-    const { data: techFee, error: techFeeError } = await admin.rpc("order_tech_fee", {
-      p_service_type: order.service_type,
-    });
-
-    if (techFeeError) {
-      return NextResponse.json(
-        { error: techFeeError.message ?? "Gagal menghitung biaya teknologi order." },
-        { status: 500 }
-      );
-    }
-
-    const requiredBalance = Math.round(order.total_price * Number(feePercent)) + Number(techFee ?? 0);
-
-    if (mitra.wallet_balance < requiredBalance) {
+    if (mitra.wallet_balance < Number(requiredBalance)) {
       return NextResponse.json(
         {
-          error: `Saldo mitra (Rp${mitra.wallet_balance.toLocaleString("id-ID")}) di bawah ambang minimum Rp${requiredBalance.toLocaleString("id-ID")} (${Math.round(Number(feePercent) * 100)}% dari nilai layanan + Rp${Number(techFee ?? 0).toLocaleString("id-ID")} biaya teknologi, sesuai tier fee mitra ini).`,
+          error: `Saldo mitra (Rp${mitra.wallet_balance.toLocaleString("id-ID")}) di bawah ambang minimum Rp${Number(requiredBalance).toLocaleString("id-ID")} (ambang flat, berlaku sama untuk semua pesanan).`,
         },
         { status: 400 }
       );

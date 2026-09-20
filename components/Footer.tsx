@@ -15,6 +15,11 @@
 // lama (ikon /logo.png bulat + teks satu warna oranye) diganti dengan satu
 // gambar lockup "KERJAKU CLICK" + ikon K, versi teks warna Paper (terang)
 // supaya kontras di footer yang latarnya gelap (Ink).
+//
+// Perubahan BESAR (20 September 2026, revisi 3) -- migrasi "3 Pilar
+// Layanan": link "Cuci Kendaraan" DIHAPUS (layanan ini dihapus total dari
+// sistem, lihat lib/services.ts) dan diganti link "Les Private" (sekarang
+// jasa yang bisa dipesan langsung, bukan lagi "Coming Soon").
 
 import { OPERATOR_WA_NUMBER } from "@/lib/whatsapp";
 
@@ -53,7 +58,7 @@ export default function Footer() {
               </li>
               <li>
                 <a href="#services" className="text-white/70 hover:text-[#F5B324] transition-colors">
-                  Cuci Kendaraan
+                  Les Private
                 </a>
               </li>
             </ul>

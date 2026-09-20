@@ -5,9 +5,14 @@
 // pekerjaan) KALAU field itu ada di lib/services.ts -- untuk sekarang baru
 // diisi di Cleaning Fast & Cleaning PRO, jadi ditulis pakai pengecekan
 // `v.desc && ...` / `v.detilPekerjaan?.length` supaya varian lain (Setrika,
-// Cuci Kendaraan, Les Private) yang belum diisi tetap tampil normal tanpa
-// bagian ini. Tidak ada perubahan pada struktur modal, event
-// "kerjaku:select-service", atau bagian grid kartu kategori di atasnya.
+// Les Private) yang belum diisi tetap tampil normal tanpa bagian ini.
+// Tidak ada perubahan pada struktur modal atau event
+// "kerjaku:select-service".
+//
+// Perubahan BARU (20 September 2026) -- migrasi "3 Pilar Layanan": grid
+// kartu kategori di atas sekarang cuma 3 kartu (Cuci Kendaraan dihapus
+// total dari components/ServicesGrid.tsx), jadi `lg:grid-cols-4` diganti
+// `lg:grid-cols-3` supaya baris pertama tidak menyisakan 1 kolom kosong.
 
 "use client";
 
@@ -46,7 +51,7 @@ export default function ServicesGridInteractive({ services }: { services: Servic
 
   return (
     <>
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {services.map((s) => {
           const clickable = !s.comingSoon;
           return (

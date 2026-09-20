@@ -11,7 +11,12 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 // dicegah terhapus dari sini supaya tidak ada bagian landing page yang
 // tiba-tiba kehilangan slot gambarnya. Hapus dari database manual kalau
 // memang benar-benar diperlukan.
-const PROTECTED_SLUGS = ["service_setrika", "service_bersihkan_rumah", "service_cuci_kendaraan"];
+//
+// Perubahan (20 September 2026) -- migrasi "3 Pilar Layanan":
+// "service_cuci_kendaraan" diganti "service_les_private" (Les Private
+// sekarang salah satu dari 3 kartu utama beranda; Cuci Kendaraan dihapus
+// total dari sistem).
+const PROTECTED_SLUGS = ["service_setrika", "service_bersihkan_rumah", "service_les_private"];
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();

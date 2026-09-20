@@ -11,7 +11,12 @@ interface SiteMedia {
   updated_at: string;
 }
 
-const PROTECTED_SLUGS = ["service_setrika", "service_bersihkan_rumah", "service_cuci_kendaraan"];
+// Perubahan (20 September 2026) -- migrasi "3 Pilar Layanan": slot
+// "service_cuci_kendaraan" DIHAPUS dari daftar proteksi (layanan ini
+// dihapus total dari sistem, kartunya tidak lagi ada di ServicesGrid.tsx),
+// diganti "service_les_private" (sekarang salah satu dari 3 kartu utama
+// beranda, jadi slot gambarnya juga wajib dilindungi dari sini).
+const PROTECTED_SLUGS = ["service_setrika", "service_bersihkan_rumah", "service_les_private"];
 
 function MediaCard({
   media,

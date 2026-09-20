@@ -6,13 +6,17 @@
 // 3. Checkbox "Sedang berkuliah?" — kalau dicentang, upload KTM jadi WAJIB
 //    (sesuai SOP verifikasi mitra Les Private: mahasiswa semester akhir
 //    dibuktikan dengan kartu identitas mahasiswa)
+//
+// Perubahan BARU (20 September 2026) -- migrasi "3 Pilar Layanan": opsi
+// keahlian "Cuci Kendaraan" DIHAPUS (layanan ini dihapus total dari sistem,
+// lihat lib/services.ts).
 
 "use client";
 
 import { useState } from "react";
 
 const SKILL_GROUPS: { label: string; options: string[] }[] = [
-  { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah", "Cuci Kendaraan"] },
+  { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah"] },
   {
     label: "Les Private",
     options: ["Mengaji", "Bahasa Inggris", "Matematika", "Fisika", "Kimia", "Biologi", "Komputer"],

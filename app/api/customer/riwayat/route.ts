@@ -23,10 +23,20 @@
 //      tidak pakai foreign key relationship eksplisit antara orders &
 //      invoices -- 2 query kecil lebih sederhana & aman daripada
 //      menambah definisi relasi baru.
+//
+// PERUBAHAN BESAR (20 September 2026) -- migrasi "Upgrade Fee Tier Produk":
+// rumus tambah waktu (lib/services.ts getExtraTimePrice()) sekarang
+// TERGANTUNG TIER MITRA yang ditugaskan ke order ybs, jadi tidak bisa lagi
+// dihitung murni client-side dari service_type saja (dulu di
+// app/riwayat/page.tsx lewat getExtraTimeOptions()). Sekarang dihitung DI
+// SINI (server, admin client sudah pegang mitra_id) & dikirim sebagai field
+// baru `extra_time_rates: {30, 60} | null` per order -- client tinggal
+// pakai angka jadi, tidak perlu tahu tier mitra sama sekali.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
+import { getExtraTimePrice, type MitraTierName } from "@/lib/services";
 
 /** Buang semua karakter selain digit. */
 function digitsOnly(phone: string): string {
@@ -64,7 +74,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await admin
     .from("orders")
     .select(
-      "id, service_type, total_price, address, scheduled_date, preferred_time, mitra_gender_preference, status, created_at, customer_name, customer_phone, extra_time_minutes, extra_time_price, invoice_notified_at"
+      "id, service_type, total_price, address, scheduled_date, preferred_time, mitra_gender_preference, status, created_at, customer_name, customer_phone, extra_time_minutes, extra_time_price, invoice_notified_at, mitra_id"
     )
     .ilike("customer_phone", `%${last8}%`)
     .order("created_at", { ascending: false });
@@ -108,9 +118,41 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const ordersWithInvoice = orders.map((o) => ({
+  // Hitung rate tambah waktu (30/60 menit) utk order yang MASIH BISA
+  // diajukan tambah waktu -- sudah ada mitra, belum selesai, belum pernah
+  // dipakai jatahnya. Butuh tier mitra ybs (lihat getExtraTimePrice() di
+  // lib/services.ts), jadi ambil tier tiap mitra UNIK yang muncul (bukan
+  // per order, supaya tidak RPC berkali-kali kalau 1 mitra kerjakan
+  // beberapa order milik klien ini).
+  const eligibleForExtraTime = orders.filter(
+    (o) =>
+      (o.status === "assigned" || o.status === "working") &&
+      o.extra_time_minutes === 0 &&
+      o.mitra_id
+  );
+  const uniqueMitraIds = Array.from(new Set(eligibleForExtraTime.map((o) => o.mitra_id as string)));
+
+  const tierByMitraId: Record<string, MitraTierName> = {};
+  for (const mitraId of uniqueMitraIds) {
+    const { data: tierInfoRows } = await admin.rpc("mitra_tier_info", { p_mitra_id: mitraId });
+    tierByMitraId[mitraId] = (tierInfoRows?.[0]?.tier_name as MitraTierName | undefined) ?? "Baru";
+  }
+
+  const extraTimeRatesByOrderId: Record<number, { 30: number; 60: number } | null> = {};
+  for (const o of eligibleForExtraTime) {
+    const tierName = tierByMitraId[o.mitra_id as string] ?? "Baru";
+    const r30 = getExtraTimePrice(tierName, o.service_type, 30);
+    const r60 = getExtraTimePrice(tierName, o.service_type, 60);
+    extraTimeRatesByOrderId[o.id] = r30 !== null && r60 !== null ? { 30: r30, 60: r60 } : null;
+  }
+
+  // `mitra_id` dibuang lagi sebelum dikirim ke client -- cukup dipakai
+  // internal di sini utk hitung tier & rate, tidak perlu terekspos ke UI
+  // pelanggan.
+  const ordersWithInvoice = orders.map(({ mitra_id, ...o }) => ({
     ...o,
     invoice: invoiceByOrderId[o.id] ?? null,
+    extra_time_rates: extraTimeRatesByOrderId[o.id] ?? null,
   }));
 
   return NextResponse.json({ orders: ordersWithInvoice });

@@ -22,18 +22,26 @@
 // & tambah catatan baru lewat app/api/admin/mitra/violations/route.ts.
 // violation_count TIDAK diedit langsung di sini -- selalu lewat catatan
 // beralasan supaya ada jejak audit (persis semangat "Modul Trust & Safety").
+//
+// Perubahan BESAR (20 September 2026) -- migrasi "3 Pilar Layanan" &
+// "Upgrade Fee Tier Produk" (migrasi 030):
+//   - Opsi keahlian "Cuci Kendaraan" DIHAPUS (layanan ini dihapus total
+//     dari sistem, lihat lib/services.ts).
+//   - Badge peringatan saldo mitra ("merah" kalau di bawah ambang) DULU
+//     dihitung dinamis dari 20% harga termurah (MIN_TARIF) -- sekarang
+//     pakai ambang FLAT MITRA_WALLET_MIN_BALANCE (15% x harga Setrika
+//     Fast = Rp8.250) yang sama persis dengan validasi assign mitra
+//     (app/api/admin/orders/assign/route.ts) & RPC mitra_wallet_threshold()
+//     di database, supaya tidak ada 2 angka ambang saldo yang beda-beda.
 
 "use client";
 
 import { useRef, useState } from "react";
-import { formatRupiah, services } from "@/lib/services";
+import { formatRupiah, MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
 import type { MitraProfile, MitraViolation } from "@/lib/types";
 
-const MIN_TARIF = Math.min(...services.map((s) => s.price));
-const SALDO_WARNING_THRESHOLD = Math.round(MIN_TARIF * 0.2);
-
 const SKILL_GROUPS: { label: string; options: string[] }[] = [
-  { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah", "Cuci Kendaraan"] },
+  { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah"] },
   {
     label: "Les Private",
     options: ["Mengaji", "Bahasa Inggris", "Matematika", "Fisika", "Kimia", "Biologi", "Komputer"],
@@ -521,7 +529,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                 <td className="px-4 py-3 font-medium text-ink align-top">{m.name}</td>
                 <td className="px-4 py-3 text-ink/70 align-top">{m.phone}</td>
                 <td className="px-4 py-3 align-top">
-                  <span className={m.wallet_balance < SALDO_WARNING_THRESHOLD ? "text-red-600" : "text-ink"}>
+                  <span className={m.wallet_balance < MITRA_WALLET_MIN_BALANCE ? "text-red-600" : "text-ink"}>
                     {formatRupiah(m.wallet_balance)}
                   </span>
                 </td>

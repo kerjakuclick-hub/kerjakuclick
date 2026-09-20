@@ -25,11 +25,18 @@
 // manual di sini (rentang durasi tidak bisa diturunkan otomatis dengan
 // akurat dari data harga).
 //
-// Tidak ada perubahan lain -- kartu Cuci Kendaraan, Les Private,
-// fetch gambar dari Supabase, & serviceCategory/comingSoon tetap sama
-// (comingSoon: true untuk keduanya sudah benar & TIDAK terkait dengan
-// pengecualian `orderable: false` di form pemesanan -- dua hal yang
-// berbeda, kartu beranda ini boleh tetap tampil sebagai preview).
+// PERUBAHAN BESAR (20 September 2026) -- migrasi arsitektur "3 Pilar
+// Layanan" versi baru (dokumen "STRUKTUR VERSI BARU KERJAKU.CLICK"):
+//   - Kartu "Cuci Kendaraan" DIHAPUS TOTAL dari grid beranda -- layanan ini
+//     sudah dihapus total dari sistem (lib/services.ts), bukan cuma
+//     disembunyikan lagi.
+//   - Kartu "Les Private" tidak lagi "Coming Soon" -- `comingSoon: true`
+//     dihapus karena Les Private sekarang jasa yang bisa langsung dipesan
+//     (flat Fast Rp65.000/1 Jam, PRO Rp100.000/2 Jam per sesi). Teks
+//     `duration` diupdate jadi "1-2 Jam / Sesi" mencerminkan split
+//     Fast=1 Jam / PRO=2 Jam tsb.
+// Tidak ada perubahan lain -- fetch gambar dari Supabase &
+// serviceCategory tetap sama untuk kartu yang tersisa.
 
 import { createClient } from "@/lib/supabase/server";
 import { cheapestPriceInCategory, formatRupiah } from "@/lib/services";
@@ -56,22 +63,11 @@ const services: Omit<ServiceCardData, "imageUrl" | "priceFrom">[] = [
     icon: "🧹",
   },
   {
-    slug: "service_cuci_kendaraan",
-    name: "Cuci Kendaraan",
-    serviceCategory: "Cuci Kendaraan",
-    comingSoon: true,
-    desc: "Cuci motor atau mobil langsung di rumah Anda tanpa perlu antre di luar.",
-    duration: "Est. 1-2 Jam",
-    gradient: "from-[#12202A] to-[#1D6F8C]",
-    icon: "🚗",
-  },
-  {
     slug: "service_les_private",
     name: "Les Private",
     serviceCategory: "Les Private",
-    comingSoon: true,
     desc: "Bantu anak selesaikan PR & pahami pelajaran sekolah — mengaji, matematika, IPA, hingga komputer.",
-    duration: "2 Jam / Sesi",
+    duration: "1-2 Jam / Sesi",
     gradient: "from-[#1D6F8C] to-[#F5B324]",
     icon: "📚",
   },

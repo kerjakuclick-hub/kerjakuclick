@@ -11,7 +11,7 @@
 //     menit". Mitra TIDAK bisa menambahkan biaya tambahan sepihak lewat
 //     endpoint ini -- persis pola yang ditemukan disalahgunakan di audit
 //     fraud sebelumnya (mitra menambah tagihan tanpa sepengetahuan klien).
-//   - Tarif TETAP per kategori layanan (lib/services.ts EXTRA_TIME_RATES),
+//   - Tarif dihitung dari RUMUS TETAP (lib/services.ts getExtraTimePrice()),
 //     BUKAN nominal bebas -- tidak bisa dimanipulasi manual oleh siapa pun.
 //   - Maksimal SATU KALI per pesanan (30 ATAU 60 menit, tidak bisa
 //     diakumulasi) -- kalau klien perlu lebih dari itu, dokumen mewajibkan
@@ -20,9 +20,20 @@
 //   - Hanya berlaku untuk order yang sudah punya mitra & belum selesai
 //     (status assigned/working) -- tidak ada gunanya menambah waktu untuk
 //     order yang belum ditugaskan atau yang sudah selesai.
-//   - Hanya berlaku untuk 4 varian yang disebut eksplisit di dokumen
-//     (Setrika Fast/PRO, Cleaning Fast/PRO) -- getExtraTimeOptions()
-//     mengembalikan null untuk kategori lain (Cuci Kendaraan, Les Private).
+//
+// PERUBAHAN BESAR (20 September 2026) -- migrasi "Upgrade Fee Tier Produk"
+// (dokumen "UPDATE WEBSITE KERJAKU.CLICK"): tabel rate flat EXTRA_TIME_RATES
+// lama DIHAPUS TOTAL, diganti rumus baru yang TERGANTUNG TIER MITRA yang
+// sedang mengerjakan order ini (Fee Platform Tambah Waktu 3/6% Fast atau
+// 4/8% PRO dari harga jual, DITAMBAH "Komponen Biaya Upah Mitra" yang
+// besarnya beda per tier mitra -- lihat getExtraTimePrice() di
+// lib/services.ts untuk rumus & contoh lengkap). Makanya endpoint ini
+// sekarang perlu ambil tier mitra ybs dulu lewat RPC mitra_tier_info()
+// sebelum menghitung harga -- SEBELUMNYA tarif flat per kategori, tidak
+// perlu tahu siapa mitranya. Berlaku untuk SEMUA produk orderable berlabel
+// Fast/PRO (ASUMSI, lihat catatan di getExtraTimePrice() -- termasuk Les
+// Private sekarang; Cuci Kendaraan sudah dihapus total dari sistem sejak
+// migrasi 030).
 //
 // Begitu berhasil: total_price pesanan bertambah, DAN sebuah pesan sistem
 // otomatis masuk ke Chat Pesanan (order_messages) supaya mitra langsung
@@ -32,7 +43,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
-import { getExtraTimeOptions, formatRupiah } from "@/lib/services";
+import { getExtraTimePrice, formatRupiah, type MitraTierName } from "@/lib/services";
 import { sendFonnteMessage, buildExtraTimeAddedMessage } from "@/lib/whatsapp";
 
 /** Sama persis dengan app/api/customer/riwayat/route.ts & .../messages/
@@ -94,15 +105,33 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
   }
 
-  const rates = getExtraTimeOptions(order.service_type);
-  if (!rates) {
+  if (!order.mitra_id) {
+    return NextResponse.json(
+      { error: "Pesanan ini belum punya mitra yang ditugaskan." },
+      { status: 400 }
+    );
+  }
+
+  // Tier mitra ybs menentukan "Komponen Biaya Upah Mitra" dalam rumus tambah
+  // waktu (lihat catatan di atas + getExtraTimePrice() di lib/services.ts).
+  const { data: tierInfoRows, error: tierError } = await admin.rpc("mitra_tier_info", {
+    p_mitra_id: order.mitra_id,
+  });
+  if (tierError) {
+    return NextResponse.json(
+      { error: tierError.message ?? "Gagal mengambil data tier mitra." },
+      { status: 500 }
+    );
+  }
+  const tierName = (tierInfoRows?.[0]?.tier_name as MitraTierName | undefined) ?? "Baru";
+
+  const extraPrice = getExtraTimePrice(tierName, order.service_type, minutes as 30 | 60);
+  if (extraPrice === null) {
     return NextResponse.json(
       { error: "Tambah waktu tidak berlaku untuk jenis layanan ini." },
       { status: 400 }
     );
   }
-
-  const extraPrice = rates[minutes as 30 | 60];
   const newTotalPrice = order.total_price + extraPrice;
 
   const { data: updatedOrder, error: updateError } = await admin

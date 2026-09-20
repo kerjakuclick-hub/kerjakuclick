@@ -9,14 +9,20 @@
 //
 // Perubahan BARU (18 September 2026) -- fitur "Transparansi Rincian Biaya"
 // (Bagian 6.1 Dokumen Bisnis Revisi Pasca-Audit Fraud): terima prop baru
-// `feePercent` & `tierName` dari app/mitra/page.tsx (hasil RPC
-// mitra_tier_info()). Setiap order aktif (assigned/working) sekarang
-// menampilkan rincian: nilai order, potongan platform (nominal + tier +
-// persen), dan estimasi tunai bersih yang akan diterima mitra dari klien --
-// SEBELUM order itu diselesaikan, bukan cuma sesudahnya. Tabel riwayat juga
-// ditambah kolom "Potongan Platform" supaya angka fee yang benar-benar
-// terpotong (bukan estimasi) tetap terlihat berdampingan dengan "Pendapatan
-// Anda".
+// `tierName` dari app/mitra/page.tsx (hasil RPC mitra_tier_info()). Setiap
+// order aktif (assigned/working) sekarang menampilkan rincian: nilai order,
+// potongan platform (nominal + tier + persen), dan estimasi tunai bersih
+// yang akan diterima mitra dari klien -- SEBELUM order itu diselesaikan,
+// bukan cuma sesudahnya. Tabel riwayat juga ditambah kolom "Potongan
+// Platform" supaya angka fee yang benar-benar terpotong (bukan estimasi)
+// tetap terlihat berdampingan dengan "Pendapatan Anda".
+//
+// Perubahan BESAR (20 September 2026) -- migrasi 030: prop `feePercent`
+// (satu angka) DIHAPUS -- fee sekarang tergantung juga label Fast/PRO
+// produk tiap order, jadi dihitung PER ORDER lewat getPlatformFeePercent().
+// Rincian aktif juga ditambah baris Bahan Baku, Transport, & "Estimasi upah
+// bersih" (Harga Jual - (Fee Platform + Bahan Baku + Transport)) untuk
+// transparansi penuh sesuai dokumen struktur website versi baru.
 //
 // Perubahan BARU (18 September 2026) -- Bagian 7.2 "Komunikasi Ter-mediasi"
 // & 8.2 "Hybrid WA + In-App": setiap order aktif (assigned/working) sekarang
@@ -45,7 +51,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { formatRupiah, getServiceTechFee } from "@/lib/services";
+import { formatRupiah, getPlatformFeePercent, getMaterialCost, getTransportCost, type MitraTierName } from "@/lib/services";
 import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, Transaction, Earning, Invoice } from "@/lib/types";
 
@@ -72,7 +78,6 @@ export default function TaskList({
   transactions,
   earnings,
   invoices: initialInvoices,
-  feePercent,
   tierName,
 }: {
   initialOrders: Order[];
@@ -82,10 +87,11 @@ export default function TaskList({
   transactions: Transaction[];
   earnings: Earning[];
   invoices: Invoice[];
-  /** Persentase fee tier mitra saat ini (0.07/0.08/0.10) -- Bagian 6.2. */
-  feePercent: number;
-  /** Nama tier mitra saat ini ("Baru"/"Reguler"/"Terpercaya"/"Unggulan"). */
-  tierName: string;
+  /** Nama tier mitra saat ini ("Baru"/"Reguler"/"Terpercaya") -- migrasi 030.
+   *  Persentase fee TIDAK lagi satu angka tunggal: sejak migrasi 030 beda
+   *  per order tergantung label Fast/PRO produknya, jadi dihitung per-order
+   *  di bawah lewat getPlatformFeePercent(tierName, order.service_type). */
+  tierName: MitraTierName;
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
@@ -175,7 +181,6 @@ export default function TaskList({
 
   const active = orders.filter((o) => o.status === "assigned" || o.status === "working");
   const history = orders.filter((o) => o.status === "completed" || o.status === "cancelled");
-  const feePctLabel = `${Math.round(feePercent * 100)}%`;
 
   if (orders.length === 0) {
     return (
@@ -197,12 +202,20 @@ export default function TaskList({
             // o.total_price di sini SUDAH termasuk tambah waktu kalau klien
             // pernah mengajukannya (lihat extra_time_minutes di bawah).
             //
-            // BARU (migrasi 028) -- potongan platform = persentase tier (di
-            // atas, TURUN seiring tier naik) + Biaya Teknologi KONSTAN
-            // (Rp2.000 Fast / Rp5.000 PRO, TIDAK ikut turun per tier).
-            const techFee = getServiceTechFee(o.service_type);
-            const estimasiFee = Math.round(o.total_price * feePercent) + techFee;
+            // BARU (migrasi 030) -- persentase fee sekarang tergantung juga
+            // label Fast/PRO produk order ini (bukan cuma tier mitra), jadi
+            // dihitung per-order lewat getPlatformFeePercent(). Biaya
+            // Teknologi flat (migrasi 028) DIHAPUS -- tidak ada lagi.
+            // Bahan Baku & Transport TIDAK memotong saldo deposit (biaya
+            // operasional mitra sendiri dari tunai yang diterima), tapi
+            // ditampilkan supaya mitra tahu upah bersihnya secara transparan.
+            const feePct = getPlatformFeePercent(tierName, o.service_type);
+            const feePctLabel = `${Math.round(feePct * 100)}%`;
+            const estimasiFee = Math.round(o.total_price * feePct);
+            const bahanBaku = getMaterialCost(o.service_type);
+            const transport = getTransportCost(o.service_type);
             const estimasiTunai = o.total_price - estimasiFee;
+            const estimasiUpahBersih = estimasiTunai - bahanBaku - transport;
             return (
               <div key={o.id} className="rounded-card border border-line bg-white p-5 shadow-card">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -237,14 +250,21 @@ export default function TaskList({
 
                 <div className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink/70">
                   <p>
-                    Potongan platform (tier {tierName} {feePctLabel}
-                    {techFee > 0 ? ` + ${formatRupiah(techFee)} teknologi` : ""}):{" "}
+                    Potongan platform (tier {tierName}, {feePctLabel}):{" "}
                     <span className="font-mono">{formatRupiah(estimasiFee)}</span>
                   </p>
                   <p className="mt-0.5">
-                    Estimasi tunai bersih dari klien:{" "}
+                    Tunai diterima dari klien:{" "}
+                    <span className="font-mono">{formatRupiah(estimasiTunai)}</span>
+                  </p>
+                  <p className="mt-0.5">
+                    Bahan baku: <span className="font-mono">{formatRupiah(bahanBaku)}</span> ·
+                    Transport: <span className="font-mono">{formatRupiah(transport)}</span>
+                  </p>
+                  <p className="mt-0.5">
+                    Estimasi upah bersih Anda:{" "}
                     <span className="font-mono font-semibold text-wa">
-                      {formatRupiah(estimasiTunai)}
+                      {formatRupiah(estimasiUpahBersih)}
                     </span>
                   </p>
                 </div>

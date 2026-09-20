@@ -8,6 +8,9 @@
 // Teks contoh di bawah ini saya samakan dengan format asli pesan #BARU yang
 // dikirim ke WA operator (sama seperti yang tampil di landing page lama
 // Anda) — supaya tetap akurat menggambarkan alur order yang sebenarnya.
+//
+// Perubahan BARU (20 September 2026) -- migrasi "3 Pilar Layanan": "Cuci
+// Kendaraan" dihapus dari tagline (layanan ini dihapus total dari sistem).
 
 import WhatsAppPreview from "./WhatsAppPreview";
 
@@ -31,7 +34,7 @@ export default function Hero() {
         </h1>
                 <p className="text-lg text-[#3f484d] leading-relaxed">
           Solusi praktis bikin hidup bernilai. Setrika | Bersihin Rumah |
-          Cuci Kendaraan | Les Private. Mitra Terverifikasi & Profesional.
+          Les Private. Mitra Terverifikasi & Profesional.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           <a

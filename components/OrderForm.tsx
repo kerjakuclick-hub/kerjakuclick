@@ -17,8 +17,10 @@ import WhatsAppPreview from "./WhatsAppPreview";
 import ServiceSelect from "./ServiceSelect";
 import CustomerAuthPanel, { type SessionCustomer } from "./CustomerAuthPanel";
 
-const HOUSEHOLD_TIME_SLOTS = ["09.00-12.00", "12.00-15.00", "15.00-17.00"];
-const LES_PRIVATE_TIME_SLOTS = ["15.00-17.00", "17.00-19.00", "19.00-21.00"];
+// Slot waktu diperbarui 20 September 2026 sesuai dokumen struktur website
+// versi baru ("UPDATE WEBSITE KERJAKU.CLICK").
+const HOUSEHOLD_TIME_SLOTS = ["09.00-11.00", "13.00-15.00", "15.00-18.00"];
+const LES_PRIVATE_TIME_SLOTS = ["15.00-17.00", "17.00-18.00", "19.00-21.00"];
 const PREFERENSI_OPTIONS = ["Pria", "Wanita", "Bebas"];
 
 function todayIso() {

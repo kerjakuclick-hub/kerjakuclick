@@ -51,12 +51,19 @@
 //      "Coba Kirim Lagi" berdasarkan invoice_notified_at/
 //      invoice_notify_error) -- tombol retry-nya pakai retryNotify() yang
 //      sama (endpoint retry-notify sekarang juga menangani invoice).
+//
+// Perubahan BESAR (20 September 2026) -- migrasi 030: Biaya Teknologi flat
+// (migrasi 028) DIHAPUS TOTAL dari dropdown "Pilih mitra eligible" & label
+// ambang saldo (sudah tidak ada lagi komponen itu). Label "Ambang saldo"
+// sekarang menampilkan angka FLAT MITRA_WALLET_MIN_BALANCE (lib/services.ts,
+// Rp8.250) yang menggantikan `o.min_wallet_required` (kolom generated lama,
+// migrasi 007, sudah tidak relevan sejak ambang kelayakan jadi flat).
 
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { formatRupiah, getServiceTechFee } from "@/lib/services";
+import { formatRupiah, MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
 import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, EligibleMitra, Invoice } from "@/lib/types";
 
@@ -320,11 +327,6 @@ export default function OrdersFeed({
         <tbody>
           {orders.map((o) => {
             const eligible = eligibleMap[o.id] ?? [];
-            // BARU (migrasi 028) -- Biaya Teknologi konstan per order
-            // (Rp2.000 Fast / Rp5.000 PRO), TIDAK ikut turun per tier mitra
-            // -- sama untuk semua mitra eligible di order ini, jadi dihitung
-            // sekali di sini (bukan per-baris dari RPC eligible_mitra_for_order).
-            const techFee = getServiceTechFee(o.service_type);
             const showEligibleHint = o.status === "unassigned";
             const orderInvoices = invoices.filter((i) => i.order_id === o.id);
             const mitraInvoice = orderInvoices.find(
@@ -362,9 +364,9 @@ export default function OrdersFeed({
                     </p>
                   )}
                   <p className="text-xs text-ink/40">
-                    Ambang saldo (acuan lama, 20%): {formatRupiah(o.min_wallet_required)} — ambang
-                    riil kini mengikuti fee tier tiap mitra + biaya teknologi
-                    {techFee > 0 ? ` (${formatRupiah(techFee)})` : ""}, lihat dropdown mitra
+                    Ambang saldo minimum mitra: {formatRupiah(MITRA_WALLET_MIN_BALANCE)} (flat,
+                    berlaku sama untuk semua pesanan) — persentase fee yang terpotong tetap
+                    mengikuti tier &amp; label Fast/PRO tiap mitra, lihat dropdown mitra
                   </p>
                 </td>
                 <td className="px-5 py-4 text-xs text-ink/70">
@@ -413,7 +415,6 @@ export default function OrdersFeed({
                           <option key={m.mitra_id} value={m.mitra_id}>
                             {m.name} · {formatRupiah(m.wallet_balance)} · {m.gender ?? "?"} ·{" "}
                             {m.status} · fee {Math.round(m.fee_percent * 100)}%
-                            {techFee > 0 ? ` + ${formatRupiah(techFee)}` : ""}
                           </option>
                         ))}
                         {eligible.length === 0 && loadingEligible !== o.id && (

@@ -167,16 +167,19 @@ export type EligibleMitra = {
   fee_percent: number; // BARU — migrasi 024: persentase fee tier mitra ini (0.07/0.08/0.10), dipakai juga sebagai ambang saldo riil (wallet_balance >= total_price * fee_percent)
 };
 
-// Hasil RPC mitra_tier_info() — migrasi 024. Dipakai Dasbor Mitra (Bagian
-// 6.1 "Transparansi Rincian Biaya") untuk menampilkan tier & progres mitra
-// menuju tier berikutnya secara transparan sebelum/saat order berjalan.
+// Hasil RPC mitra_tier_info() — migrasi 024, GANTI TOTAL migrasi 030 (20
+// September 2026, dokumen struktur website versi baru): fee sekarang 2
+// dimensi (tier mitra x label Fast/PRO produk), jadi dikembalikan sebagai
+// fast_fee_percent & pro_fee_percent terpisah (bukan lagi satu fee_percent).
+// Tier "Unggulan" dihapus -- cuma 3 tier sekarang (Baru/Reguler/Terpercaya).
 export type MitraTierInfo = {
-  tier_name: "Baru" | "Reguler" | "Terpercaya" | "Unggulan";
-  fee_percent: number; // 0.07 | 0.08 | 0.10
+  tier_name: "Baru" | "Reguler" | "Terpercaya";
+  fast_fee_percent: number; // 0.15 | 0.14 | 0.13
+  pro_fee_percent: number; // 0.13 | 0.12 | 0.11
   completed_orders: number;
   rating: number | null;
   violation_count: number;
-  next_tier_name: string | null; // null kalau sudah di tier tertinggi (Unggulan)
+  next_tier_name: string | null; // null kalau sudah di tier tertinggi (Terpercaya)
   next_tier_orders_needed: number | null;
   next_tier_rating_needed: number | null;
 };

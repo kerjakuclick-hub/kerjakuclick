@@ -73,16 +73,26 @@ function isResetPinRequest(raw: string): boolean {
 // Urutan array ini penting: dicek dari atas ke bawah, yang pertama cocok
 // yang dipakai. "Mitra" dicek paling awal supaya tidak ketimpa pattern lain
 // yang lebih umum (mis. "cara jadi mitra" jangan sampai kena pattern harga).
+//
+// PERBAIKAN BESAR (20 September 2026) -- migrasi "3 Pilar Layanan": teks
+// balasan harga ini SEMPAT ketinggalan beberapa kali update harga
+// sebelumnya (masih Rp40rb/Rp75rb/Rp55rb/Rp95rb, padahal lib/services.ts
+// sudah Rp55rb/Rp85rb/Rp65rb/Rp100rb sejak 18 September) -- angka di bawah
+// disamakan lagi PERSIS dengan lib/services.ts. Baris Cuci Motor/Cuci Mobil
+// DIHAPUS (layanan ini dihapus total dari sistem), diganti baris Les
+// Private (sekarang jasa yang bisa dipesan langsung). Catatan: angka di
+// sini masih string manual, TIDAK otomatis ikut lib/services.ts kalau
+// berubah lagi nanti -- perlu diupdate manual di sini juga.
 // ========================================================================
 
 const FAQ_PRICE_REPLY =
   `Berikut harga layanan kerjaku.click ya kak 🙏\n\n` +
-  `🧺 Setrika Fast: Rp40.000 (20 pcs, ±1 jam)\n` +
-  `🧺 Setrika PRO: Rp75.000 (40 pcs, ±2 jam)\n` +
-  `🧹 Cleaning Fast: Rp55.000 (tipe 36/45, ±1,5 jam)\n` +
-  `🧹 Cleaning PRO: Rp95.000 (tipe 50/80, ±3 jam)\n` +
-  `🏍️ Cuci Motor: Rp35.000\n` +
-  `🚗 Cuci Mobil: Rp75.000\n\n` +
+  `🧺 Setrika Fast: Rp55.000 (20 pcs, ±1 jam)\n` +
+  `🧺 Setrika PRO: Rp85.000 (40 pcs, ±2 jam)\n` +
+  `🧹 Cleaning Fast: Rp65.000 (tipe 36/40, ±1,5 jam)\n` +
+  `🧹 Cleaning PRO: Rp100.000 (tipe 50/80, ±2,5 jam)\n` +
+  `📚 Les Private Fast: Rp65.000 (1x pertemuan, ±1 jam)\n` +
+  `📚 Les Private PRO: Rp100.000 (1x pertemuan, ±2 jam)\n\n` +
   `Untuk pesan, langsung isi form di www.kerjaku.click ya 🤍`;
 
 const FAQ_HOURS_REPLY =
