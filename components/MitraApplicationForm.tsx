@@ -10,6 +10,14 @@
 // Perubahan BARU (20 September 2026) -- migrasi "3 Pilar Layanan": opsi
 // keahlian "Cuci Kendaraan" DIHAPUS (layanan ini dihapus total dari sistem,
 // lihat lib/services.ts).
+//
+// Perubahan BESAR (20 September 2026, awal Phase 2) -- migrasi 031: upload
+// Foto KTP & Foto KK DIHAPUS dari form ini (terlalu banyak friksi upload 3
+// dokumen sekaligus buat calon mitra baru). Diganti CHECKLIST self-
+// declaration ("saya punya dokumen ini" ya/tidak) -- verifikasi fisiknya
+// tetap manual saat wawancara/pelatihan seperti sudah berjalan, cuma tidak
+// lagi diupload SAAT DAFTAR. Foto Profil & Foto KTM (khusus mahasiswa)
+// TIDAK terpengaruh -- keduanya TETAP wajib upload seperti sebelumnya.
 
 "use client";
 
@@ -31,6 +39,8 @@ export default function MitraApplicationForm() {
   const [error, setError] = useState<string | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
   const [isStudent, setIsStudent] = useState(false);
+  const [hasKtp, setHasKtp] = useState(false);
+  const [hasKk, setHasKk] = useState(false);
 
   function toggleSkill(skill: string) {
     setSkills((prev) =>
@@ -46,11 +56,17 @@ export default function MitraApplicationForm() {
       setError("Pilih minimal 1 keahlian.");
       return;
     }
+    if (!hasKtp || !hasKk) {
+      setError("Centang dulu checklist KTP & KK di bawah -- keduanya wajib dimiliki untuk jadi mitra.");
+      return;
+    }
 
     const formEl = e.currentTarget;
     const formData = new FormData(formEl);
     skills.forEach((s) => formData.append("skill_category", s));
     formData.set("is_student", isStudent ? "true" : "false");
+    formData.set("has_ktp", hasKtp ? "true" : "false");
+    formData.set("has_kk", hasKk ? "true" : "false");
 
     if (isStudent && !(formData.get("student_id") as File)?.size) {
       setError("Karena masih berkuliah, foto KTM (Kartu Tanda Mahasiswa) wajib diunggah.");
@@ -72,6 +88,8 @@ export default function MitraApplicationForm() {
       formEl.reset();
       setSkills([]);
       setIsStudent(false);
+      setHasKtp(false);
+      setHasKk(false);
     } catch {
       setError("Gagal mengirim pendaftaran. Coba lagi.");
     } finally {
@@ -224,42 +242,42 @@ export default function MitraApplicationForm() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4">
-        <div>
-          <label className="text-sm font-medium text-[#12202A] block mb-1">Foto Profil *</label>
-          <input
-            required
-            type="file"
-            name="photo"
-            accept="image/jpeg,image/png,image/webp"
-            className="w-full text-xs"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-[#12202A] block mb-1">Foto KTP *</label>
-          <input
-            required
-            type="file"
-            name="ktp"
-            accept="image/jpeg,image/png,image/webp"
-            className="w-full text-xs"
-          />
-        </div>
-        <div>
-          <label className="text-sm font-medium text-[#12202A] block mb-1">Foto KK *</label>
-          <input
-            required
-            type="file"
-            name="kk"
-            accept="image/jpeg,image/png,image/webp"
-            className="w-full text-xs"
-          />
-        </div>
+      <div>
+        <label className="text-sm font-medium text-[#12202A] block mb-1">Foto Profil *</label>
+        <input
+          required
+          type="file"
+          name="photo"
+          accept="image/jpeg,image/png,image/webp"
+          className="w-full text-xs"
+        />
       </div>
-      <p className="text-xs text-[#3f484d]/70">
-        Dokumen Anda hanya dapat diakses oleh tim internal Kerjaku.click untuk keperluan
-        verifikasi pendaftaran, dan tidak ditampilkan publik.
-      </p>
+
+      <div className="rounded-lg border border-[#dfe3e0] p-3 space-y-2">
+        <p className="text-sm font-medium text-[#12202A]">Kelengkapan Dokumen *</p>
+        <label className="flex items-center gap-2 text-sm text-[#12202A] cursor-pointer">
+          <input
+            required
+            type="checkbox"
+            checked={hasKtp}
+            onChange={(e) => setHasKtp(e.target.checked)}
+          />
+          Saya punya KTP asli yang bisa ditunjukkan saat verifikasi
+        </label>
+        <label className="flex items-center gap-2 text-sm text-[#12202A] cursor-pointer">
+          <input
+            required
+            type="checkbox"
+            checked={hasKk}
+            onChange={(e) => setHasKk(e.target.checked)}
+          />
+          Saya punya Kartu Keluarga (KK) asli yang bisa ditunjukkan saat verifikasi
+        </label>
+        <p className="text-xs text-[#3f484d]/70">
+          Tidak perlu diunggah sekarang -- tim kami akan minta ditunjukkan langsung saat
+          wawancara/pelatihan.
+        </p>
+      </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
