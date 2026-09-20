@@ -1,33 +1,43 @@
 // FILE BARU: components/WhyChooseUs.tsx
-// Panel gelap di samping form order. Klaim keamanan saya buat LEBIH UMUM
-// dulu ("proses seleksi mitra") dibanding versi asli Stitch yang eksplisit
-// menyebut "verifikasi KTP" — sampai Anda konfirmasi proses seleksi mitra
-// yang sebenarnya. Update kalimatnya begitu saya tahu detail prosesnya.
+// Panel gelap di samping form order.
 //
 // REDESAIN PREMIUM (20 September 2026): emoji (🛡️😊💰) diganti ikon custom
 // SVG dari Icons.tsx (ShieldCheckIcon, HeartHandshakeIcon, WalletIcon), dan
 // emoji dekoratif raksasa 🏠 di pojok diganti siluet Jembatan Kuning
 // (BridgeMotif) sangat samar -- watermark bermerek, bukan efek generik AI.
+//
+// UPDATE KONTEN (20 September 2026, dari Anda langsung): 3 poin generik
+// ("Mitra Terpilih/Pasti Selesai/Harga Transparan" -- yang pertama masih
+// menunggu konfirmasi proses seleksi) DIGANTI 4 poin konkret sesuai fitur
+// yang benar-benar ada di platform: verifikasi mitra, preferensi
+// Pria/Wanita/Bebas (lihat OrderForm.tsx), chat + share lokasi di dalam
+// website (lihat OrderChatCustomer.tsx), dan tambah durasi kerja (lihat
+// ExtraTimeButton.tsx). Ikon baru: SlidersIcon, MessageLockIcon,
+// ClockPlusIcon.
 
-import { ShieldCheckIcon, HeartHandshakeIcon, WalletIcon, BridgeMotif } from "./Icons";
+import { ShieldCheckIcon, SlidersIcon, MessageLockIcon, ClockPlusIcon, BridgeMotif } from "./Icons";
 
 export default function WhyChooseUs() {
   const points = [
     {
       Icon: ShieldCheckIcon,
-      title: "Mitra Terpilih",
-      // TODO: ganti dengan proses seleksi asli setelah dikonfirmasi
-      desc: "Mitra kami melalui proses seleksi sebelum bergabung melayani rumah Anda.",
+      title: "Mitra Terverifikasi",
+      desc: "Mitra kami melalui proses verifikasi sebelum bergabung melayani rumah Anda.",
     },
     {
-      Icon: HeartHandshakeIcon,
-      title: "Pasti Selesai",
-      desc: "Mitra kami didedikasikan untuk memberikan hasil terbaik sampai Anda puas.",
+      Icon: SlidersIcon,
+      title: "Pilih Preferensi Mitra",
+      desc: "Bebas pilih mitra Pria, Wanita, atau Bebas sesuai kenyamanan Anda.",
     },
     {
-      Icon: WalletIcon,
-      title: "Harga Transparan",
-      desc: "Harga tertera adalah harga jasa. Tidak ada biaya tambahan yang aneh-aneh.",
+      Icon: MessageLockIcon,
+      title: "Chat & Lokasi di Satu Tempat",
+      desc: "Konfirmasi mitra dan share lokasi lewat chat dalam website -- privasi Anda tetap terjaga.",
+    },
+    {
+      Icon: ClockPlusIcon,
+      title: "Bisa Tambah Durasi",
+      desc: "Butuh waktu lebih? Tambah durasi kerja mitra langsung dari halaman Riwayat Pesanan.",
     },
   ];
 

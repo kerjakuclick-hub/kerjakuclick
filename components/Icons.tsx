@@ -164,6 +164,42 @@ export function WalletIcon({ className = "w-6 h-6", ...props }: IconProps) {
   );
 }
 
+/** Kenapa Memilih Kerjaku -- Preferensi Mitra (Pria/Wanita/Bebas) */
+export function SlidersIcon({ className = "w-6 h-6", ...props }: IconProps) {
+  return (
+    <svg className={className} {...base} {...props}>
+      <line x1="4" y1="7" x2="20" y2="7" />
+      <circle cx="9" cy="7" r="2" fill="currentColor" stroke="none" />
+      <line x1="4" y1="12.5" x2="20" y2="12.5" />
+      <circle cx="15" cy="12.5" r="2" fill="currentColor" stroke="none" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+      <circle cx="11" cy="18" r="2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Kenapa Memilih Kerjaku -- Chat & Share Lokasi, Privasi Terjaga */
+export function MessageLockIcon({ className = "w-6 h-6", ...props }: IconProps) {
+  return (
+    <svg className={className} {...base} {...props}>
+      <path d="M4 12a8 8 0 1 1 3.2 6.4L4 20l1.3-3.5A7.96 7.96 0 0 1 4 12z" />
+      <rect x="9.5" y="10.5" width="5" height="4" rx="1" />
+      <path d="M10.5 10.5V9a1.5 1.5 0 0 1 3 0v1.5" />
+    </svg>
+  );
+}
+
+/** Kenapa Memilih Kerjaku -- Bisa Tambah Durasi Waktu Kerja Mitra */
+export function ClockPlusIcon({ className = "w-6 h-6", ...props }: IconProps) {
+  return (
+    <svg className={className} {...base} {...props}>
+      <circle cx="10.5" cy="13.5" r="7" />
+      <path d="M10.5 9.5v4l2.3 1.8" />
+      <path d="M18.5 3.5v4M16.5 5.5h4" />
+    </svg>
+  );
+}
+
 /**
  * Siluet Jembatan Kuning (landmark Kota Palu) -- watermark dekoratif
  * bermerek, dipakai lewat className="bridge-motif" (lihat app/globals.css,

@@ -26,6 +26,14 @@
 //     pemetaan warna tombol di brand spec.
 //   - Kartu preview WA dinaikkan ke shadow-card & radius token design
 //     system (rounded-card), bukan lagi nilai hex arbitrary yang tersebar.
+//
+// UPDATE COPY HEADLINE (20 September 2026, dari Anda langsung): headline
+// & subheadline ditukar posisinya + headline sekarang dua warna sesuai
+// spec Anda -- "Solusi Praktis Bikin Hidup Bernilai." (Ink #12202A) +
+// "Sekali Klik!" (Bay #1D6F8C, pakai token `text-bay`). CATATAN: ini
+// pengecualian yang disengaja terhadap aturan "Bay eksklusif Form Order"
+// -- di sini dipakai sebagai aksen 1 frasa pendek di Hero, bukan dipakai
+// meluas, jadi Ink tetap dominan secara keseluruhan halaman.
 
 import Link from "next/link";
 import WhatsAppPreview from "./WhatsAppPreview";
@@ -55,11 +63,12 @@ export default function Hero() {
             kerjaku.click &middot; Kota Palu
           </p>
           <h1 className="font-display text-4xl font-bold leading-tight text-ink md:text-5xl">
-            Jasa Tenaga Kerja ke Rumah Anda, Sekali Klik.
+            Solusi Praktis Bikin Hidup Bernilai.{" "}
+            <span className="text-bay">Sekali Klik!</span>
           </h1>
           <p className="text-lg leading-relaxed text-ink/70">
-            Solusi praktis bikin hidup bernilai. Setrika &middot; Bersihkan Rumah &middot;
-            Les Private. Mitra terverifikasi &amp; profesional.
+            Jasa tenaga kerja ke rumah-rumah Anda. Setrika &middot; Bersihkan Rumah &middot;
+            Guru Les Private. Mitra profesional &amp; terverifikasi.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <a
