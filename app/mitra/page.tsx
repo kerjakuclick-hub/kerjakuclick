@@ -32,17 +32,28 @@
 // Perubahan BARU (18 September 2026) -- Bagian 7.2/8.2: profile.name
 // diteruskan ke <TaskList /> sebagai prop `mitraName`, dipakai sebagai nama
 // pengirim di Chat Pesanan in-app (order_messages, migrasi 025).
+//
+// Perubahan BESAR (20 September 2026) -- dokumen struktur website versi
+// baru, migrasi 030: skema fee sekarang 2 dimensi (tier mitra x label
+// Fast/PRO produk), jadi RPC mitra_tier_info() sekarang balikan
+// fast_fee_percent & pro_fee_percent terpisah (bukan satu fee_percent) --
+// kartu "Tier Mitra & Fee Platform" menampilkan KEDUANYA sekaligus. Ambang
+// peringatan saldo sekarang pakai MITRA_WALLET_MIN_BALANCE (FLAT, Rp8.250,
+// dari lib/services.ts) menggantikan hitungan dinamis MIN_TARIF x feePercent
+// lama. `feePercent` tunggal yang dulu diteruskan ke <TaskList /> DIHAPUS --
+// TaskList sekarang menghitung sendiri persentase yang tepat PER ORDER (pakai
+// getPlatformFeePercent(tierName, order.service_type)) karena setiap order
+// bisa produk Fast atau PRO yang fee-nya beda. Teks "biaya teknologi tetap"
+// (migrasi 028) dihapus dari copy -- komponen itu sudah tidak ada lagi.
 
 import { createClient } from "@/lib/supabase/server";
 import TaskList from "@/components/mitra/TaskList";
 import DigitalIdCard from "@/components/mitra/DigitalIdCard";
 import AvailabilityToggle from "@/components/mitra/AvailabilityToggle";
-import { formatRupiah, services } from "@/lib/services";
+import { formatRupiah, MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
 import type { MitraTierInfo } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-const MIN_TARIF = Math.min(...services.map((s) => s.price));
 
 export default async function MitraDashboardPage() {
   const supabase = createClient();
@@ -94,9 +105,9 @@ export default async function MitraDashboardPage() {
     p_mitra_id: user!.id,
   });
   const tierInfo: MitraTierInfo | null = tierInfoRows?.[0] ?? null;
-  const feePercent = tierInfo?.fee_percent ?? 0.1; // fallback konservatif kalau RPC belum ter-deploy
+  const tierName = tierInfo?.tier_name ?? "Baru";
 
-  const saldoWarningThreshold = Math.round(MIN_TARIF * feePercent);
+  const saldoWarningThreshold = MITRA_WALLET_MIN_BALANCE;
 
   return (
     <div className="space-y-8">
@@ -123,9 +134,8 @@ export default async function MitraDashboardPage() {
           </p>
           {(profile?.wallet_balance ?? 0) < saldoWarningThreshold && (
             <p className="mt-1 text-xs text-red-600">
-              Saldo di bawah {formatRupiah(saldoWarningThreshold)} — Anda mungkin tidak muncul di
-              penugasan untuk sebagian pesanan (ambang = fee tier Anda saat ini,{" "}
-              {Math.round(feePercent * 100)}% dari nilai layanan).
+              Saldo di bawah {formatRupiah(saldoWarningThreshold)} — ini ambang minimum flat supaya
+              Anda tetap muncul di penugasan mitra untuk pesanan apa pun. Silakan top up.
             </p>
           )}
         </div>
@@ -143,11 +153,10 @@ export default async function MitraDashboardPage() {
         </div>
         <div className="rounded-card border border-line bg-white p-5 shadow-card">
           <p className="text-xs uppercase text-ink/50">Tier Mitra &amp; Fee Platform</p>
-          <p className="mt-1 font-display text-xl font-semibold text-ink">
-            {tierInfo?.tier_name ?? "Baru"}{" "}
-            <span className="text-sm font-normal text-ink/60">
-              · {Math.round(feePercent * 100)}% fee
-            </span>
+          <p className="mt-1 font-display text-xl font-semibold text-ink">{tierName}</p>
+          <p className="mt-1 text-xs text-ink/60">
+            {Math.round((tierInfo?.fast_fee_percent ?? 0.15) * 100)}% fee layanan Fast ·{" "}
+            {Math.round((tierInfo?.pro_fee_percent ?? 0.13) * 100)}% fee layanan PRO
           </p>
           <p className="mt-1 text-xs text-ink/50">
             {tierInfo?.completed_orders ?? 0} order selesai
@@ -180,9 +189,10 @@ export default async function MitraDashboardPage() {
         <h2 className="font-display text-lg font-semibold text-ink">Tugas Saya</h2>
         <p className="mt-1 text-sm text-ink/60">
           Daftar ini otomatis diperbarui saat admin menugaskan pesanan baru untuk Anda. Rincian
-          biaya di bawah dihitung memakai fee tier Anda saat ini ({tierInfo?.tier_name ?? "Baru"},{" "}
-          {Math.round(feePercent * 100)}%) ditambah biaya teknologi tetap per pesanan (Rp2.000
-          layanan Fast, Rp5.000 layanan PRO) -- bagian ini tidak ikut turun walau tier Anda naik.
+          biaya di bawah dihitung memakai fee tier Anda saat ini ({tierName}) -- persentasenya beda
+          untuk pesanan layanan Fast ({Math.round((tierInfo?.fast_fee_percent ?? 0.15) * 100)}%) dan
+          PRO ({Math.round((tierInfo?.pro_fee_percent ?? 0.13) * 100)}%), tergantung pesanan yang
+          Anda kerjakan.
         </p>
         <div className="mt-4">
           <TaskList
@@ -192,8 +202,7 @@ export default async function MitraDashboardPage() {
             transactions={transactions ?? []}
             earnings={earnings ?? []}
             invoices={invoices ?? []}
-            feePercent={feePercent}
-            tierName={tierInfo?.tier_name ?? "Baru"}
+            tierName={tierName}
           />
         </div>
       </div>

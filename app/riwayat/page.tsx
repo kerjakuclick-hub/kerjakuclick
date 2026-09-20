@@ -17,22 +17,30 @@
 // Perubahan BARU (18 September 2026) -- fitur "Tambah Waktu Kerja" &
 // "Otomatisasi Invoice Pembayaran" (migrasi
 // 027_order_extra_time_and_invoice_notify.sql):
-//   1. Kartu pesanan assigned/working yang jasanya termasuk 4 varian
-//      didukung (Setrika/Cleaning Fast/PRO) & BELUM pernah ditambah waktu
-//      menampilkan <ExtraTimeButton /> -- klien sendiri yang mengajukan,
-//      bukan mitra (lihat catatan lengkap di komponen itu &
-//      app/api/customer/orders/[id]/extra-time/route.ts).
+//   1. Kartu pesanan assigned/working yang jasanya termasuk varian didukung
+//      & BELUM pernah ditambah waktu menampilkan <ExtraTimeButton /> --
+//      klien sendiri yang mengajukan, bukan mitra (lihat catatan lengkap
+//      di komponen itu & app/api/customer/orders/[id]/extra-time/route.ts).
 //   2. Kartu pesanan yang sudah pernah ditambah waktu menampilkan info
 //      baris kecil (bukan tombol lagi -- sudah dipakai jatahnya).
 //   3. Kartu pesanan completed yang sudah punya invoice pembayaran
 //      menampilkan link unduh langsung -- klien tidak perlu lagi menunggu
 //      dikirim mitra, cukup buka halaman ini kapan saja.
+//
+// PERUBAHAN BESAR (20 September 2026) -- migrasi "Upgrade Fee Tier Produk":
+// rate tambah waktu (30/60 menit) sekarang TERGANTUNG TIER MITRA yang
+// ditugaskan ke order ybs, jadi TIDAK BISA lagi dihitung di sini murni dari
+// service_type (dulu lewat getExtraTimeOptions()). Sekarang dihitung
+// SERVER-SIDE oleh app/api/customer/riwayat/route.ts (yang sudah pegang
+// mitra_id tiap order) & dikirim sebagai field `extra_time_rates` siap
+// pakai per order -- halaman ini tinggal baca field itu, tidak perlu tahu
+// tier mitra sama sekali.
 
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatRupiah, getExtraTimeOptions } from "@/lib/services";
+import { formatRupiah } from "@/lib/services";
 import CustomerAuthPanel, { type SessionCustomer } from "@/components/CustomerAuthPanel";
 import OrderChatCustomer from "@/components/OrderChatCustomer";
 import ExtraTimeButton from "@/components/ExtraTimeButton";
@@ -53,6 +61,7 @@ type RiwayatOrder = {
   customer_phone: string;
   extra_time_minutes: number;
   extra_time_price: number;
+  extra_time_rates: { 30: number; 60: number } | null;
   invoice_notified_at: string | null;
   invoice: { file_url: string; created_at: string } | null;
 };
@@ -197,17 +206,13 @@ export default function RiwayatPage() {
 
                     {(o.status === "assigned" || o.status === "working") &&
                       o.extra_time_minutes === 0 &&
-                      (() => {
-                        const rates = getExtraTimeOptions(o.service_type);
-                        if (!rates) return null;
-                        return (
-                          <ExtraTimeButton
-                            orderId={o.id}
-                            rates={rates}
-                            onSuccess={handleExtraTimeSuccess}
-                          />
-                        );
-                      })()}
+                      o.extra_time_rates && (
+                        <ExtraTimeButton
+                          orderId={o.id}
+                          rates={o.extra_time_rates}
+                          onSuccess={handleExtraTimeSuccess}
+                        />
+                      )}
 
                     {o.status === "completed" && o.invoice && (
                       <div className="mt-3 rounded-lg border border-wa/30 bg-wa/10 px-3 py-2">

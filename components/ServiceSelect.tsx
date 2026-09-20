@@ -11,20 +11,23 @@
 // jadi untuk kategori itu cuma `duration` yang ditambahkan supaya teksnya
 // tidak dobel ("...1x Pertemuan — 1x Pertemuan, 2 Jam").
 //
-// Catatan: Cuci Motor & Cuci Mobil TIDAK diminta detail tambahan secara
-// eksplisit, tapi karena field unit/duration untuk keduanya sudah ada &
-// valid di lib/services.ts ("1 Motor"/"1 Jam", "1 Mobil"/"2 Jam"), detail
-// itu ikut tampil juga lewat logic generik ini -- konsisten dengan seluruh
-// kategori lain, dan datanya memang benar. Kalau ternyata tidak mau
-// ditampilkan untuk 2 layanan ini, tinggal beri tahu saya.
-//
 // Perubahan BARU (18 September 2026): dropdown ini sekarang memakai
 // `orderableServices`/`orderableServiceCategories` (bukan `services`/
-// `serviceCategories` biasa) dari lib/services.ts -- Cuci Kendaraan & Les
-// Private disembunyikan dari pilihan form pemesanan karena tim mitra &
-// operasionalnya masih dalam proses pembangunan (belum siap terima order).
-// Data layanan itu SENDIRI tidak dihapus dari lib/services.ts (di-alias di
-// bawah supaya sisa komponen ini tidak perlu diubah lagi).
+// `serviceCategories` biasa) dari lib/services.ts, supaya varian dengan
+// `orderable: false` otomatis tersembunyi dari pilihan form pemesanan
+// tanpa perlu ubah kode di sini lagi.
+//
+// Perubahan BESAR (20 September 2026) -- migrasi "3 Pilar Layanan": Cuci
+// Kendaraan dihapus total (sudah tidak ada lagi di lib/services.ts, jadi
+// otomatis hilang dari dropdown ini juga). Les Private SEKARANG orderable
+// (`orderable: false`-nya sudah dihapus di lib/services.ts) -- MUNCUL lagi
+// di dropdown ini secara otomatis lewat `orderableServices` di atas, tidak
+// perlu ubah apa pun di file ini. Nama variannya juga berubah jadi "<Mata
+// Pelajaran> Fast"/"<Mata Pelajaran> PRO" (bukan lagi "-- 1x Pertemuan"),
+// jadi unit ("1x Pertemuan") TIDAK LAGI terkandung dalam `name` -- baris
+// `formatServiceLabel` di bawah disesuaikan supaya unit itu tetap tampil
+// untuk kategori "Les Private" juga (sebelumnya sengaja disembunyikan
+// untuk kategori ini karena dulu sudah kebawa di `name`).
 
 "use client";
 
@@ -43,8 +46,7 @@ interface ServiceSelectProps {
 }
 
 function formatServiceLabel(s: ServiceVariant): string {
-  const details = s.category === "Les Private" ? [s.duration] : [s.unit, s.duration];
-  return `${s.name} (${formatRupiah(s.price)}) — ${details.join(", ")}`;
+  return `${s.name} (${formatRupiah(s.price)}) — ${s.unit}, ${s.duration}`;
 }
 
 export default function ServiceSelect({ id, value, onChange }: ServiceSelectProps) {

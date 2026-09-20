@@ -2,11 +2,13 @@
 //
 // Bagian client-facing dari fitur "Tambah Waktu Kerja" (lihat catatan
 // lengkap di app/api/customer/orders/[id]/extra-time/route.ts &
-// lib/services.ts EXTRA_TIME_RATES). Dipasang di app/riwayat/page.tsx,
+// lib/services.ts getExtraTimePrice()). Dipasang di app/riwayat/page.tsx,
 // muncul di kartu pesanan yang:
 //   - statusnya assigned/working (sudah ada mitra, belum selesai),
-//   - jasa nya termasuk 4 varian yang didukung (getExtraTimeOptions
-//     tidak null),
+//   - jasanya didukung skema tambah waktu (`extra_time_rates` dari
+//     app/api/customer/riwayat/route.ts tidak null -- rate ini sekarang
+//     dihitung SERVER-SIDE karena tergantung tier mitra, bukan cuma
+//     service_type, lihat catatan di kedua file itu),
 //   - belum pernah ditambah waktu sebelumnya (extra_time_minutes === 0).
 // (Ketiga syarat itu DIFILTER di app/riwayat/page.tsx sebelum komponen ini
 // dirender -- endpoint di server tetap validasi ulang semuanya sebagai
