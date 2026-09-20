@@ -50,12 +50,19 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 bg-[#f6faf6]/95 backdrop-blur shadow-sm">
       <nav className="max-w-[1200px] mx-auto flex items-center justify-between px-6 py-3">
-        <Link href="/" className="flex items-center gap-2 font-bold text-xl text-[#00566f]">
+        <Link href="/" className="flex items-center">
+          {/* Logo lockup resmi (Brand Kit -- LOGO FINAL), sudah termasuk
+              wordmark "KERJAKU CLICK" + ikon K, jadi tidak perlu teks/ikon
+              terpisah lagi di sini. Versi ini teksnya warna Ink (gelap)
+              supaya kontras di header yang latarnya terang. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="Kerjaku.click" className="h-9 w-9" />
-          <span>
-            kerjaku<span className="text-[#1D6F8C]">.click</span>
-          </span>
+          <img
+            src="/logo-lockup-header.png"
+            alt="kerjaku.click"
+            width={129}
+            height={40}
+            className="h-10 w-auto"
+          />
         </Link>
 
         {/* Menu desktop */}
