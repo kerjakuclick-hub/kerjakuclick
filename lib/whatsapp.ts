@@ -37,20 +37,45 @@
 //     "mitra unduh PDF lalu kirim manual sendiri via WA pribadinya"; mitra
 //     sekarang cukup memberi tahu secara lisan/chat bahwa invoice sudah bisa
 //     dicek di dasbor klien atau WA yang dikirim sistem.
+//
+// Perubahan BARU (20 September 2026) -- Anda meminta nomor WA Operator
+// PESANAN lama (+62 811-4550-4178) diganti & digabung jadi SATU nomor
+// tunggal: +62 811-4110-9567 (device baru sudah didaftarkan & disambungkan
+// ke WhatsApp Business di Fonnte). Nomor ini kebetulan PERSIS sama dengan
+// nomor Keluhan/CS yang sebelumnya sengaja dipisah (lihat komentar lama di
+// bawah) -- sesuai instruksi Anda "hanya menggunakan 1 nomor", KEDUA fungsi
+// sekarang digabung ke satu nomor/device yang sama: pemesanan (parser
+// #BARU), customer service/keluhan, pertanyaan daftar mitra (auto-reply FAQ
+// di webhook), dan koordinasi top up saldo mitra (japri manual admin).
+// CS_COMPLAINT_WA_NUMBER di bawah SENGAJA dibuat = OPERATOR_WA_NUMBER
+// (bukan string literal terpisah) supaya cuma ada SATU sumber nomor di
+// seluruh kode -- kalau nomornya ganti lagi nanti, cukup ubah nilai
+// OPERATOR_WA_NUMBER di satu tempat ini saja.
+//
+// JANGAN LUPA (di luar kode, tidak bisa diubah lewat file ini):
+//   1. Env var FONNTE_DEVICE_TOKEN di Vercel -- update ke token device BARU
+//      dari dashboard Fonnte, lalu redeploy (token lama akan gagal kirim
+//      pesan begitu device lama dilepas/diganti).
+//   2. Di dashboard Fonnte, pastikan Webhook URL device BARU diarahkan ke
+//      https://kerjaku.click/api/webhook/fonnte?secret=<FONNTE_WEBHOOK_SECRET>
+//      (nilai secret yang SAMA seperti sebelumnya), supaya pesan #BARU yang
+//      masuk ke nomor baru tetap otomatis tercatat jadi order.
 
 import { getServiceMaterials } from "./services";
 
-// Nomor WA Operator PESANAN — +62 811-4550-4178. Nomor ini yang tersambung
-// ke Fonnte (webhook parsing #BARU) -- TETAP, jangan diganti, supaya alur
-// order otomatis (OrderForm.tsx -> buildWaLink -> wa.me -> webhook Fonnte)
-// tidak putus.
-export const OPERATOR_WA_NUMBER = "6281145504178";
+// Nomor WA TUNGGAL kerjaku.click -- +62 811-4110-9567. Nomor ini yang
+// tersambung ke Fonnte (webhook parsing #BARU) -- lihat catatan "Perubahan
+// BARU (20 September 2026)" di atas kalau perlu diganti lagi nanti.
+export const OPERATOR_WA_NUMBER = "6281141109567";
 
-// Nomor WA KELUHAN/CS PELANGGAN — +62 811-4110-9567. Dipisah dari nomor
-// pesanan di atas supaya keluhan tidak tercampur ke parser order otomatis;
-// nomor ini di-handle MANUAL oleh admin (bukan lewat Fonnte/webhook), pakai
-// fitur "Balasan Cepat" WhatsApp Business untuk pilihan keluhan umum.
-export const CS_COMPLAINT_WA_NUMBER = "6281141109567";
+// Nomor WA KELUHAN/CS PELANGGAN -- SEKARANG SENGAJA sama dengan
+// OPERATOR_WA_NUMBER di atas (digabung per keputusan Anda, 20 September
+// 2026). Tetap diekspor sebagai nama terpisah supaya kode pemanggil
+// (buildCsLink, Footer, dst) tetap jelas MAKSUDNYA "nomor untuk keluhan/CS",
+// walau nilainya sekarang identik -- referensi ke OPERATOR_WA_NUMBER
+// (bukan string literal baru) supaya tidak diam-diam tertinggal beda lagi
+// kalau nomornya berubah di masa depan.
+export const CS_COMPLAINT_WA_NUMBER = OPERATOR_WA_NUMBER;
 
 // URL Chat Pesanan in-app -- dipakai di teks notifikasi WA supaya mitra &
 // klien sama-sama diarahkan ke kanal yang sama alih-alih saling tukar
