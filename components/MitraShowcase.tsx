@@ -5,7 +5,12 @@
 // kartu, strip header "ID Card Mitra", label keahlian) diganti Ink --
 // warna Bay sekarang eksklusif untuk section Form Order (OrderForm.tsx).
 // Aksen bintang rating tetap Bridge (#F5B324), sesuai brand.
+//
+// REVISI (20 September 2026, dari Anda langsung): tombol "Daftar Mitra"
+// (Ink #12202A) ditambahkan di bawah kartu foto mitra -- ajakan jadi mitra
+// tepat setelah pengunjung lihat mitra asli yang sudah bergabung.
 
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MitraShowcase() {
@@ -94,6 +99,15 @@ export default async function MitraShowcase() {
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link
+            href="/daftar-mitra"
+            className="inline-block rounded-full bg-ink px-8 py-3.5 font-display text-sm font-semibold text-white transition hover:bg-ink/90"
+          >
+            Daftar Mitra
+          </Link>
         </div>
       </div>
     </section>

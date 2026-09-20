@@ -4,11 +4,24 @@
 // baru --
 //   - Warna #1D6F8C (Bay) DIHAPUS dari hover nav link -- diganti Ink, karena
 //     Bay sekarang KHUSUS section Form Order (OrderForm.tsx).
-//   - Link "Jadi Mitra" dinaikkan jadi tombol pill Ink (#12202A) yang jelas
-//     berbeda dari link nav biasa, sesuai pemetaan warna tombol brand:
-//     "Tombol daftar mitra #12202A".
 //   - Latar header disamakan ke token "paper" (bukan hex custom
 //     "#f6faf6") supaya konsisten dengan design system.
+//
+// REVISI LAYOUT (20 September 2026, mengikuti referensi kliknclean.com
+// yang Anda kirim, disesuaikan ke menu kerjaku.click sendiri):
+//   - Header referensi cuma punya SATU tombol pill menonjol ("Download
+//     App") + nav link biasa -- "Jadi Mitra" di sini diturunkan lagi jadi
+//     nav link teks biasa (bukan pill Ink), supaya cuma ada 1 elemen
+//     menonjol di pojok kanan header, sama seperti referensi.
+//
+// REVISI (20 September 2026, revisi 2, dari Anda langsung): satu-satunya
+// elemen di pojok kanan header sekarang tombol pill PUTIH bertuliskan
+// "Customer Service" -- gaya visual persis tombol "Download App" di
+// referensi (bulatan/pill putih, border tipis, teks gelap), TAPI fungsinya
+// tetap link WA CS asli (buildCsLink(), lib/whatsapp.ts) -- BUKAN cuma
+// ikon lagi. Tombol "Pesan Sekarang" & ikon WA terpisah yang sebelumnya
+// di sini DIHAPUS dari header (konversi "Pesan Sekarang" sudah cukup
+// menonjol di dalam Hero sendiri).
 
 "use client";
 
@@ -49,6 +62,13 @@ export default function Header() {
       >
         Riwayat Pesanan
       </Link>
+      <Link
+        href="/daftar-mitra"
+        onClick={() => setMobileOpen(false)}
+        className="text-sm font-medium text-ink/60 transition-colors hover:text-ink"
+      >
+        Jadi Mitra
+      </Link>
     </>
   );
 
@@ -73,23 +93,18 @@ export default function Header() {
         {/* Menu desktop */}
         <div className="hidden items-center gap-8 md:flex">{navLinks}</div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/daftar-mitra"
-            className="hidden rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/90 sm:inline-flex sm:items-center"
-          >
-            Jadi Mitra
-          </Link>
-
+        <div className="flex items-center gap-2">
           {/* Nomor KELUHAN/CS (manual, di-handle admin) -- BUKAN nomor
-              pesanan yang tersambung ke Fonnte. Lihat lib/whatsapp.ts. */}
+              pesanan yang tersambung ke Fonnte. Lihat lib/whatsapp.ts.
+              Gaya visual: pill putih, border tipis, teks gelap -- persis
+              tombol "Download App" di referensi kliknclean.com. */}
           <a
             href={buildCsLink()}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg bg-wa px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 active:scale-95"
+            className="rounded-full border border-ink/15 bg-white px-5 py-2 text-sm font-semibold text-ink transition hover:border-ink/30 hover:bg-ink/5"
           >
-            Chat CS
+            Customer Service
           </a>
 
           {/* Tombol hamburger, cuma tampil di mobile */}
@@ -115,13 +130,15 @@ export default function Header() {
       {mobileOpen && (
         <div className="flex flex-col gap-4 border-t border-ink/10 bg-paper px-6 py-4 md:hidden">
           {navLinks}
-          <Link
-            href="/daftar-mitra"
+          <a
+            href={buildCsLink()}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={() => setMobileOpen(false)}
-            className="inline-flex w-fit items-center rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+            className="inline-flex w-fit items-center rounded-full border border-ink/15 bg-white px-5 py-2 text-sm font-semibold text-ink"
           >
-            Jadi Mitra
-          </Link>
+            Customer Service
+          </a>
         </div>
       )}
     </header>
