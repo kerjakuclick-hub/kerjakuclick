@@ -1,0 +1,35 @@
+-- FILE BARU: supabase/migrations/033_fix_customer_pin_resets_rls.sql
+--
+-- PERBAIKAN KEAMANAN (21 September 2026) -- ditemukan lewat audit keamanan
+-- & fundamental sistem: tabel `customer_pin_resets` (dibuat migrasi
+-- 019_customer_pin_resets.sql) TIDAK PERNAH mengaktifkan Row Level
+-- Security, beda dari SEMUA tabel sensitif lain di proyek ini
+-- (customers, customer_sessions, orders, profiles, transactions, invoices,
+-- wallet_transactions, earnings, mitra_applications, order_messages,
+-- mitra_violations -- semuanya RLS aktif).
+--
+-- Risikonya: proyek Supabase secara default memberi akses ke role
+-- `anon`/`authenticated` pada tabel baru di schema public (itu sebabnya RLS
+-- wajib dinyalakan manual di setiap tabel). Tanpa RLS, tabel ini
+-- kemungkinan besar bisa dibaca langsung lewat REST API Supabase memakai
+-- NEXT_PUBLIC_SUPABASE_ANON_KEY -- kunci publik yang memang tertanam di
+-- kode browser -- sehingga siapa pun berpotensi melihat otp_hash,
+-- customer_id, attempts_left, dan expires_at untuk SEMUA permintaan reset
+-- PIN pelanggan yang sedang aktif.
+--
+-- Perbaikan: aktifkan RLS TANPA policy apa pun untuk role anon/authenticated
+-- -- persis pola yang sudah dipakai di customers & customer_sessions
+-- (migrasi 018). Tabel ini memang hanya pernah diakses lewat service-role
+-- client di server (lib/customerAuth.ts: requestPinReset/confirmPinReset),
+-- tidak pernah dari browser lewat Supabase client-side, jadi RLS aktif
+-- tanpa policy = default deny untuk anon & authenticated, TIDAK mengubah
+-- perilaku aplikasi sama sekali -- cuma menutup celah akses langsung dari
+-- luar aplikasi.
+
+alter table public.customer_pin_resets enable row level security;
+
+-- SENGAJA tidak ada policy publik/anon di sini -- tabel ini HANYA diakses
+-- lewat service-role client di server (lib/customerAuth.ts), tidak pernah
+-- langsung dari browser lewat Supabase client-side. RLS aktif tanpa
+-- policy = default deny untuk role anon & authenticated (sama seperti
+-- customers/customer_sessions di migrasi 018).
