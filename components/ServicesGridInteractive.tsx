@@ -46,6 +46,25 @@
 // otomatis terisi begitu Anda upload foto lewat Media Library di admin)
 // tetap dipertahankan, cuma dipindah ke DALAM panel Ink supaya konsisten
 // dengan gaya panel keterangan foto.
+//
+// PERBAIKAN PRESISI KARTU (21 September 2026, "Ukuran gambar di media
+// sudah presisi 1200x600, namun kartu Setrika & Bersihkan Rumah tidak
+// presisi. Ikuti ukuran kartu guru les tepat"): kontainer foto tadinya
+// pakai TINGGI TETAP `h-44` (176px) -- ini yang bikin crop tidak presisi
+// & tidak konsisten antar kartu karena rasio lebar kolom berbeda-beda di
+// breakpoint md/lg (2 vs 3 kolom). Diganti `aspect-[2/1]` (rasio lebar:
+// tinggi = 2:1) supaya PERSIS mengunci rasio 1200x600 yang sudah Anda
+// upload di Media Library -- hasilnya crop identik & proporsional di
+// ketiga kartu, di semua ukuran layar, sama seperti kartu Les Private
+// yang jadi acuan. Fallback ikon (kalau `imageUrl` kosong) ikut memakai
+// rasio yang sama supaya tinggi kartu tetap konsisten walau foto belum
+// diupload.
+//
+// Link "Lihat Detil" DITAMBAHKAN KEMBALI (permintaan yang sama) di paling
+// bawah panel keterangan tiap kartu -- sebelumnya dihapus total dari
+// wajah kartu di revisi presisi Canva, sekarang dikembalikan sebagai teks
+// kecil warna Bridge di baris terakhir panel Ink, tetap men-trigger modal
+// detail varian yang sama (bukan link terpisah).
 
 "use client";
 
@@ -116,9 +135,13 @@ export default function ServicesGridInteractive({ services }: { services: Servic
             >
               {s.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={s.imageUrl} alt={s.name} className="h-44 w-full object-cover" />
+                <img
+                  src={s.imageUrl}
+                  alt={s.name}
+                  className="aspect-[2/1] w-full object-cover"
+                />
               ) : (
-                <div className="flex h-44 w-full items-center justify-center bg-ink">
+                <div className="flex aspect-[2/1] w-full items-center justify-center bg-ink">
                   {Icon && <Icon className="h-12 w-12 text-bridge" strokeWidth={1.4} />}
                 </div>
               )}
@@ -127,6 +150,9 @@ export default function ServicesGridInteractive({ services }: { services: Servic
                   {s.name}
                 </h3>
                 <p className="text-sm text-white/60">{s.desc}</p>
+                <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-bridge">
+                  Lihat Detil
+                </p>
               </div>
             </div>
           );
