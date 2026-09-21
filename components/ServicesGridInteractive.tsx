@@ -65,6 +65,20 @@
 // wajah kartu di revisi presisi Canva, sekarang dikembalikan sebagai teks
 // kecil warna Bridge di baris terakhir panel Ink, tetap men-trigger modal
 // detail varian yang sama (bukan link terpisah).
+//
+// PENYAMARATAAN TINGGI KARTU (21 September 2026, "sama rata presisi semua
+// gambar kartu produk"): setelah perbaikan rasio foto di atas, area
+// foto/grafis ketiga kartu sudah presisi identik (2:1) -- tapi TINGGI
+// TOTAL kartu masih bisa beda beberapa piksel kalau deskripsi salah satu
+// jasa lebih panjang & membungkus ke baris tambahan (mis. Les Private).
+// Diperbaiki dengan menjadikan tiap kartu flex column (`flex h-full
+// flex-col`) di dalam grid yang stretch (`items-stretch`, perilaku bawaan
+// CSS Grid) -- kartu jadi otomatis SAMA TINGGI mengikuti baris tertinggi,
+// dan panel keterangan (`flex-1`) mengembang mengisi sisa ruang. Teks
+// "Lihat Detil" diberi `mt-auto` supaya selalu menempel presisi di baris
+// paling bawah tiap kartu, apa pun panjang deskripsinya -- jadi ketiga
+// kartu kini presisi sama rata dari atas sampai bawah, bukan cuma area
+// fotonya saja.
 
 "use client";
 
@@ -109,7 +123,7 @@ export default function ServicesGridInteractive({ services }: { services: Servic
 
   return (
     <>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3">
         {services.map((s) => {
           const clickable = !s.comingSoon;
           const Icon = SERVICE_ICON_MAP[s.icon];
@@ -129,7 +143,7 @@ export default function ServicesGridInteractive({ services }: { services: Servic
                     }
                   : undefined
               }
-              className={`overflow-hidden rounded-card border border-ink/5 shadow-card transition-all ${
+              className={`flex h-full flex-col overflow-hidden rounded-card border border-ink/5 shadow-card transition-all ${
                 clickable ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg" : ""
               }`}
             >
@@ -138,19 +152,19 @@ export default function ServicesGridInteractive({ services }: { services: Servic
                 <img
                   src={s.imageUrl}
                   alt={s.name}
-                  className="aspect-[2/1] w-full object-cover"
+                  className="aspect-[2/1] w-full shrink-0 object-cover"
                 />
               ) : (
-                <div className="flex aspect-[2/1] w-full items-center justify-center bg-ink">
+                <div className="flex aspect-[2/1] w-full shrink-0 items-center justify-center bg-ink">
                   {Icon && <Icon className="h-12 w-12 text-bridge" strokeWidth={1.4} />}
                 </div>
               )}
-              <div className="space-y-1.5 bg-ink p-5">
+              <div className="flex flex-1 flex-col gap-1.5 bg-ink p-5">
                 <h3 className="font-display text-base font-bold uppercase tracking-wide text-white">
                   {s.name}
                 </h3>
                 <p className="text-sm text-white/60">{s.desc}</p>
-                <p className="pt-1 text-xs font-semibold uppercase tracking-wide text-bridge">
+                <p className="mt-auto pt-1 text-xs font-semibold uppercase tracking-wide text-bridge">
                   Lihat Detil
                 </p>
               </div>
