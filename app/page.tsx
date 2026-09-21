@@ -1,31 +1,46 @@
 // GANTI ISI app/page.tsx Anda dengan file ini.
 //
 // PERHATIAN:
-// - <OrderForm /> dipakai APA ADANYA dari komponen Anda yang sudah ada
-//   (logika kirim ke WA TIDAK saya sentuh) — hanya dibungkus kartu baru
-//   sesuai desain Stitch.
-// - <YoutubeSection /> BARU ditambahkan, ditaruh setelah <MitraShowcase />
-//   (sisi trust-building), sesuai kesepakatan.
+// - <YoutubeSection /> ditaruh setelah <MitraShowcase /> (sisi
+//   trust-building), sesuai kesepakatan.
 // - Section Testimoni & FAQ SENGAJA BELUM dimasukkan — menunggu jawaban
 //   Anda soal testimoni asli & 3 klaim FAQ (verifikasi KTP, vaksinasi,
 //   jam CS 24/7 vs 07.00-20.00 WIB). Begitu dikonfirmasi, saya tambahkan.
 //
 // REVISI LAYOUT (20 September 2026, mengikuti referensi kliknclean.com):
-// <TrustBar /> (bar gelap terpisah) DIHAPUS dari sini -- 3 badge
-// kepercayaannya sudah dipindah ke DALAM <Hero /> sendiri (baris ikon +
-// label di bawah headline/CTA, menyatu 1 section, sesuai pola referensi).
-// Komponennya sendiri TIDAK dihapus dari components/, cuma tidak dipanggil
-// di sini -- lihat catatan di TrustBar.tsx.
+// <TrustBar /> (bar gelap terpisah) DIHAPUS dari sini -- 3 (lalu 5) badge
+// kepercayaannya sudah dipindah ke DALAM <Hero /> sendiri. Komponennya
+// sendiri TIDAK dihapus dari components/, cuma tidak dipanggil di sini.
+//
+// REVISI STRUKTUR (21 September 2026, mengikuti mockup Canva Anda): section
+// #order-form (<OrderForm /> + <WhyChooseUs />) DIPINDAH ke halaman baru
+// app/pesan/page.tsx -- nav "Pesan Jasa" sekarang link ke /pesan, bukan
+// scroll-anchor di sini lagi. Beranda jadi murni halaman showcase (Hero,
+// Layanan, Cara Pesan, Mitra, Video) tanpa form order tertanam.
+//
+// REVISI BESAR (21 September 2026, "Buat tampilan presisi dengan desain
+// dari Canva tersebut"): section baru <KenapaMemilihKami /> ditambahkan di
+// antara <ServicesGrid /> dan <MitraShowcase />, persis posisinya di mockup
+// Canva Home page Anda (lihat components/KenapaMemilihKami.tsx).
+//
+// CATATAN: mockup Canva Home page Anda urutannya persis Hero -> Layanan
+// Kami -> Kenapa Memilih Kami? -> Mitra Profesional -> Video ("Kenal kami
+// lebih dekat") -> Footer -- TANPA section <HowItWorks /> ("Cara Pesan")
+// sama sekali. Karena Anda tidak bilang section itu mau dihapus, saya TIDAK
+// menghapusnya (masih konten berguna) -- cuma saya geser ke PALING BAWAH
+// (setelah video, sebelum Footer) supaya urutan utama tetap 100% sama
+// dengan mockup Anda sampai section video. Tolong konfirmasi apakah
+// <HowItWorks /> memang mau tetap ada di beranda (di posisi baru ini) atau
+// dihapus total / dipindah ke halaman lain.
 
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import ServicesGrid from "@/components/ServicesGrid";
+import KenapaMemilihKami from "@/components/KenapaMemilihKami";
 import HowItWorks from "@/components/HowItWorks";
 import MitraShowcase from "@/components/MitraShowcase";
 import YoutubeSection from "@/components/YoutubeSection";
-import WhyChooseUs from "@/components/WhyChooseUs";
 import Footer from "@/components/Footer";
-import OrderForm from "@/components/OrderForm";
 
 export default function HomePage() {
   return (
@@ -34,28 +49,10 @@ export default function HomePage() {
       <main>
         <Hero />
         <ServicesGrid />
-        <HowItWorks />
+        <KenapaMemilihKami />
         <MitraShowcase />
         <YoutubeSection />
-
-        <section
-          id="order-form"
-          className="max-w-[1200px] mx-auto px-6 py-16 md:py-20"
-        >
-          <div className="bg-white rounded-2xl border border-[#12202A]/5 shadow-[0px_4px_20px_rgba(18,32,42,0.05)] overflow-hidden grid lg:grid-cols-2">
-            <div className="p-6 md:p-10 space-y-6">
-              <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl md:text-3xl font-bold text-[#12202A]">
-                Pesan Layanan Sekarang
-              </h2>
-              <p className="text-[#3f484d]">
-                Isi data Anda di bawah ini, admin kami akan segera
-                menghubungi via WhatsApp untuk konfirmasi penugasan mitra.
-              </p>
-              <OrderForm />
-            </div>
-            <WhyChooseUs />
-          </div>
-        </section>
+        <HowItWorks />
 
         {/*
           TODO setelah dikonfirmasi:

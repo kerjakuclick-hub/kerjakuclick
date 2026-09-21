@@ -24,10 +24,33 @@
 //   - Semua sisa pemakaian #1D6F8C (badge "TERPOPULER", link "Lihat
 //     detail") diganti Ink, supaya Bay benar-benar eksklusif untuk
 //     OrderForm.tsx.
+//
+// REVISI STRUKTUR (21 September 2026, mengikuti mockup Canva Anda): tombol
+// "Pesan Sekarang" di modal detail jasa tadinya dispatch custom event
+// "kerjaku:select-service" + scroll ke id="pesan" di beranda yang sama --
+// sekarang form order pindah ke halaman sendiri (/pesan), jadi jasa
+// terpilih disimpan ke localStorage "kerjaku_reorder" (persis mekanisme
+// yang sudah dipakai tombol "Pesan Lagi" di /riwayat) lalu navigasi ke
+// /pesan lewat router -- OrderForm.tsx otomatis baca & prefill dari situ,
+// tidak perlu kode baru di OrderForm.tsx.
+//
+// REVISI BESAR (21 September 2026, "Buat tampilan presisi dengan desain
+// dari Canva tersebut"): kartu kategori dirombak mengikuti mockup Anda
+// persis -- foto penuh di atas + panel keterangan SOLID Ink (bukan putih)
+// dengan judul huruf besar + deskripsi di bawahnya. Badge "TERPOPULER",
+// harga "Mulai dari", durasi, dan link "Lihat detail" DIHAPUS dari wajah
+// kartu (mockup Anda tidak menampilkannya di kartu) -- semua info itu
+// TETAP ada & lengkap begitu kartu diklik (modal detail varian di bawah
+// tidak berubah sama sekali, masih tampil harga per varian). Fallback ikon
+// custom (kalau `imageUrl` kosong -- lihat ServicesGrid.tsx, field ini
+// otomatis terisi begitu Anda upload foto lewat Media Library di admin)
+// tetap dipertahankan, cuma dipindah ke DALAM panel Ink supaya konsisten
+// dengan gaya panel keterangan foto.
 
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { services as serviceVariants, formatRupiah } from "@/lib/services";
 import { IronIcon, HomeSparkleIcon, BookOpenIcon } from "./Icons";
 
@@ -51,6 +74,7 @@ const SERVICE_ICON_MAP: Record<string, typeof IronIcon> = {
 };
 
 export default function ServicesGridInteractive({ services }: { services: ServiceCardData[] }) {
+  const router = useRouter();
   const [openCategory, setOpenCategory] = useState<string | null>(null);
 
   const activeCard = services.find((s) => s.serviceCategory === openCategory);
@@ -59,11 +83,9 @@ export default function ServicesGridInteractive({ services }: { services: Servic
     : [];
 
   function handlePesanSekarang(variantName: string) {
-    window.dispatchEvent(
-      new CustomEvent("kerjaku:select-service", { detail: { jasa: variantName } })
-    );
+    localStorage.setItem("kerjaku_reorder", JSON.stringify({ jasa: variantName }));
     setOpenCategory(null);
-    document.getElementById("pesan")?.scrollIntoView({ behavior: "smooth" });
+    router.push("/pesan");
   }
 
   return (
@@ -88,40 +110,23 @@ export default function ServicesGridInteractive({ services }: { services: Servic
                     }
                   : undefined
               }
-              className={`overflow-hidden rounded-card border border-ink/5 bg-white shadow-card transition-all ${
+              className={`overflow-hidden rounded-card border border-ink/5 shadow-card transition-all ${
                 clickable ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-lg" : ""
               }`}
             >
               {s.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={s.imageUrl} alt={s.name} className="h-40 w-full object-cover" />
+                <img src={s.imageUrl} alt={s.name} className="h-44 w-full object-cover" />
               ) : (
-                <div className="flex h-40 w-full items-center justify-center bg-ink">
+                <div className="flex h-44 w-full items-center justify-center bg-ink">
                   {Icon && <Icon className="h-12 w-12 text-bridge" strokeWidth={1.4} />}
                 </div>
               )}
-              <div className="space-y-3 p-5">
-                <div className="flex items-start justify-between">
-                  <h3 className="font-display text-lg font-semibold text-ink">{s.name}</h3>
-                  {s.badge && (
-                    <span className="rounded bg-bridge/20 px-2 py-1 text-[10px] font-bold uppercase text-ink">
-                      {s.badge}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-ink/60">{s.desc}</p>
-                <div className="flex items-center justify-between border-t border-line pt-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-ink/50">
-                      Mulai dari
-                    </p>
-                    <p className="font-semibold text-ink">{s.priceFrom}</p>
-                  </div>
-                  <span className="text-xs text-ink/50">{s.duration}</span>
-                </div>
-                {clickable && (
-                  <p className="pt-1 text-xs font-semibold text-ink">Lihat detail &amp; harga →</p>
-                )}
+              <div className="space-y-1.5 bg-ink p-5">
+                <h3 className="font-display text-base font-bold uppercase tracking-wide text-white">
+                  {s.name}
+                </h3>
+                <p className="text-sm text-white/60">{s.desc}</p>
               </div>
             </div>
           );

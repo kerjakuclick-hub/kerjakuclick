@@ -35,12 +35,23 @@
 // mitra_id tiap order) & dikirim sebagai field `extra_time_rates` siap
 // pakai per order -- halaman ini tinggal baca field itu, tidak perlu tahu
 // tier mitra sama sekali.
+//
+// REVISI STRUKTUR (21 September 2026, mengikuti mockup Canva Anda): nav
+// "Riwayat Pesanan" di-rebrand jadi "AkunKU" (label nav saja, lihat
+// Header.tsx -- isi & fungsi halaman ini TIDAK berubah). Sekalian: (1)
+// <Header />/<Footer /> ditambahkan supaya halaman ini bisa dinavigasi
+// balik lewat menu (sebelumnya halaman ini berdiri sendiri tanpa nav situs
+// sama sekali -- gap konsistensi dari versi lama). (2) tombol "Pesan Lagi"
+// diarahkan ke "/pesan" (form order sekarang halaman sendiri), bukan lagi
+// "/#pesan" (anchor lama di beranda yang sudah tidak ada).
 
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatRupiah } from "@/lib/services";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import CustomerAuthPanel, { type SessionCustomer } from "@/components/CustomerAuthPanel";
 import OrderChatCustomer from "@/components/OrderChatCustomer";
 import ExtraTimeButton from "@/components/ExtraTimeButton";
@@ -118,7 +129,7 @@ export default function RiwayatPage() {
         preferensi: order.mitra_gender_preference ?? "Bebas",
       })
     );
-    router.push("/#pesan");
+    router.push("/pesan");
   }
 
   async function handleLogout() {
@@ -137,9 +148,11 @@ export default function RiwayatPage() {
   }
 
   return (
-    <section className="bg-bay-deep">
-      <div className="mx-auto max-w-3xl px-6 py-20 lg:px-8">
-        <p className="eyebrow font-mono text-xs uppercase text-bridge">Riwayat Pesanan</p>
+    <>
+      <Header />
+      <section className="bg-bay-deep">
+        <div className="mx-auto max-w-3xl px-6 py-20 lg:px-8">
+        <p className="eyebrow font-mono text-xs uppercase text-bridge">AkunKU &middot; Riwayat Pesanan</p>
         <h1 className="mt-3 font-display text-3xl font-semibold text-white sm:text-4xl">
           Riwayat &amp; pesan ulang lebih cepat.
         </h1>
@@ -248,7 +261,9 @@ export default function RiwayatPage() {
             )}
           </>
         )}
-      </div>
-    </section>
+        </div>
+      </section>
+      <Footer />
+    </>
   );
 }
