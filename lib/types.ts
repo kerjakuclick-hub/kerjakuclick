@@ -63,7 +63,7 @@ export type Order = {
   mitra_id: string | null;
   status: OrderStatus;
   created_at: string;
-  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007) -- SEKARANG HANYA acuan lama/tampilan; ambang kelayakan riil sejak migrasi 024 mengikuti tier fee mitra masing-masing (lihat mitra_fee_percent()), bukan flat 20% lagi
+  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007) -- SEKARANG HANYA acuan lama/tampilan; ambang kelayakan riil sejak migrasi 030 adalah FLAT (lihat mitra_wallet_threshold()/MITRA_WALLET_MIN_BALANCE, Rp8.250), bukan lagi 20% ataupun dinamis per tier (migrasi 024/028)
   mitra_id_card_sent_at: string | null; // migrasi 017 — TIDAK dipakai lagi sejak notifikasi klien otomatis (migrasi 020), dibiarkan ada di DB untuk histori
   mitra_id_card_sent_by: string | null; // migrasi 017 — idem
   client_notified_at: string | null; // BARU — migrasi 020: waktu notifikasi WA "pesanan disetujui" berhasil terkirim otomatis
@@ -98,7 +98,7 @@ export type MitraProfile = {
   is_available: boolean; // BARU — migrasi 023: toggle ketersediaan milik mitra sendiri
   unavailable_reason: string | null; // BARU — migrasi 023: alasan saat is_available = false
   unavailable_since: string | null; // BARU — migrasi 023: sejak kapan is_available = false
-  violation_count: number; // BARU — migrasi 024: jumlah pelanggaran tercatat, syarat naik tier Terpercaya/Unggulan (0 pelanggaran), diisi manual admin, default 0
+  violation_count: number; // BARU — migrasi 024: jumlah pelanggaran tercatat, syarat naik tier Terpercaya (0 pelanggaran, tier "Unggulan" sudah dihapus sejak migrasi 030), diisi manual admin, default 0
 };
 
 export type MitraSelfProfile = MitraProfile;
@@ -164,7 +164,7 @@ export type EligibleMitra = {
   status: "training" | "ahli" | null;
   gender: "Pria" | "Wanita" | null;
   rating: number | null;
-  fee_percent: number; // BARU — migrasi 024: persentase fee tier mitra ini (0.07/0.08/0.10), dipakai juga sebagai ambang saldo riil (wallet_balance >= total_price * fee_percent)
+  fee_percent: number; // migrasi 024, dihitung ulang sejak migrasi 030: persentase fee tier mitra x label Fast/PRO produk order ini (11-15%, lihat mitra_fee_percent(uuid, text)/MitraTierInfo) -- SEKARANG cuma untuk tampilan estimasi di dropdown admin, BUKAN lagi ambang saldo (ambang kelayakan riil sejak migrasi 030 adalah FLAT, lihat mitra_wallet_threshold())
 };
 
 // Hasil RPC mitra_tier_info() — migrasi 024, GANTI TOTAL migrasi 030 (20
