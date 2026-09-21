@@ -35,9 +35,10 @@ const styles = StyleSheet.create({
 // SENGAJA TIDAK menampilkan rincian Rupiah Upah Mitra/Fee Platform di sini
 // -- itu transparansi khusus Dashboard Mitra (Bagian 6.1 Dokumen Bisnis
 // Revisi Pasca-Audit Fraud), bukan untuk klien. Fee real per order juga
-// mengikuti tier mitra yang bertugas (migrasi 024, 7-10%), jadi tabel
-// komponen biaya tetap (dek presentasi internal) tidak akurat kalau
-// ditampilkan apa adanya per-pesanan ke klien.
+// mengikuti tier mitra x label Fast/PRO produk yang bertugas (migrasi 030,
+// 11-15% -- menggantikan skema migrasi 024, 7-10%), jadi tabel komponen
+// biaya tetap (dek presentasi internal) tidak akurat kalau ditampilkan apa
+// adanya per-pesanan ke klien.
 function DetilPekerjaanDanBahan({ serviceType }: { serviceType: string }) {
   const variant = findServiceByLabel(serviceType);
   const detil = variant?.detilPekerjaan ?? [];

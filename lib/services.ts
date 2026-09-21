@@ -325,10 +325,11 @@ export function getServiceMaterials(serviceType: string): ServiceMaterial[] | nu
 // baru cuma menyebut 3 tier):
 //   Baru       : 0-30 order selesai
 //   Reguler    : >30 order selesai, rating >= 4.5
-//   Terpercaya : >100 order selesai, rating >= 4.7 (ASUMSI: syarat "0
-//                pelanggaran" dari migrasi 024 tetap dipakai di sini walau
-//                dokumen baru tidak menyebutnya eksplisit -- TOLONG
-//                DIKONFIRMASI, lihat migrasi 030 untuk catatan yang sama).
+//   Terpercaya : >100 order selesai, rating >= 4.7, DAN 0 pelanggaran
+//                (syarat dari migrasi 024, DIKONFIRMASI pemilik produk
+//                21 September 2026 tetap berlaku walau dokumen baru tidak
+//                menyebutnya eksplisit -- lihat migrasi 030 untuk kondisi
+//                `violation_count = 0` yang sesungguhnya menegakkan ini).
 //
 // SATU sumber kebenaran di sisi TS untuk ESTIMASI tampilan client-side
 // (Dasbor Mitra, dropdown "Pilih mitra eligible" admin) -- potongan
@@ -435,15 +436,14 @@ export function getUpahMitraBersih(tierName: MitraTierName, serviceType: string,
 //                             = Rp35.500
 //   Total Tambah Waktu        = Rp1.650 + Rp35.500                = Rp37.150
 //
-// ASUMSI (TOLONG DIKONFIRMASI kalau salah): dokumen menjelaskan rumus ini
-// generik per LABEL (Fast/PRO), bukan per kategori produk tertentu -- beda
-// dari skema lama yang cuma berlaku utk 4 varian (Setrika/Cleaning
-// Fast/PRO). Di sini rumus SEKARANG dibuat berlaku utk SEMUA produk
-// orderable berlabel Fast/PRO, TERMASUK Les Private (karena Les Private
-// sekarang juga berlabel Fast/PRO & sudah punya Bahan Baku sendiri, lihat
-// MATERIAL_COST_BY_CATEGORY_TIER di atas). Kalau ternyata Tambah Waktu
-// dimaksud TETAP cuma utk Setrika & Cleaning, tinggal beri tahu saya --
-// tinggal tambah pengecualian kategori satu baris di getExtraTimePrice().
+// DIKONFIRMASI pemilik produk (21 September 2026): rumus ini generik per
+// LABEL (Fast/PRO), bukan per kategori produk tertentu -- beda dari skema
+// lama yang cuma berlaku utk 4 varian (Setrika/Cleaning Fast/PRO). Berlaku
+// utk SEMUA layanan orderable berlabel Fast/PRO -- Setrika, Bersihkan
+// Rumah, DAN Les Private -- sepanjang produknya berlabel Fast/PRO (Les
+// Private sudah berlabel Fast/PRO & punya Bahan Baku sendiri, lihat
+// MATERIAL_COST_BY_CATEGORY_TIER di atas). getExtraTimePrice() di bawah
+// TIDAK perlu pengecualian kategori apa pun.
 // ============================================================================
 
 export const EXTRA_TIME_FEE_PERCENT: Record<"Fast" | "PRO", Record<ExtraTimeMinutes, number>> = {

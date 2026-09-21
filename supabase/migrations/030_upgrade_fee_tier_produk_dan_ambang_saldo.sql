@@ -13,10 +13,10 @@
 --   Reguler      >30 order, rating >=4.5              14%        12%
 --   Terpercaya   >100 order, rating >=4.7              13%        11%
 --
--- ASUMSI yang perlu Anda konfirmasi: syarat "0 pelanggaran" untuk tier
--- Terpercaya (migrasi 024) DIPERTAHANKAN di sini walau dokumen baru tidak
--- menyebutnya eksplisit -- kalau ternyata mau dihapus, tinggal hapus kondisi
--- `violation_count = 0` di mitra_fee_percent()/mitra_tier_info() di bawah.
+-- DIKONFIRMASI Anda (21 September 2026): syarat "0 pelanggaran" untuk tier
+-- Terpercaya (migrasi 024) TETAP BERLAKU di sini walau dokumen baru tidak
+-- menyebutnya eksplisit -- kondisi `violation_count = 0` di
+-- mitra_fee_percent()/mitra_tier_info() di bawah SENGAJA dipertahankan.
 --
 -- Ambang saldo minimum mitra: dokumen menyebut "AMBANG BATAS 15% dari produk
 -- berlabel FAST" -- DIBACA (dikonfirmasi Anda) sebagai saldo minimum FLAT =
@@ -143,7 +143,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.mitra_fee_percent(UUID, TEXT) IS
-  'Persentase fee platform BARU (dokumen struktur website versi baru, 20 September 2026), tergantung tier mitra DAN label Fast/PRO produk: Baru 15%/13%, Reguler 14%/12%, Terpercaya 13%/11% (Fast/PRO). Menggantikan mitra_fee_percent(uuid) 1-argumen (migrasi 024, 7/8/10% flat) yang di-drop di migrasi ini. ASUMSI: syarat "0 pelanggaran" utk Terpercaya dipertahankan dari migrasi 024, dokumen baru tidak menyebutnya eksplisit -- konfirmasi ke pemilik produk.';
+  'Persentase fee platform BARU (dokumen struktur website versi baru, 20 September 2026), tergantung tier mitra DAN label Fast/PRO produk: Baru 15%/13%, Reguler 14%/12%, Terpercaya 13%/11% (Fast/PRO). Menggantikan mitra_fee_percent(uuid) 1-argumen (migrasi 024, 7/8/10% flat) yang di-drop di migrasi ini. Syarat "0 pelanggaran" utk Terpercaya dipertahankan dari migrasi 024 -- DIKONFIRMASI pemilik produk (21 September 2026) tetap berlaku walau dokumen baru tidak menyebutnya eksplisit.';
 
 GRANT EXECUTE ON FUNCTION public.mitra_fee_percent(UUID, TEXT) TO authenticated;
 
