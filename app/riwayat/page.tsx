@@ -44,6 +44,17 @@
 // sama sekali -- gap konsistensi dari versi lama). (2) tombol "Pesan Lagi"
 // diarahkan ke "/pesan" (form order sekarang halaman sendiri), bukan lagi
 // "/#pesan" (anchor lama di beranda yang sudah tidak ada).
+//
+// REVISI (21 September 2026, dari Anda langsung): "Akunku selain fungsi
+// cek riwayat pesanan, kolom chat in app, dan profil klien (nama dan
+// alamat serta kolom foto bisa pakai avatar." -- bar kecil nama+nomor+
+// tombol Keluar yang sebelumnya di sini DIGANTI <ProfilKlien /> (baru,
+// lihat components/ProfilKlien.tsx): kartu profil dengan avatar inisial,
+// nama & alamat yang bisa diubah langsung (tersimpan lewat PATCH
+// /api/customer/profile, baru -- alamat sekarang kolom di tabel
+// `customers`, lihat migrasi 032_customer_profile_address.sql), plus
+// tombol Keluar yang tadinya di bar itu. Fungsi riwayat pesanan & chat
+// in-app (<OrderChatCustomer />) di bawahnya TIDAK berubah.
 
 "use client";
 
@@ -53,6 +64,7 @@ import { formatRupiah } from "@/lib/services";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CustomerAuthPanel, { type SessionCustomer } from "@/components/CustomerAuthPanel";
+import ProfilKlien from "@/components/ProfilKlien";
 import OrderChatCustomer from "@/components/OrderChatCustomer";
 import ExtraTimeButton from "@/components/ExtraTimeButton";
 
@@ -171,15 +183,7 @@ export default function RiwayatPage() {
 
         {customer && (
           <>
-            <div className="mt-6 flex items-center justify-between rounded-lg border border-white/15 bg-white/5 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-white">{customer.name}</p>
-                <p className="text-xs text-white/50">{customer.phone}</p>
-              </div>
-              <button onClick={handleLogout} className="text-xs font-medium text-bridge underline">
-                Keluar
-              </button>
-            </div>
+            <ProfilKlien customer={customer} onLogout={handleLogout} onUpdated={setCustomer} />
 
             {error && <p className="mt-4 text-sm text-red-300">{error}</p>}
 

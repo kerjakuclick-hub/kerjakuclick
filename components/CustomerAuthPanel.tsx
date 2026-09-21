@@ -10,7 +10,11 @@
 
 import { useState } from "react";
 
-export type SessionCustomer = { id: string; name: string; phone: string };
+// Field `address` (21 September 2026, fitur "Profil Klien" di AkunKU)
+// opsional -- response login/register belum menyertakannya (alamat baru
+// terisi lewat kartu Profil Klien di /riwayat), tapi /api/customer/me
+// sudah menyertakannya untuk pelanggan yang sudah pernah mengisi.
+export type SessionCustomer = { id: string; name: string; phone: string; address?: string | null };
 
 export default function CustomerAuthPanel({
   onAuthenticated,

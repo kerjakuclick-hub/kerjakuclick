@@ -19,6 +19,15 @@
 //   4. Reset PIN: pelanggan chat "reset pin" ke CS WA -> webhook Fonnte
 //      kirim OTP 6 digit ke nomor WA yang sama -> pelanggan masukkan OTP
 //      + PIN baru di halaman web -> confirmPinReset() verifikasi & update.
+//
+// Perubahan (21 September 2026) -- fitur "Profil Klien" di AkunKU: kolom
+// `address` (migrasi 032_customer_profile_address.sql) sekarang ikut
+// dibaca di getCustomerFromToken() supaya halaman /riwayat (AkunKU) bisa
+// menampilkan alamat tersimpan pelanggan begitu sesi dimuat. Field ini
+// OPSIONAL di tipe SessionCustomer (bisa null/undefined) supaya response
+// login & register yang belum menyertakan `address` tetap valid secara
+// tipe -- alamat baru terisi setelah pelanggan simpan lewat kartu Profil
+// Klien (app/api/customer/profile/route.ts, baru).
 
 import { randomBytes, randomInt, scryptSync, timingSafeEqual, createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -87,7 +96,12 @@ export async function createCustomerSession(customerId: string) {
   return { token, expiresAt };
 }
 
-export type SessionCustomer = { id: string; name: string; phone: string };
+export type SessionCustomer = {
+  id: string;
+  name: string;
+  phone: string;
+  address?: string | null;
+};
 
 export async function getCustomerFromToken(
   token: string | undefined
@@ -105,7 +119,7 @@ export async function getCustomerFromToken(
 
   const { data: customer } = await admin
     .from("customers")
-    .select("id, name, phone")
+    .select("id, name, phone, address")
     .eq("id", session.customer_id)
     .maybeSingle();
 
