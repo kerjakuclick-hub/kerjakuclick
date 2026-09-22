@@ -51,7 +51,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { formatRupiah, getPlatformFeePercent, getMaterialCost, getTransportCost, type MitraTierName } from "@/lib/services";
+import { formatRupiah, getPlatformFeePercent, getMaterialCost, getTransportCost, type MitraLoyaltyTier } from "@/lib/services";
 import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, Transaction, Earning, Invoice } from "@/lib/types";
 
@@ -87,11 +87,13 @@ export default function TaskList({
   transactions: Transaction[];
   earnings: Earning[];
   invoices: Invoice[];
-  /** Nama tier mitra saat ini ("Baru"/"Reguler"/"Terpercaya") -- migrasi 030.
-   *  Persentase fee TIDAK lagi satu angka tunggal: sejak migrasi 030 beda
-   *  per order tergantung label Fast/PRO produknya, jadi dihitung per-order
-   *  di bawah lewat getPlatformFeePercent(tierName, order.service_type). */
-  tierName: MitraTierName;
+  /** Nama tier loyalty mitra saat ini ("New"/"Reguler"/"Commit"/"Pro") --
+   *  migrasi 034 (Program Loyalty Tier final, 22 September 2026), berdasar
+   *  job selesai bulan kalender berjalan (bukan lagi total order seumur
+   *  hidup + rating). Persentase fee TIDAK satu angka tunggal: beda per
+   *  order tergantung label Fast/PRO produknya, jadi dihitung per-order di
+   *  bawah lewat getPlatformFeePercent(tierName, order.service_type). */
+  tierName: MitraLoyaltyTier;
 }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);

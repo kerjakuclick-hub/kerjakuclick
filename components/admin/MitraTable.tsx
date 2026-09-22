@@ -30,15 +30,32 @@
 //   - Badge peringatan saldo mitra ("merah" kalau di bawah ambang) DULU
 //     dihitung dinamis dari 20% harga termurah (MIN_TARIF) -- sekarang
 //     pakai ambang FLAT MITRA_WALLET_MIN_BALANCE (15% x harga Setrika
-//     Fast = Rp8.250) yang sama persis dengan validasi assign mitra
+//     Fast) yang sama persis dengan validasi assign mitra
 //     (app/api/admin/orders/assign/route.ts) & RPC mitra_wallet_threshold()
 //     di database, supaya tidak ada 2 angka ambang saldo yang beda-beda.
+//
+// Perubahan FINAL (22 September 2026) -- Program Loyalty Tier (migrasi 034):
+//   - Kolom "Status" (training/ahli) SEKARANG BISA DIKLIK admin utk diubah
+//     -- sebelumnya cuma badge read-only, padahal status ini sekarang jadi
+//     syarat dasar tier loyalty (training = tier New selamanya, ahli =
+//     syarat masuk Reguler/Commit/Pro). Dipindah ke handleUpdateAttributes()
+//     yang sudah ada (pola sama dengan gender/skill_category).
+//   - Kolom BARU "Tier Loyalty" menampilkan tier (New/Reguler/Commit/Pro),
+//     fee Fast/PRO saat ini, job selesai bulan kalender berjalan, & progres
+//     ke tier berikutnya -- dari RPC mitra_tier_info() yang diambil sekali
+//     di app/admin/mitra/page.tsx (prop baru `tierInfoByMitraId`), BUKAN
+//     dihitung ulang di sini.
+//   - TrustSafetyCell ditambah toggle "Aktif Sosmed" (kolom baru
+//     profiles.sosmed_active) -- syarat tier Pro, diisi manual admin sama
+//     seperti violation_count, TAPI langsung lewat handleUpdateAttributes()
+//     (bukan endpoint /violations yang khusus catatan pelanggaran
+//     beralasan) karena ini murni status ya/tidak, bukan riwayat.
 
 "use client";
 
 import { useRef, useState } from "react";
 import { formatRupiah, MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
-import type { MitraProfile, MitraViolation } from "@/lib/types";
+import type { MitraProfile, MitraViolation, MitraTierInfo } from "@/lib/types";
 
 const SKILL_GROUPS: { label: string; options: string[] }[] = [
   { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah"] },
@@ -201,11 +218,41 @@ function AvailabilityBadge({ mitra }: { mitra: MitraProfile }) {
   );
 }
 
+/** BARU (22 September 2026) -- ringkasan tier loyalty mitra (Program
+ *  Loyalty Tier final, migrasi 034): nama tier, fee Fast/PRO saat ini, job
+ *  bulan kalender berjalan, & progres ke tier berikutnya. Murni tampilan
+ *  (data dari RPC mitra_tier_info() yang sudah diambil di server component
+ *  app/admin/mitra/page.tsx) -- tidak ada interaksi di sini. */
+function TierLoyaltyCell({ tierInfo }: { tierInfo: MitraTierInfo | null | undefined }) {
+  if (!tierInfo) {
+    return <span className="text-xs text-ink/40">-</span>;
+  }
+  return (
+    <div className="min-w-[160px] text-xs">
+      <span className="inline-block rounded-full bg-bridge/25 px-2 py-1 font-semibold text-bay-deep">
+        {tierInfo.tier_name}
+      </span>
+      <p className="mt-1 text-ink/60">
+        {Math.round(tierInfo.fast_fee_percent * 100)}% Fast · {Math.round(tierInfo.pro_fee_percent * 100)}% PRO
+      </p>
+      <p className="mt-0.5 text-ink/50">{tierInfo.monthly_completed_orders} job bulan ini</p>
+      {tierInfo.next_tier_name && (
+        <p className="mt-0.5 text-bay-deep">
+          Ke {tierInfo.next_tier_name}: +{tierInfo.next_tier_jobs_needed} job
+        </p>
+      )}
+    </div>
+  );
+}
+
 function TrustSafetyCell({
   mitra,
+  onToggleSosmed,
   onUpdated,
 }: {
   mitra: MitraProfile;
+  /** BARU (22 September 2026) -- toggle "Aktif Sosmed" (syarat tier Pro). */
+  onToggleSosmed: (mitraId: string, next: boolean) => void;
   onUpdated: (updated: MitraProfile) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -285,6 +332,18 @@ function TrustSafetyCell({
       >
         {mitra.violation_count} pelanggaran
       </button>
+      {/* BARU (22 September 2026) -- syarat "AKTIF SOSMED" tier Pro (Program
+          Loyalty Tier final). Toggle langsung (bukan endpoint /violations
+          yang khusus catatan beralasan) karena ini status ya/tidak biasa. */}
+      <button
+        onClick={() => onToggleSosmed(mitra.id, !mitra.sosmed_active)}
+        className={`ml-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+          mitra.sosmed_active ? "bg-wa/20 text-wa" : "bg-line text-ink/50"
+        }`}
+        title="Syarat tier loyalty Pro -- centang kalau mitra memang aktif promosi di media sosialnya"
+      >
+        {mitra.sosmed_active ? "✓ Sosmed" : "Sosmed"}
+      </button>
 
       {open && (
         <div className="mt-2 space-y-2 rounded-lg border border-line bg-paper p-2">
@@ -338,7 +397,16 @@ function TrustSafetyCell({
   );
 }
 
-export default function MitraTable({ initialMitra }: { initialMitra: MitraProfile[] }) {
+export default function MitraTable({
+  initialMitra,
+  tierInfoByMitraId,
+}: {
+  initialMitra: MitraProfile[];
+  /** BARU (22 September 2026) -- tier loyalty tiap mitra (RPC
+   *  mitra_tier_info(), diambil di app/admin/mitra/page.tsx), keyed by
+   *  mitra id. `undefined`/`null` ditangani sebagai "-" oleh TierLoyaltyCell. */
+  tierInfoByMitraId: Record<string, MitraTierInfo | null>;
+}) {
   const [mitra, setMitra] = useState<MitraProfile[]>(initialMitra);
   const [topupAmount, setTopupAmount] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -394,7 +462,14 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
 
   async function handleUpdateAttributes(
     id: string,
-    fields: { gender?: string; skill_category?: string[] }
+    fields: {
+      gender?: string;
+      skill_category?: string[];
+      /** BARU (22 September 2026) -- syarat dasar tier loyalty. */
+      status?: "training" | "ahli";
+      /** BARU (22 September 2026) -- syarat tier loyalty Pro. */
+      sosmed_active?: boolean;
+    }
   ) {
     setBusyId(id);
     try {
@@ -504,7 +579,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
       )}
 
       <div className="overflow-x-auto rounded-card border border-line bg-white shadow-card">
-        <table className="w-full min-w-[1080px] text-left text-sm">
+        <table className="w-full min-w-[1260px] text-left text-sm">
           <thead className="border-b border-line bg-paper text-xs uppercase text-ink/50">
             <tr>
               <th className="px-4 py-3">Foto</th>
@@ -517,6 +592,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
               <th className="px-4 py-3">Aktif</th>
               <th className="px-4 py-3">Ketersediaan</th>
               <th className="px-4 py-3">Trust &amp; Safety</th>
+              <th className="px-4 py-3">Tier Loyalty</th>
               <th className="px-4 py-3">Top Up</th>
             </tr>
           </thead>
@@ -557,9 +633,21 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                   />
                 </td>
                 <td className="px-4 py-3 align-top">
-                  <span className="rounded-full bg-bridge/25 px-2 py-1 text-xs font-medium text-bay-deep">
+                  {/* BARU (22 September 2026): sekarang bisa diklik -- status
+                      ini syarat dasar tier loyalty (training = tier New
+                      selamanya, ahli = syarat masuk Reguler/Commit/Pro). */}
+                  <button
+                    onClick={() =>
+                      handleUpdateAttributes(m.id, {
+                        status: m.status === "training" ? "ahli" : "training",
+                      })
+                    }
+                    disabled={busyId === m.id}
+                    className="rounded-full bg-bridge/25 px-2 py-1 text-xs font-medium text-bay-deep disabled:opacity-60"
+                    title="Klik untuk ganti Training/Ahli -- syarat dasar tier loyalty"
+                  >
                     {m.status}
-                  </span>
+                  </button>
                 </td>
                 <td className="px-4 py-3 align-top">
                   <button
@@ -576,7 +664,16 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
                   <AvailabilityBadge mitra={m} />
                 </td>
                 <td className="px-4 py-3 align-top">
-                  <TrustSafetyCell mitra={m} onUpdated={updateMitraInState} />
+                  <TrustSafetyCell
+                    mitra={m}
+                    onUpdated={updateMitraInState}
+                    onToggleSosmed={(mitraId, next) =>
+                      handleUpdateAttributes(mitraId, { sosmed_active: next })
+                    }
+                  />
+                </td>
+                <td className="px-4 py-3 align-top">
+                  <TierLoyaltyCell tierInfo={tierInfoByMitraId[m.id]} />
                 </td>
                 <td className="px-4 py-3 align-top">
                   <div className="flex gap-1.5">
@@ -602,7 +699,7 @@ export default function MitraTable({ initialMitra }: { initialMitra: MitraProfil
             ))}
             {mitra.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-8 text-center text-sm text-ink/50">
+                <td colSpan={12} className="px-4 py-8 text-center text-sm text-ink/50">
                   Belum ada mitra terdaftar.
                 </td>
               </tr>

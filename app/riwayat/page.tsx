@@ -84,7 +84,7 @@ type RiwayatOrder = {
   customer_phone: string;
   extra_time_minutes: number;
   extra_time_price: number;
-  extra_time_rates: { 30: number; 60: number } | null;
+  extra_time_rates: { minutes: 30 | 60; price: number } | null; // 22 Sep 2026: 1 opsi fixed per label produk, bukan lagi {30, 60}
   invoice_notified_at: string | null;
   invoice: { file_url: string; created_at: string } | null;
 };

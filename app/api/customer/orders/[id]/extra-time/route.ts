@@ -23,17 +23,19 @@
 //
 // PERUBAHAN BESAR (20 September 2026) -- migrasi "Upgrade Fee Tier Produk"
 // (dokumen "UPDATE WEBSITE KERJAKU.CLICK"): tabel rate flat EXTRA_TIME_RATES
-// lama DIHAPUS TOTAL, diganti rumus baru yang TERGANTUNG TIER MITRA yang
-// sedang mengerjakan order ini (Fee Platform Tambah Waktu 3/6% Fast atau
-// 4/8% PRO dari harga jual, DITAMBAH "Komponen Biaya Upah Mitra" yang
-// besarnya beda per tier mitra -- lihat getExtraTimePrice() di
-// lib/services.ts untuk rumus & contoh lengkap). Makanya endpoint ini
-// sekarang perlu ambil tier mitra ybs dulu lewat RPC mitra_tier_info()
-// sebelum menghitung harga -- SEBELUMNYA tarif flat per kategori, tidak
-// perlu tahu siapa mitranya. Berlaku untuk SEMUA produk orderable berlabel
-// Fast/PRO (ASUMSI, lihat catatan di getExtraTimePrice() -- termasuk Les
-// Private sekarang; Cuci Kendaraan sudah dihapus total dari sistem sejak
-// migrasi 030).
+// lama DIHAPUS TOTAL, diganti rumus yang TERGANTUNG TIER MITRA yang sedang
+// mengerjakan order ini -- makanya endpoint ini perlu ambil tier mitra ybs
+// dulu lewat RPC mitra_tier_info() sebelum menghitung harga.
+//
+// PERUBAHAN FINAL (22 September 2026) -- dokumen "Logika Hitung Harga Tambah
+// Waktu" (final): rumus getExtraTimePrice() DIHITUNG ULANG TOTAL (lebih
+// sederhana, lihat lib/services.ts), DAN durasi tambah waktu SEKARANG FIXED
+// per label produk -- Fast HANYA +30 menit, PRO HANYA +60 menit (BUKAN LAGI
+// bebas pilih 30/60 utk semua produk). `minutes` dari body request TETAP
+// divalidasi di sini (bukan dihitung otomatis dari label) supaya kalau ada
+// bug di client (ExtraTimeButton.tsx mengirim durasi yang salah utk label
+// produk ybs), error-nya jelas ketahuan di sini, bukan diam-diam dipaksa
+// benar.
 //
 // Begitu berhasil: total_price pesanan bertambah, DAN sebuah pesan sistem
 // otomatis masuk ke Chat Pesanan (order_messages) supaya mitra langsung
@@ -43,7 +45,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
-import { getExtraTimePrice, formatRupiah, type MitraTierName } from "@/lib/services";
+import {
+  getExtraTimePrice,
+  formatRupiah,
+  findServiceByLabel,
+  EXTRA_TIME_MINUTES_BY_LABEL,
+  type MitraLoyaltyTier,
+} from "@/lib/services";
 import { sendFonnteMessage, buildExtraTimeAddedMessage } from "@/lib/whatsapp";
 
 /** Sama persis dengan app/api/customer/riwayat/route.ts & .../messages/
@@ -112,8 +120,30 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
   }
 
-  // Tier mitra ybs menentukan "Komponen Biaya Upah Mitra" dalam rumus tambah
-  // waktu (lihat catatan di atas + getExtraTimePrice() di lib/services.ts).
+  // BARU (22 September 2026, dokumen "Logika Hitung Harga Tambah Waktu"
+  // final): durasi tambah waktu SEKARANG FIXED per label produk -- Fast
+  // HANYA +30 menit, PRO HANYA +60 menit. Dicek eksplisit di sini (bukan
+  // cuma mengandalkan getExtraTimePrice() balik null) supaya klien dapat
+  // pesan error yang jelas kalau kliknya salah durasi.
+  const variant = findServiceByLabel(order.service_type);
+  if (!variant) {
+    return NextResponse.json(
+      { error: "Tambah waktu tidak berlaku untuk jenis layanan ini." },
+      { status: 400 }
+    );
+  }
+  const requiredMinutes = EXTRA_TIME_MINUTES_BY_LABEL[variant.tier];
+  if ((minutes as 30 | 60) !== requiredMinutes) {
+    return NextResponse.json(
+      {
+        error: `Layanan ${variant.tier} hanya bisa ditambah ${requiredMinutes} menit, bukan ${minutes} menit.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // Tier loyalty mitra ybs menentukan Fee Platform dalam rumus tambah waktu
+  // (lihat catatan di atas + getExtraTimePrice() di lib/services.ts).
   const { data: tierInfoRows, error: tierError } = await admin.rpc("mitra_tier_info", {
     p_mitra_id: order.mitra_id,
   });
@@ -123,7 +153,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       { status: 500 }
     );
   }
-  const tierName = (tierInfoRows?.[0]?.tier_name as MitraTierName | undefined) ?? "Baru";
+  const tierName = (tierInfoRows?.[0]?.tier_name as MitraLoyaltyTier | undefined) ?? "New";
 
   const extraPrice = getExtraTimePrice(tierName, order.service_type, minutes as 30 | 60);
   if (extraPrice === null) {
