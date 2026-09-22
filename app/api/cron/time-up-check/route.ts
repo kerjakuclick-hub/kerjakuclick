@@ -34,12 +34,22 @@
 // JANGAN LUPA (di luar kode, tidak bisa diubah lewat file ini):
 //   1. Tambah env var CRON_SECRET di Vercel (isi dengan string acak, misalnya
 //      hasil `openssl rand -hex 32` di terminal Anda), lalu redeploy.
-//   2. Di Supabase Dashboard -> SQL Editor (BUKAN lewat file migrasi yang
-//      ikut ke-commit ke git -- supaya rahasianya tidak bocor ke riwayat git
-//      Anda), jalankan SEKALI SAJA:
-//        ALTER DATABASE postgres SET app.settings.cron_secret = 'NILAI_SAMA_PERSIS_DENGAN_CRON_SECRET_DI_VERCEL';
-//      (Ganti 'postgres' kalau nama database Anda beda -- cek di Project
-//      Settings -> Database -> Connection info -- biasanya memang 'postgres').
+//   2. Di Supabase Dashboard -> SQL Editor, jalankan SEKALI SAJA (BUKAN
+//      lewat file migrasi yang ikut ke-commit ke git -- supaya rahasianya
+//      tidak bocor ke riwayat git Anda):
+//        select vault.create_secret(
+//          'NILAI_SAMA_PERSIS_DENGAN_CRON_SECRET_DI_VERCEL',
+//          'kerjakuclick_cron_secret',
+//          'Header x-cron-secret untuk endpoint /api/cron/time-up-check kerjaku.click'
+//        );
+//      DIPERBAIKI (migrasi 036) -- PERCOBAAN PERTAMA pakai
+//      `ALTER DATABASE postgres SET app.settings.cron_secret = '...'`
+//      TERNYATA ditolak Supabase ("permission denied to set parameter",
+//      role yang dipakai SQL Editor tidak punya privilese ALTER DATABASE di
+//      project ini) -- diganti ke Supabase VAULT (vault.create_secret), fitur
+//      resmi Supabase yang memang dirancang untuk simpan rahasia semacam ini
+//      tanpa privilese ALTER DATABASE. Lihat migrasi 036 untuk jadwal cron
+//      yang sudah disesuaikan membaca dari vault.decrypted_secrets.
 //   Tanpa langkah 1 & 2 di atas, pg_cron TETAP terjadwal & memanggil endpoint
 //   ini tiap 5 menit, tapi selalu ditolak 401 (header rahasianya kosong/tidak
 //   cocok) -- tidak ada WA yang benar-benar terkirim sampai keduanya diisi.
