@@ -76,6 +76,11 @@ export type Order = {
   extra_time_requested_at: string | null; // BARU — migrasi 027
   invoice_notified_at: string | null; // BARU — migrasi 027: waktu invoice pembayaran berhasil terkirim otomatis ke WA klien
   invoice_notify_error: string | null; // BARU — migrasi 027: pesan error terakhir kalau pengiriman otomatis gagal
+  working_started_at: string | null; // BARU — migrasi 035 (fitur "Alarm Waktu Habis"): waktu mitra klik "Mulai Kerjakan" (assigned -> working), titik awal hitungan alarm
+  duration_minutes: number | null; // BARU — migrasi 035: snapshot estimasi durasi kerja (menit) dari lib/services.ts SAAT mitra mulai kerja, dikunci supaya tidak ikut berubah kalau katalog berubah belakangan
+  work_scope_snapshot: string | null; // BARU — migrasi 035: snapshot teks "Cakupan Area Kerja" (unit + rincian pekerjaan) SAAT mitra mulai kerja, ditampilkan di Dasbor Mitra & WA "waktu habis"
+  time_up_notified_at: string | null; // BARU — migrasi 035: waktu notifikasi WA "waktu kerja habis" PERTAMA KALI berhasil terkirim otomatis ke klien (dicek berkala oleh pg_cron, lihat app/api/cron/time-up-check/route.ts) -- juga diisi kalau mitra sendiri yang lebih dulu klik "Ingatkan Klien"
+  time_up_notify_error: string | null; // BARU — migrasi 035: pesan error terakhir kalau notifikasi otomatis "waktu habis" gagal terkirim
 };
 
 export type MitraOption = {

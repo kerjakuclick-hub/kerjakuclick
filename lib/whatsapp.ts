@@ -61,7 +61,7 @@
 //      (nilai secret yang SAMA seperti sebelumnya), supaya pesan #BARU yang
 //      masuk ke nomor baru tetap otomatis tercatat jadi order.
 
-import { getServiceMaterials } from "./services";
+import { getServiceMaterials, getWorkScopeText, formatMinutesAsDurasi } from "./services";
 
 // Nomor WA TUNGGAL kerjaku.click -- +62 811-4110-9567. Nomor ini yang
 // tersambung ke Fonnte (webhook parsing #BARU) -- lihat catatan "Perubahan
@@ -262,6 +262,15 @@ export type MitraApprovedInput = {
  * sekarang menyebutkan mereknya secara singkat (1 baris, tidak menambah
  * panjang pesan secara berarti) supaya klien tahu sejak konfirmasi bahwa
  * bahan yang dipakai mitra sudah teruji & sesuai standar kerjaku.click.
+ *
+ * BARU (22 September 2026) -- fitur "Alarm Waktu Habis" (migrasi 035, temuan
+ * audit lapangan: hampir semua klien mengabaikan durasi & cakupan kerja yang
+ * disepakati, mitra segan menegur langsung -> lembur tanpa tambahan bayaran).
+ * Pesan ini SEKARANG mencantumkan durasi & cakupan kerja secara eksplisit
+ * (getWorkScopeText, lib/services.ts) + 1 kalimat penegasan bahwa kelebihan
+ * durasi/cakupan akan ditawari *Tambah Waktu* -- supaya batasannya sudah
+ * disampaikan SISTEM sejak awal, bukan mitra yang harus "menegur" klien
+ * sendiri di lapangan pertengahan kerja.
  */
 export function buildOrderApprovedMessage(
   order: OrderApprovedInput,
@@ -279,6 +288,7 @@ export function buildOrderApprovedMessage(
     materials && materials.length > 0
       ? `🧴 *Bahan Terstandar*: ${materials.map((m) => m.merek).join(" & ")} (sudah diuji & sesuai standar kerjaku.click)\n\n`
       : "";
+  const scopeText = getWorkScopeText(order.service_type);
 
   return (
     `Pesanan Anda sudah *disetujui* ✅ Mitra kami sudah ditugaskan.\n\n` +
@@ -287,6 +297,9 @@ export function buildOrderApprovedMessage(
     `Alamat: ${order.address}\n` +
     `Jadwal: ${jadwal}\n` +
     `Tarif: Rp${order.total_price.toLocaleString("id-ID")}\n\n` +
+    `⏳ *Durasi & Cakupan Kerja*\n` +
+    `${scopeText}\n\n` +
+    `⚠️ Durasi & cakupan di atas adalah standar paket ini yang sudah disepakati. Kalau pekerjaan di lokasi ternyata butuh lebih dari itu, mitra akan menawarkan *Tambah Waktu* (biaya tambahan sesuai tarif berlaku) -- bukan otomatis dikerjakan lebih lama tanpa persetujuan Anda dulu.\n\n` +
     `🧑‍🔧 *Mitra Bertugas*\n` +
     `Nama: ${mitra.name}\n` +
     `Status: ${statusLabel} (${ratingText})\n` +
@@ -407,5 +420,52 @@ export function buildPaymentInvoiceMessage(order: PaymentInvoiceInput, invoiceUr
     `(Juga bisa dilihat & diunduh kapan saja di halaman *Riwayat Pesanan* Anda: ${KLIEN_RIWAYAT_URL})\n\n` +
     `💳 Pembayaran tunai atau transfer langsung ke mitra kami sesuai kesepakatan di lokasi (bukan ke rekening kerjaku.click).\n\n` +
     `Ada pertanyaan seputar invoice ini? Chat lewat ikon 💬 di kerjaku.click.`
+  );
+}
+
+// ============================================================================
+// FILE BARU (fitur "Alarm Waktu Habis", diangkat dari temuan audit lapangan 22
+// September 2026: hampir semua klien mengabaikan durasi/cakupan kerja yang
+// disepakati, mitra segan menegur langsung -> lembur tanpa tambahan bayaran),
+// migrasi 035_alarm_waktu_habis_dan_detail_pesan_wa.sql. Notifikasi WA ini
+// dikirim ke KLIEN begitu durasi kerja (+ tambah waktu kalau ada) terlampaui,
+// dari 2 jalur:
+//   1. OTOMATIS -- pg_cron (Supabase) memanggil app/api/cron/time-up-check/
+//      route.ts tiap 5 menit, tanpa mitra perlu klik apa pun.
+//   2. MANUAL -- mitra klik tombol "Ingatkan Klien" di Dasbor Mitra begitu
+//      alarm muncul di layarnya (app/api/mitra/orders/remind-time-up/route.ts).
+// Kedua jalur pakai fungsi builder yang SAMA ini supaya isi pesannya identik
+// terlepas dari siapa/apa yang memicunya.
+// ============================================================================
+
+export type TimeUpInput = {
+  service_type: string;
+  address: string;
+  duration_minutes: number | null;
+  extra_time_minutes: number;
+  work_scope_snapshot: string | null;
+};
+
+/**
+ * Bangun teks notifikasi "waktu kerja habis" ke KLIEN. Menyebutkan lagi
+ * durasi & cakupan yang disepakati (dari snapshot `orders.work_scope_snapshot`
+ * kalau ada -- fallback ke lookup katalog terkini kalau order lama belum
+ * punya snapshot ini, migrasi 035) + arahan jelas: kalau memang sudah selesai
+ * abaikan saja, kalau masih berlangsung & mau lanjut silakan ajukan Tambah
+ * Waktu sendiri lewat halaman Riwayat Pesanan -- SISTEM yang menyampaikan
+ * batasan ini, bukan mitra secara pribadi.
+ */
+export function buildTimeUpMessage(order: TimeUpInput): string {
+  const totalDurasiMenit = (order.duration_minutes ?? 60) + (order.extra_time_minutes ?? 0);
+  const scopeText = order.work_scope_snapshot ?? getWorkScopeText(order.service_type);
+
+  return (
+    `⏰ *Waktu Kerja Sudah Habis*\n\n` +
+    `Jasa: ${order.service_type}\n` +
+    `Alamat: ${order.address}\n` +
+    `Estimasi durasi yang disepakati: ${formatMinutesAsDurasi(totalDurasiMenit)} (sudah termasuk tambah waktu kalau pernah diajukan)\n\n` +
+    `${scopeText}\n\n` +
+    `Kalau pekerjaan sudah selesai, abaikan pesan ini 🙏. Kalau masih berlangsung dan Anda ingin memberi waktu tambahan, silakan ajukan *Tambah Waktu* lewat halaman *Riwayat Pesanan* Anda: ${KLIEN_RIWAYAT_URL}\n\n` +
+    `Ada pertanyaan? Chat lewat ikon 💬 di kerjaku.click.`
   );
 }

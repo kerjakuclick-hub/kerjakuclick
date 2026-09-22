@@ -23,12 +23,26 @@
 // pekerjaan sudah selesai -- tidak perlu lagi unduh & kirim file manual.
 // Kedua langkah ini best-effort: kegagalannya TIDAK menggagalkan
 // penyelesaian tugas atau penerbitan invoice itu sendiri.
+//
+// Perubahan BARU (22 September 2026) -- fitur "Alarm Waktu Habis" (migrasi
+// 035, temuan audit lapangan: klien mengabaikan durasi/cakupan kerja, mitra
+// segan menegur -> lembur tanpa tambahan bayaran): begitu mitra klik "Mulai
+// Kerjakan" (assigned -> working), SEKARANG sekalian dicatat:
+//   - working_started_at = waktu saat ini -- titik awal hitungan alarm
+//     "waktu habis" (Dasbor Mitra & pengecekan pg_cron, lihat
+//     app/api/cron/time-up-check/route.ts).
+//   - duration_minutes & work_scope_snapshot = snapshot estimasi durasi &
+//     cakupan kerja dari katalog (lib/services.ts) SAAT ITU -- dikunci di
+//     order ybs supaya tidak ikut berubah kalau katalog berubah belakangan.
+// Query order di atas ditambah `service_type` supaya snapshot ini bisa
+// dihitung sebelum baris `orders` di-update.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { generatePaymentInvoiceForOrder } from "@/lib/pdf/generate-invoice";
 import { sendFonnteMessage, buildPaymentInvoiceMessage } from "@/lib/whatsapp";
+import { getDurationMinutes, getWorkScopeText } from "@/lib/services";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   assigned: ["working"],
@@ -61,7 +75,7 @@ export async function POST(req: NextRequest) {
 
   const { data: currentOrder, error: fetchError } = await supabase
     .from("orders")
-    .select("status, mitra_id")
+    .select("status, mitra_id, service_type")
     .eq("id", orderId)
     .single();
 
@@ -81,11 +95,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // BARU (migrasi 035) -- begitu mitra mulai kerja, kunci snapshot durasi &
+  // cakupan kerja + catat waktu mulai sebagai titik awal alarm "waktu habis".
+  const updateFields: Record<string, unknown> = { status };
+  if (status === "working") {
+    updateFields.working_started_at = new Date().toISOString();
+    updateFields.duration_minutes = getDurationMinutes(currentOrder.service_type);
+    updateFields.work_scope_snapshot = getWorkScopeText(currentOrder.service_type);
+  }
+
   // Pakai client bersesi mitra sendiri (bukan service role) supaya RLS
   // "orders_mitra_update_own" tetap jadi penjaga akses yang sesungguhnya.
   const { data: order, error } = await supabase
     .from("orders")
-    .update({ status })
+    .update(updateFields)
     .eq("id", orderId)
     .select()
     .single();

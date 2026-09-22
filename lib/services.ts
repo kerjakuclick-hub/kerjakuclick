@@ -492,3 +492,77 @@ export function getExtraTimePrice(
 export const MITRA_WALLET_MIN_BALANCE = Math.round(
   0.15 * (services.find((s) => s.id === "setrika-fast")?.price ?? 70000)
 ); // = Rp10.500
+
+// ============================================================================
+// BARU (22 September 2026) -- fitur "Alarm Waktu Habis" (migrasi 035), diangkat
+// dari temuan audit lapangan: hampir seluruh klien mengabaikan durasi & cakupan
+// kerja yang disepakati, dan mitra segan menegur klien secara langsung --
+// menyebabkan kerja lembur tanpa tambahan bayaran. Solusinya 3 bagian:
+//   1. WA "pesanan disetujui" (buildOrderApprovedMessage, lib/whatsapp.ts)
+//      SEKARANG mencantumkan durasi & cakupan kerja secara eksplisit, supaya
+//      batasannya sudah disampaikan SISTEM sejak awal -- bukan mitra yang
+//      harus "menegur" klien di lapangan.
+//   2. Dasbor Mitra menghitung mundur otomatis dari `working_started_at`
+//      (diisi migrasi 035 saat mitra klik "Mulai Kerjakan") + durasi/tambah
+//      waktu, dan menampilkan alarm + tombol "Ingatkan Klien" begitu waktu
+//      habis (components/mitra/TaskList.tsx).
+//   3. pg_cron (Supabase) mengecek tiap 5 menit lewat
+//      app/api/cron/time-up-check/route.ts, kirim WA otomatis ke klien kalau
+//      mitra belum sempat klik tombol pengingat manual.
+// Dua fungsi di bawah ini MURNI helper tampilan/perhitungan waktu (tidak ada
+// perhitungan uang) -- dipakai oleh lib/whatsapp.ts, TaskList.tsx, dan kedua
+// API route "time-up" di atas supaya format & cara hitungnya konsisten di
+// semua tempat.
+
+/** Ubah teks durasi bebas dari katalog (mis. "1 Jam", "1.5 Jam", "2,5 Jam")
+ *  jadi jumlah menit. Balikan 60 (fallback aman, kira-kira durasi Fast
+ *  tersingkat) kalau formatnya tidak dikenali -- seharusnya tidak pernah
+ *  terjadi untuk produk yang terdaftar di `services` di atas. */
+export function parseDurationMinutes(duration: string): number {
+  const match = duration.replace(",", ".").match(/(\d+(?:\.\d+)?)\s*jam/i);
+  if (!match) return 60;
+  return Math.round(parseFloat(match[1]) * 60);
+}
+
+/** Estimasi durasi (menit) sebuah pesanan, dari `service_type` yang
+ *  tersimpan di tabel orders. Dipakai untuk MENGISI snapshot
+ *  `orders.duration_minutes` saat mitra klik "Mulai Kerjakan" (migrasi 035) --
+ *  DIKUNCI di kolom itu supaya tidak ikut berubah kalau durasi produk di
+ *  katalog ini berubah belakangan (order yang sudah berjalan tetap pakai
+ *  acuan durasi saat itu). */
+export function getDurationMinutes(serviceType: string): number {
+  const variant = findServiceByLabel(serviceType);
+  return parseDurationMinutes(variant?.duration ?? "1 Jam");
+}
+
+/** Teks "Cakupan Area Kerja" siap-tampil untuk sebuah pesanan -- unit paket +
+ *  estimasi durasi + rincian pekerjaan (kalau ada). Dipakai di 3 tempat:
+ *  WA "pesanan disetujui" (klien tahu batasannya sejak awal), snapshot
+ *  `orders.work_scope_snapshot` yang dikunci saat "Mulai Kerjakan" (migrasi
+ *  035, supaya mitra & klien punya acuan identik yang tidak berubah walau
+ *  katalog berubah), dan WA "waktu habis" (mengingatkan cakupan yang
+ *  disepakati). Balikan "-" kalau service_type tidak dikenali (seharusnya
+ *  tidak pernah terjadi untuk produk yang terdaftar). */
+export function getWorkScopeText(serviceType: string): string {
+  const variant = findServiceByLabel(serviceType);
+  if (!variant) return "-";
+  const lines = [`Cakupan: ${variant.unit}`, `Estimasi durasi: ${variant.duration}`];
+  if (variant.detilPekerjaan && variant.detilPekerjaan.length > 0) {
+    lines.push(...variant.detilPekerjaan.map((d) => `• ${d}`));
+  }
+  return lines.join("\n");
+}
+
+/** Format jumlah menit jadi teks Indonesia ringkas ("90 menit" -> "1 jam 30
+ *  menit"). Dipakai untuk menampilkan sisa waktu/keterlambatan di Dasbor
+ *  Mitra & WA "waktu habis" -- angka menit mentah kurang enak dibaca kalau
+ *  sudah lebih dari 1 jam. */
+export function formatMinutesAsDurasi(minutes: number): string {
+  const bulat = Math.max(0, Math.round(minutes));
+  if (bulat === 0) return "0 menit";
+  const jam = Math.floor(bulat / 60);
+  const sisaMenit = bulat % 60;
+  if (jam === 0) return `${sisaMenit} menit`;
+  if (sisaMenit === 0) return `${jam} jam`;
+  return `${jam} jam ${sisaMenit} menit`;
+}
