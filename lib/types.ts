@@ -63,7 +63,8 @@ export type Order = {
   mitra_id: string | null;
   status: OrderStatus;
   created_at: string;
-  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007) -- SEKARANG HANYA acuan lama/tampilan; ambang kelayakan riil sejak migrasi 030 adalah FLAT (lihat mitra_wallet_threshold()/MITRA_WALLET_MIN_BALANCE, Rp8.250), bukan lagi 20% ataupun dinamis per tier (migrasi 024/028)
+  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007) -- SEKARANG HANYA acuan lama/tampilan; ambang kelayakan riil sejak migrasi 030/034 adalah FLAT (lihat mitra_wallet_threshold()/MITRA_WALLET_MIN_BALANCE, Rp10.500 sejak 22 Sep 2026), bukan lagi 20% ataupun dinamis per tier (migrasi 024/028)
+  completed_at: string | null; // BARU — migrasi 034 (22 September 2026): waktu order status berubah jadi 'completed' (diisi otomatis oleh trigger), dipakai utk hitung "job selesai bulan kalender berjalan" pada Program Loyalty Tier. Data lama (completed sebelum migrasi 034) di-backfill dari created_at sebagai pendekatan.
   mitra_id_card_sent_at: string | null; // migrasi 017 — TIDAK dipakai lagi sejak notifikasi klien otomatis (migrasi 020), dibiarkan ada di DB untuk histori
   mitra_id_card_sent_by: string | null; // migrasi 017 — idem
   client_notified_at: string | null; // BARU — migrasi 020: waktu notifikasi WA "pesanan disetujui" berhasil terkirim otomatis
@@ -98,7 +99,8 @@ export type MitraProfile = {
   is_available: boolean; // BARU — migrasi 023: toggle ketersediaan milik mitra sendiri
   unavailable_reason: string | null; // BARU — migrasi 023: alasan saat is_available = false
   unavailable_since: string | null; // BARU — migrasi 023: sejak kapan is_available = false
-  violation_count: number; // BARU — migrasi 024: jumlah pelanggaran tercatat, syarat naik tier Terpercaya (0 pelanggaran, tier "Unggulan" sudah dihapus sejak migrasi 030), diisi manual admin, default 0
+  violation_count: number; // BARU — migrasi 024: jumlah pelanggaran tercatat, syarat naik tier (0 pelanggaran wajib utk tier Commit & Pro sejak migrasi 034 -- Program Loyalty Tier final), diisi manual admin lewat Trust & Safety, default 0
+  sosmed_active: boolean; // BARU — migrasi 034 (Program Loyalty Tier final, 22 September 2026): syarat "AKTIF SOSMED" utk tier Pro (fee terendah). Diisi manual admin lewat halaman Kelola Mitra, default false.
 };
 
 export type MitraSelfProfile = MitraProfile;
@@ -167,21 +169,24 @@ export type EligibleMitra = {
   fee_percent: number; // migrasi 024, dihitung ulang sejak migrasi 030: persentase fee tier mitra x label Fast/PRO produk order ini (11-15%, lihat mitra_fee_percent(uuid, text)/MitraTierInfo) -- SEKARANG cuma untuk tampilan estimasi di dropdown admin, BUKAN lagi ambang saldo (ambang kelayakan riil sejak migrasi 030 adalah FLAT, lihat mitra_wallet_threshold())
 };
 
-// Hasil RPC mitra_tier_info() — migrasi 024, GANTI TOTAL migrasi 030 (20
-// September 2026, dokumen struktur website versi baru): fee sekarang 2
-// dimensi (tier mitra x label Fast/PRO produk), jadi dikembalikan sebagai
-// fast_fee_percent & pro_fee_percent terpisah (bukan lagi satu fee_percent).
-// Tier "Unggulan" dihapus -- cuma 3 tier sekarang (Baru/Reguler/Terpercaya).
+// Hasil RPC mitra_tier_info() — migrasi 024, GANTI TOTAL migrasi 030, GANTI
+// TOTAL LAGI migrasi 034 (22 September 2026, Program Loyalty Tier FINAL):
+// tier SEKARANG dari JUMLAH JOB SELESAI BULAN KALENDER BERJALAN (bukan lagi
+// total order seumur hidup) + status aktif + 0 pelanggaran + aktif sosmed --
+// RATING DIHAPUS TOTAL dari syarat tier (next_tier_rating_needed & rating
+// dibuang dari sini, completed_orders lifetime diganti
+// monthly_completed_orders). 4 tier sekarang: New/Reguler/Commit/Pro
+// (menggantikan Baru/Reguler/Terpercaya).
 export type MitraTierInfo = {
-  tier_name: "Baru" | "Reguler" | "Terpercaya";
-  fast_fee_percent: number; // 0.15 | 0.14 | 0.13
-  pro_fee_percent: number; // 0.13 | 0.12 | 0.11
-  completed_orders: number;
-  rating: number | null;
+  tier_name: "New" | "Reguler" | "Commit" | "Pro";
+  fast_fee_percent: number; // 0.13 | 0.12 | 0.11 | 0.10
+  pro_fee_percent: number; // 0.10 | 0.09 | 0.08 | 0.07
+  monthly_completed_orders: number; // job selesai bulan kalender berjalan (reset tiap tanggal 1)
+  status: "training" | "ahli"; // syarat dasar tier Reguler+ ('ahli') vs New ('training')
   violation_count: number;
-  next_tier_name: string | null; // null kalau sudah di tier tertinggi (Terpercaya)
-  next_tier_orders_needed: number | null;
-  next_tier_rating_needed: number | null;
+  sosmed_active: boolean;
+  next_tier_name: string | null; // null kalau sudah di tier tertinggi (Pro)
+  next_tier_jobs_needed: number | null; // job lagi bulan ini yang dibutuhkan utk tier berikutnya
 };
 
 // ============================================================================

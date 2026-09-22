@@ -37,14 +37,20 @@
 // baru, migrasi 030: skema fee sekarang 2 dimensi (tier mitra x label
 // Fast/PRO produk), jadi RPC mitra_tier_info() sekarang balikan
 // fast_fee_percent & pro_fee_percent terpisah (bukan satu fee_percent) --
-// kartu "Tier Mitra & Fee Platform" menampilkan KEDUANYA sekaligus. Ambang
-// peringatan saldo sekarang pakai MITRA_WALLET_MIN_BALANCE (FLAT, Rp8.250,
-// dari lib/services.ts) menggantikan hitungan dinamis MIN_TARIF x feePercent
-// lama. `feePercent` tunggal yang dulu diteruskan ke <TaskList /> DIHAPUS --
-// TaskList sekarang menghitung sendiri persentase yang tepat PER ORDER (pakai
+// kartu "Tier Mitra & Fee Platform" menampilkan KEDUANYA sekaligus. `feePercent`
+// tunggal yang dulu diteruskan ke <TaskList /> DIHAPUS -- TaskList sekarang
+// menghitung sendiri persentase yang tepat PER ORDER (pakai
 // getPlatformFeePercent(tierName, order.service_type)) karena setiap order
-// bisa produk Fast atau PRO yang fee-nya beda. Teks "biaya teknologi tetap"
-// (migrasi 028) dihapus dari copy -- komponen itu sudah tidak ada lagi.
+// bisa produk Fast atau PRO yang fee-nya beda.
+//
+// Perubahan FINAL (22 September 2026) -- Program Loyalty Tier (migrasi 034):
+// tier SEKARANG New/Reguler/Commit/Pro (bukan lagi Baru/Reguler/Terpercaya),
+// dihitung dari JOB SELESAI BULAN KALENDER BERJALAN (bukan lagi total order
+// seumur hidup) + status aktif + 0 pelanggaran + aktif sosmed -- RATING
+// DIHAPUS TOTAL dari kartu "Tier Mitra" (tidak lagi jadi syarat kenaikan
+// tier apa pun). Kartu sekarang menampilkan "N job bulan ini" + progres job
+// (bukan lagi "N order selesai + rating"). Ambang peringatan saldo ikut naik
+// otomatis lewat MITRA_WALLET_MIN_BALANCE (Rp10.500, dari lib/services.ts).
 
 import { createClient } from "@/lib/supabase/server";
 import TaskList from "@/components/mitra/TaskList";
@@ -105,7 +111,7 @@ export default async function MitraDashboardPage() {
     p_mitra_id: user!.id,
   });
   const tierInfo: MitraTierInfo | null = tierInfoRows?.[0] ?? null;
-  const tierName = tierInfo?.tier_name ?? "Baru";
+  const tierName = tierInfo?.tier_name ?? "New";
 
   const saldoWarningThreshold = MITRA_WALLET_MIN_BALANCE;
 
@@ -155,18 +161,16 @@ export default async function MitraDashboardPage() {
           <p className="text-xs uppercase text-ink/50">Tier Mitra &amp; Fee Platform</p>
           <p className="mt-1 font-display text-xl font-semibold text-ink">{tierName}</p>
           <p className="mt-1 text-xs text-ink/60">
-            {Math.round((tierInfo?.fast_fee_percent ?? 0.15) * 100)}% fee layanan Fast ·{" "}
-            {Math.round((tierInfo?.pro_fee_percent ?? 0.13) * 100)}% fee layanan PRO
+            {Math.round((tierInfo?.fast_fee_percent ?? 0.13) * 100)}% fee layanan Fast ·{" "}
+            {Math.round((tierInfo?.pro_fee_percent ?? 0.1) * 100)}% fee layanan PRO
           </p>
           <p className="mt-1 text-xs text-ink/50">
-            {tierInfo?.completed_orders ?? 0} order selesai
-            {tierInfo?.rating != null ? ` · rating ${tierInfo.rating}` : ""}
+            {tierInfo?.monthly_completed_orders ?? 0} job selesai bulan ini
           </p>
           {tierInfo?.next_tier_name && (
             <p className="mt-1 text-xs text-bay-deep">
-              Menuju {tierInfo.next_tier_name}: butuh{" "}
-              {tierInfo.next_tier_orders_needed ?? 0} order lagi &amp; rating ≥{" "}
-              {tierInfo.next_tier_rating_needed}, tanpa pelanggaran.
+              Menuju {tierInfo.next_tier_name}: butuh {tierInfo.next_tier_jobs_needed ?? 0} job lagi
+              bulan ini.
             </p>
           )}
         </div>
@@ -189,10 +193,11 @@ export default async function MitraDashboardPage() {
         <h2 className="font-display text-lg font-semibold text-ink">Tugas Saya</h2>
         <p className="mt-1 text-sm text-ink/60">
           Daftar ini otomatis diperbarui saat admin menugaskan pesanan baru untuk Anda. Rincian
-          biaya di bawah dihitung memakai fee tier Anda saat ini ({tierName}) -- persentasenya beda
-          untuk pesanan layanan Fast ({Math.round((tierInfo?.fast_fee_percent ?? 0.15) * 100)}%) dan
-          PRO ({Math.round((tierInfo?.pro_fee_percent ?? 0.13) * 100)}%), tergantung pesanan yang
-          Anda kerjakan.
+          biaya di bawah dihitung memakai fee tier loyalty Anda saat ini ({tierName}) --
+          persentasenya beda untuk pesanan layanan Fast (
+          {Math.round((tierInfo?.fast_fee_percent ?? 0.13) * 100)}%) dan PRO (
+          {Math.round((tierInfo?.pro_fee_percent ?? 0.1) * 100)}%), tergantung pesanan yang Anda
+          kerjakan.
         </p>
         <div className="mt-4">
           <TaskList

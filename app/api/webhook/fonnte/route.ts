@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { findServiceByLabel } from "@/lib/services";
+import { findServiceByLabel, services, formatRupiah } from "@/lib/services";
 import { requestPinReset } from "@/lib/customerAuth";
 
 // Bentuk payload webhook Fonnte untuk pesan masuk (lihat docs.fonnte.com).
@@ -80,20 +80,36 @@ function isResetPinRequest(raw: string): boolean {
 // sudah Rp55rb/Rp85rb/Rp65rb/Rp100rb sejak 18 September) -- angka di bawah
 // disamakan lagi PERSIS dengan lib/services.ts. Baris Cuci Motor/Cuci Mobil
 // DIHAPUS (layanan ini dihapus total dari sistem), diganti baris Les
-// Private (sekarang jasa yang bisa dipesan langsung). Catatan: angka di
-// sini masih string manual, TIDAK otomatis ikut lib/services.ts kalau
-// berubah lagi nanti -- perlu diupdate manual di sini juga.
+// Private (sekarang jasa yang bisa dipesan langsung).
+//
+// PERBAIKAN PERMANEN (22 September 2026) -- harga NAIK LAGI (dokumen final
+// "Logika Hitung Harga Jual Paket") dan teks ini KETINGGALAN LAGI untuk
+// ketiga kalinya sebelum sempat dites -- pola yang sama persis dengan
+// peringatan di paragraf atas. Daripada menulis ulang angka manual (yang
+// terbukti berulang kali lupa disinkron), FAQ_PRICE_REPLY SEKARANG DIHITUNG
+// OTOMATIS dari `services` di lib/services.ts -- kalau harga/durasi berubah
+// lagi di sana, balasan WA ini OTOMATIS ikut berubah, TIDAK PERLU diedit
+// manual di sini lagi.
 // ========================================================================
+
+function faqPriceLine(emoji: string, label: string, serviceId: string): string {
+  const variant = services.find((s) => s.id === serviceId);
+  if (!variant) return ""; // aman kalau id-nya suatu saat dihapus/berubah
+  return `${emoji} ${label}: ${formatRupiah(variant.price)} (${variant.unit}, ±${variant.duration})\n`;
+}
 
 const FAQ_PRICE_REPLY =
   `Berikut harga layanan kerjaku.click ya kak 🙏\n\n` +
-  `🧺 Setrika Fast: Rp55.000 (20 pcs, ±1 jam)\n` +
-  `🧺 Setrika PRO: Rp85.000 (40 pcs, ±2 jam)\n` +
-  `🧹 Cleaning Fast: Rp65.000 (tipe 36/40, ±1,5 jam)\n` +
-  `🧹 Cleaning PRO: Rp100.000 (tipe 50/80, ±2,5 jam)\n` +
-  `📚 Les Private Fast: Rp65.000 (1x pertemuan, ±1 jam)\n` +
-  `📚 Les Private PRO: Rp100.000 (1x pertemuan, ±2 jam)\n\n` +
-  `Untuk pesan, langsung isi form di www.kerjaku.click ya 🤍`;
+  faqPriceLine("🧺", "Setrika Fast", "setrika-fast") +
+  faqPriceLine("🧺", "Setrika PRO", "setrika-pro") +
+  faqPriceLine("🧹", "Cleaning Fast", "cleaning-fast") +
+  faqPriceLine("🧹", "Cleaning PRO", "cleaning-pro") +
+  // Les Private: harga/durasi SAMA utk ke-7 mata pelajaran (lihat
+  // lesPrivateVariants di lib/services.ts) -- cukup ambil 1 (Mengaji)
+  // sebagai representasi, tidak perlu daftar semua mata pelajaran di sini.
+  faqPriceLine("📚", "Les Private Fast", "les-mengaji-fast") +
+  faqPriceLine("📚", "Les Private PRO", "les-mengaji-pro") +
+  `\nUntuk pesan, langsung isi form di www.kerjaku.click ya 🤍`;
 
 const FAQ_HOURS_REPLY =
   `Jam operasional kerjaku.click: *07.00–20.00 WITA*, setiap hari 🙏\n\n` +

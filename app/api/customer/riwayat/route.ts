@@ -29,14 +29,25 @@
 // TERGANTUNG TIER MITRA yang ditugaskan ke order ybs, jadi tidak bisa lagi
 // dihitung murni client-side dari service_type saja (dulu di
 // app/riwayat/page.tsx lewat getExtraTimeOptions()). Sekarang dihitung DI
-// SINI (server, admin client sudah pegang mitra_id) & dikirim sebagai field
-// baru `extra_time_rates: {30, 60} | null` per order -- client tinggal
-// pakai angka jadi, tidak perlu tahu tier mitra sama sekali.
+// SINI (server, admin client sudah pegang mitra_id).
+//
+// PERUBAHAN FINAL (22 September 2026) -- dokumen "Logika Hitung Harga Tambah
+// Waktu": durasi tambah waktu SEKARANG FIXED per label produk (Fast = +30
+// menit, PRO = +60 menit), BUKAN LAGI bebas pilih 30 ATAU 60 menit -- jadi
+// field `extra_time_rates` yang dikirim ke client SEKARANG cuma 1 opsi:
+// `{ minutes: 30 | 60, price: number } | null` (dulu `{30, 60}` DUA opsi
+// sekaligus). Tier mitra tetap dipakai (lihat getExtraTimePrice() di
+// lib/services.ts), sekarang tier LOYALTY (New/Reguler/Commit/Pro).
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
-import { getExtraTimePrice, type MitraTierName } from "@/lib/services";
+import {
+  getExtraTimePrice,
+  findServiceByLabel,
+  EXTRA_TIME_MINUTES_BY_LABEL,
+  type MitraLoyaltyTier,
+} from "@/lib/services";
 
 /** Buang semua karakter selain digit. */
 function digitsOnly(phone: string): string {
@@ -132,18 +143,25 @@ export async function GET(req: NextRequest) {
   );
   const uniqueMitraIds = Array.from(new Set(eligibleForExtraTime.map((o) => o.mitra_id as string)));
 
-  const tierByMitraId: Record<string, MitraTierName> = {};
+  const tierByMitraId: Record<string, MitraLoyaltyTier> = {};
   for (const mitraId of uniqueMitraIds) {
     const { data: tierInfoRows } = await admin.rpc("mitra_tier_info", { p_mitra_id: mitraId });
-    tierByMitraId[mitraId] = (tierInfoRows?.[0]?.tier_name as MitraTierName | undefined) ?? "Baru";
+    tierByMitraId[mitraId] = (tierInfoRows?.[0]?.tier_name as MitraLoyaltyTier | undefined) ?? "New";
   }
 
-  const extraTimeRatesByOrderId: Record<number, { 30: number; 60: number } | null> = {};
+  // BARU (22 September 2026): 1 opsi durasi FIXED per label produk (Fast =
+  // 30 menit, PRO = 60 menit) -- bukan lagi {30, 60} dua opsi sekaligus.
+  const extraTimeRatesByOrderId: Record<number, { minutes: 30 | 60; price: number } | null> = {};
   for (const o of eligibleForExtraTime) {
-    const tierName = tierByMitraId[o.mitra_id as string] ?? "Baru";
-    const r30 = getExtraTimePrice(tierName, o.service_type, 30);
-    const r60 = getExtraTimePrice(tierName, o.service_type, 60);
-    extraTimeRatesByOrderId[o.id] = r30 !== null && r60 !== null ? { 30: r30, 60: r60 } : null;
+    const tierName = tierByMitraId[o.mitra_id as string] ?? "New";
+    const variant = findServiceByLabel(o.service_type);
+    if (!variant) {
+      extraTimeRatesByOrderId[o.id] = null;
+      continue;
+    }
+    const minutes = EXTRA_TIME_MINUTES_BY_LABEL[variant.tier];
+    const price = getExtraTimePrice(tierName, o.service_type, minutes);
+    extraTimeRatesByOrderId[o.id] = price !== null ? { minutes, price } : null;
   }
 
   // `mitra_id` dibuang lagi sebelum dikirim ke client -- cukup dipakai
