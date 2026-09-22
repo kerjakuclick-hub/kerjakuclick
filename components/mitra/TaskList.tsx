@@ -45,13 +45,35 @@
 // field invoice_notified_at/invoice_notify_error, migrasi 027) -- mitra
 // TIDAK PERLU lagi unduh & kirim manual, cukup beri tahu klien secara
 // lisan/Chat Pesanan bahwa pekerjaan sudah selesai.
+//
+// Perubahan BARU (22 September 2026) -- fitur "Alarm Waktu Habis" (migrasi
+// 035, temuan audit lapangan: klien mengabaikan durasi/cakupan kerja, mitra
+// segan mengingatkan langsung -> lembur tanpa tambahan bayaran). Order yang
+// sedang 'working' sekarang menampilkan:
+//   - Cakupan kerja yang dikunci (work_scope_snapshot) -- acuan yang sama
+//     persis dengan yang sudah dikirim ke klien lewat WA "pesanan disetujui".
+//   - Hitung mundur sisa waktu (dihitung ulang tiap 30 detik lewat state
+//     `now`), dari working_started_at + duration_minutes + extra_time_minutes.
+//   - Begitu waktu habis: alarm merah + tombol "Ingatkan Klien via WA" yang
+//     memanggil app/api/mitra/orders/remind-time-up/route.ts -- sistem yang
+//     mengirim WA ke klien, mitra tidak perlu berhadapan langsung/pakai nomor
+//     pribadi. Pengecekan otomatis pg_cron (tiap 5 menit, lihat migrasi 035)
+//     tetap jalan di belakang layar sebagai jaring pengaman kalau mitra lupa
+//     klik tombol ini.
 
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { formatRupiah, getPlatformFeePercent, getMaterialCost, getTransportCost, type MitraLoyaltyTier } from "@/lib/services";
+import {
+  formatRupiah,
+  formatMinutesAsDurasi,
+  getPlatformFeePercent,
+  getMaterialCost,
+  getTransportCost,
+  type MitraLoyaltyTier,
+} from "@/lib/services";
 import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, Transaction, Earning, Invoice } from "@/lib/types";
 
@@ -98,7 +120,18 @@ export default function TaskList({
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
   const [savingId, setSavingId] = useState<number | null>(null);
+  // BARU (migrasi 035, fitur "Alarm Waktu Habis") -- `now` dipakai untuk
+  // hitung mundur sisa waktu kerja, di-refresh tiap 30 detik supaya alarm
+  // muncul otomatis tanpa mitra perlu me-refresh halaman.
+  const [now, setNow] = useState(() => Date.now());
+  const [remindingId, setRemindingId] = useState<number | null>(null);
+  const [justRemindedId, setJustRemindedId] = useState<number | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -155,6 +188,31 @@ export default function TaskList({
       }
     } finally {
       setSavingId(null);
+    }
+  }
+
+  // BARU (migrasi 035, fitur "Alarm Waktu Habis") -- dipanggil saat mitra
+  // klik "Ingatkan Klien via WA" pada order yang alarmnya sudah menyala.
+  // Beda dari advanceStatus() di atas: tidak mengubah status order, cuma
+  // memicu sistem mengirim WA "waktu habis" ke klien (lihat
+  // app/api/mitra/orders/remind-time-up/route.ts) -- boleh diklik berkali-
+  // kali kalau perlu mengingatkan ulang.
+  async function remindClient(orderId: number) {
+    setRemindingId(orderId);
+    try {
+      const res = await fetch("/api/mitra/orders/remind-time-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      if (res.ok) {
+        setJustRemindedId(orderId);
+        setTimeout(() => {
+          setJustRemindedId((cur) => (cur === orderId ? null : cur));
+        }, 5000);
+      }
+    } finally {
+      setRemindingId(null);
     }
   }
 
@@ -249,6 +307,55 @@ export default function TaskList({
                     Mohon sesuaikan waktu pengerjaan Anda.
                   </div>
                 )}
+
+                {/* BARU (migrasi 035, fitur "Alarm Waktu Habis") -- cuma
+                    tampil untuk order yang sedang 'working' & sudah punya
+                    working_started_at (order lama sebelum migrasi ini tidak
+                    akan pernah punya nilai ini, jadi alarm otomatis tidak
+                    tampil untuk order tersebut -- aman, cuma tidak ada
+                    hitung mundurnya). */}
+                {o.status === "working" &&
+                  o.working_started_at &&
+                  (() => {
+                    const totalMenit = (o.duration_minutes ?? 60) + o.extra_time_minutes;
+                    const deadline = new Date(o.working_started_at).getTime() + totalMenit * 60_000;
+                    const sisaMenit = Math.round((deadline - now) / 60_000);
+                    const sudahHabis = sisaMenit <= 0;
+                    return (
+                      <div
+                        className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+                          sudahHabis
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-line bg-paper text-ink/60"
+                        }`}
+                      >
+                        {o.work_scope_snapshot && (
+                          <p className="mb-1.5 whitespace-pre-line">{o.work_scope_snapshot}</p>
+                        )}
+                        {sudahHabis ? (
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-medium">
+                              ⏰ Waktu kerja sudah habis ({formatMinutesAsDurasi(Math.abs(sisaMenit))}{" "}
+                              lewat dari estimasi). Ingatkan klien lewat WA kalau perlu tambah waktu.
+                            </p>
+                            <button
+                              onClick={() => remindClient(o.id)}
+                              disabled={remindingId === o.id}
+                              className="shrink-0 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
+                            >
+                              {remindingId === o.id
+                                ? "Mengirim..."
+                                : justRemindedId === o.id
+                                ? "✓ Terkirim ke klien"
+                                : "Ingatkan Klien via WA"}
+                            </button>
+                          </div>
+                        ) : (
+                          <p>⏳ Sisa waktu estimasi: {formatMinutesAsDurasi(sisaMenit)}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                 <div className="mt-3 rounded-lg bg-paper px-3 py-2 text-xs text-ink/70">
                   <p>
