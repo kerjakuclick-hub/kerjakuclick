@@ -348,14 +348,14 @@ export default function OrderForm() {
                 <label className="mb-1.5 block text-sm font-medium text-white/90">
                   Pilihan Jasa Tenaga Kerja
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {CATEGORY_OPTIONS.map((opt) => (
                     <button
                       key={opt.key}
                       type="button"
                       onClick={() => handleSelectCategory(opt.key)}
                       aria-pressed={category === opt.key}
-                      className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-semibold uppercase leading-tight tracking-wide transition break-words ${
+                      className={`whitespace-nowrap rounded-lg border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
                         category === opt.key
                           ? "border-bridge bg-bridge text-ink"
                           : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -375,14 +375,14 @@ export default function OrderForm() {
                   <label className="mb-1.5 block text-sm font-medium text-white/90">
                     Paket
                   </label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {availableTiers.map((t) => (
                       <button
                         key={t}
                         type="button"
                         onClick={() => handleSelectTier(t)}
                         aria-pressed={tier === t}
-                        className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-semibold uppercase leading-tight tracking-wide transition break-words ${
+                        className={`whitespace-nowrap rounded-lg border px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
                           tier === t
                             ? "border-bridge bg-bridge text-ink"
                             : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -400,14 +400,14 @@ export default function OrderForm() {
                   <label className="mb-1.5 block text-sm font-medium text-white/90">
                     Tingkat Pendidikan Anak
                   </label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {EDUCATION_LEVELS.map((level) => (
                       <button
                         key={level}
                         type="button"
                         onClick={() => handleSelectTingkat(level)}
                         aria-pressed={tingkatPendidikan === level}
-                        className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-semibold uppercase leading-tight tracking-wide transition break-words ${
+                        className={`whitespace-nowrap rounded-lg border px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
                           tingkatPendidikan === level
                             ? "border-bridge bg-bridge text-ink"
                             : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -428,14 +428,14 @@ export default function OrderForm() {
                   <label className="mb-1.5 block text-sm font-medium text-white/90">
                     Mata Pelajaran
                   </label>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div className="flex flex-wrap gap-2">
                     {subjectOptions.map((subject) => (
                       <button
                         key={subject.slug}
                         type="button"
                         onClick={() => setSubjectSlug(subject.slug)}
                         aria-pressed={subjectSlug === subject.slug}
-                        className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-medium leading-tight transition break-words ${
+                        className={`whitespace-nowrap rounded-lg border px-3.5 py-2.5 text-xs font-medium transition ${
                           subjectSlug === subject.slug
                             ? "border-bridge bg-bridge text-ink"
                             : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -504,14 +504,14 @@ export default function OrderForm() {
                     <label className="mb-1.5 block text-sm font-medium text-white/90">
                       Slot Waktu
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {timeSlotOptions.map((slot) => (
                         <button
                           key={slot}
                           type="button"
                           onClick={() => setWaktu(slot)}
                           aria-pressed={waktu === slot}
-                          className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-medium leading-tight transition break-words ${
+                          className={`whitespace-nowrap rounded-lg border px-3.5 py-2.5 text-xs font-medium transition ${
                             waktu === slot
                               ? "border-bridge bg-bridge text-ink"
                               : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -536,14 +536,14 @@ export default function OrderForm() {
                     <label className="mb-1.5 block text-sm font-medium text-white/90">
                       Preferensi Mitra
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {PREFERENSI_OPTIONS.map((opt) => (
                         <button
                           key={opt}
                           type="button"
                           onClick={() => setPreferensi(opt)}
                           aria-pressed={preferensi === opt}
-                          className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-medium leading-tight transition break-words ${
+                          className={`whitespace-nowrap rounded-lg border px-5 py-2.5 text-xs font-medium transition ${
                             preferensi === opt
                               ? "border-bridge bg-bridge text-ink"
                               : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
