@@ -87,6 +87,10 @@ type RiwayatOrder = {
   extra_time_rates: { minutes: 30 | 60; price: number } | null; // 22 Sep 2026: 1 opsi fixed per label produk, bukan lagi {30, 60}
   invoice_notified_at: string | null;
   invoice: { file_url: string; created_at: string } | null;
+  // BARU -- migrasi 037 (revisi Formulir Pesanan, 23 September 2026): cuma
+  // terisi untuk order Les Private, dipakai "Pesan Lagi" di bawah supaya
+  // wizard bisa langsung membuka mata pelajaran yang sesuai tingkatnya.
+  les_private_level: string | null;
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -139,6 +143,7 @@ export default function RiwayatPage() {
         alamat: order.address,
         jasa: order.service_type,
         preferensi: order.mitra_gender_preference ?? "Bebas",
+        tingkatPendidikan: order.les_private_level ?? undefined,
       })
     );
     router.push("/pesan");

@@ -25,6 +25,11 @@
 //      aman.
 //   3. Teks deskripsi diperbaiki -- sebelumnya masih menyebut "20% dari
 //      nilai layanan" yang sudah tidak berlaku sejak migrasi 024/030/034.
+//
+// BARU (23 September 2026) -- revisi Daftar Mitra (migrasi 037): select
+// ditambah `les_private_teaching_levels` supaya MitraTable.tsx bisa
+// menampilkan/mengedit "Keahlian mengajar untuk tingkat pendidikan" (murni
+// informasi, khusus mitra Les Private).
 
 import { createClient } from "@/lib/supabase/server";
 import MitraTable from "@/components/admin/MitraTable";
@@ -38,7 +43,7 @@ export default async function AdminMitraPage() {
   const { data: mitraList } = await supabase
     .from("profiles")
     .select(
-      "id, name, phone, wallet_balance, total_earnings, status, is_active, gender, skill_category, photo_url, rating, is_available, unavailable_reason, unavailable_since, violation_count, sosmed_active"
+      "id, name, phone, wallet_balance, total_earnings, status, is_active, gender, skill_category, photo_url, rating, is_available, unavailable_reason, unavailable_since, violation_count, sosmed_active, les_private_teaching_levels"
     )
     .eq("role", "mitra")
     .order("name");

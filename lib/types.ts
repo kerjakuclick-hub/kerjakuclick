@@ -81,6 +81,7 @@ export type Order = {
   work_scope_snapshot: string | null; // BARU — migrasi 035: snapshot teks "Cakupan Area Kerja" (unit + rincian pekerjaan) SAAT mitra mulai kerja, ditampilkan di Dasbor Mitra & WA "waktu habis"
   time_up_notified_at: string | null; // BARU — migrasi 035: waktu notifikasi WA "waktu kerja habis" PERTAMA KALI berhasil terkirim otomatis ke klien (dicek berkala oleh pg_cron, lihat app/api/cron/time-up-check/route.ts) -- juga diisi kalau mitra sendiri yang lebih dulu klik "Ingatkan Klien"
   time_up_notify_error: string | null; // BARU — migrasi 035: pesan error terakhir kalau notifikasi otomatis "waktu habis" gagal terkirim
+  les_private_level: string | null; // BARU — migrasi 037 (revisi Formulir Pesanan, 23 September 2026): "TK" | "SD" | "SMP" | "SMA", HANYA diisi untuk order Les Private (dipilih klien di wizard pemesanan); null untuk Setrika/Bersihkan Rumah. Murni informasi tampilan (invoice/riwayat/chat) -- TIDAK dipakai untuk pencocokan mitra otomatis.
 };
 
 export type MitraOption = {
@@ -106,6 +107,7 @@ export type MitraProfile = {
   unavailable_since: string | null; // BARU — migrasi 023: sejak kapan is_available = false
   violation_count: number; // BARU — migrasi 024: jumlah pelanggaran tercatat, syarat naik tier (0 pelanggaran wajib utk tier Commit & Pro sejak migrasi 034 -- Program Loyalty Tier final), diisi manual admin lewat Trust & Safety, default 0
   sosmed_active: boolean; // BARU — migrasi 034 (Program Loyalty Tier final, 22 September 2026): syarat "AKTIF SOSMED" utk tier Pro (fee terendah). Diisi manual admin lewat halaman Kelola Mitra, default false.
+  les_private_teaching_levels: string[] | null; // BARU — migrasi 037 (revisi Daftar Mitra, 23 September 2026): subset dari ["TK","SD","SMP","SMA","Umum"], bisa lebih dari satu. Cuma informasi utk admin (ditampilkan di Kelola Mitra) -- TIDAK dipakai membatasi eligible_mitra_for_order(). Diisi manual admin lewat halaman Kelola Mitra, atau diambil sbg referensi dari mitra_applications saat approval.
 };
 
 export type MitraSelfProfile = MitraProfile;

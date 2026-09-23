@@ -99,6 +99,13 @@ export type OrderInput = {
   tanggal: string;
   waktu: string;
   preferensi: string;
+  // BARU -- migrasi 037 (revisi Formulir Pesanan, 23 September 2026): hanya
+  // diisi untuk order Les Private ("TK"|"SD"|"SMP"|"SMA"), dipilih klien di
+  // wizard SEBELUM memilih Mata Pelajaran. Dibiarkan kosong/undefined untuk
+  // Setrika/Bersihkan Rumah -- baris "TingkatPendidikan:" sengaja TIDAK
+  // ditulis sama sekali kalau kosong (bukan "-"), supaya pesan WA untuk
+  // kategori rumah tangga tetap seperti sebelumnya (tidak ada baris asing).
+  tingkatPendidikan?: string;
 };
 
 /**
@@ -114,8 +121,9 @@ export function buildOrderMessage({
   tanggal,
   waktu,
   preferensi,
+  tingkatPendidikan,
 }: OrderInput): string {
-  return [
+  const lines = [
     "#BARU",
     `Nama:${nama || "-"}`,
     `NoHP:${noHp || "-"}`,
@@ -124,7 +132,13 @@ export function buildOrderMessage({
     `Tanggal:${tanggal || "-"}`,
     `Waktu:${waktu || "-"}`,
     `Preferensi:${preferensi || "-"}`,
-  ].join("\n");
+  ];
+  // BARU -- migrasi 037: baris ini hanya ditambahkan kalau ada nilainya
+  // (order Les Private) -- lihat catatan di OrderInput di atas.
+  if (tingkatPendidikan) {
+    lines.push(`TingkatPendidikan:${tingkatPendidikan}`);
+  }
+  return lines.join("\n");
 }
 
 export function buildWaLink(message: string, phone: string = OPERATOR_WA_NUMBER): string {
