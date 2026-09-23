@@ -355,7 +355,7 @@ export default function OrderForm() {
                       type="button"
                       onClick={() => handleSelectCategory(opt.key)}
                       aria-pressed={category === opt.key}
-                      className={`rounded-lg border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
+                      className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-semibold uppercase leading-tight tracking-wide transition break-words ${
                         category === opt.key
                           ? "border-bridge bg-bridge text-ink"
                           : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -382,7 +382,7 @@ export default function OrderForm() {
                         type="button"
                         onClick={() => handleSelectTier(t)}
                         aria-pressed={tier === t}
-                        className={`rounded-lg border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
+                        className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-semibold uppercase leading-tight tracking-wide transition break-words ${
                           tier === t
                             ? "border-bridge bg-bridge text-ink"
                             : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -407,7 +407,7 @@ export default function OrderForm() {
                         type="button"
                         onClick={() => handleSelectTingkat(level)}
                         aria-pressed={tingkatPendidikan === level}
-                        className={`rounded-lg border px-2 py-2.5 text-xs font-semibold uppercase tracking-wide transition ${
+                        className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-semibold uppercase leading-tight tracking-wide transition break-words ${
                           tingkatPendidikan === level
                             ? "border-bridge bg-bridge text-ink"
                             : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -435,7 +435,7 @@ export default function OrderForm() {
                         type="button"
                         onClick={() => setSubjectSlug(subject.slug)}
                         aria-pressed={subjectSlug === subject.slug}
-                        className={`rounded-lg border px-2 py-2.5 text-xs font-medium transition ${
+                        className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-medium leading-tight transition break-words ${
                           subjectSlug === subject.slug
                             ? "border-bridge bg-bridge text-ink"
                             : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -511,7 +511,7 @@ export default function OrderForm() {
                           type="button"
                           onClick={() => setWaktu(slot)}
                           aria-pressed={waktu === slot}
-                          className={`rounded-lg border px-2 py-2.5 text-xs font-medium transition ${
+                          className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-medium leading-tight transition break-words ${
                             waktu === slot
                               ? "border-bridge bg-bridge text-ink"
                               : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
@@ -543,7 +543,7 @@ export default function OrderForm() {
                           type="button"
                           onClick={() => setPreferensi(opt)}
                           aria-pressed={preferensi === opt}
-                          className={`rounded-lg border px-2 py-2.5 text-xs font-medium transition ${
+                          className={`min-w-0 rounded-lg border px-2 py-2.5 text-center text-xs font-medium leading-tight transition break-words ${
                             preferensi === opt
                               ? "border-bridge bg-bridge text-ink"
                               : "border-white/15 bg-white/5 text-white/85 hover:border-white/30"
