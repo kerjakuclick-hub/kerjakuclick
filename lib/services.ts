@@ -103,7 +103,11 @@ export type ServiceVariant = {
   orderable?: boolean;
 };
 
-const LES_PRIVATE_SUBJECTS = [
+// BARU (23 September 2026) -- Revisi Formulir Pesanan: mata pelajaran ke-8
+// "Belajar Membaca Anak" ditambahkan (dokumen daftar mapel dari Anda). Harga
+// & durasi ikut pola Les Private biasa (lihat lesPrivateVariants di bawah) --
+// tidak ada tarif khusus, murni menambah 1 varian Fast & 1 varian PRO baru.
+export const LES_PRIVATE_SUBJECTS = [
   { slug: "mengaji", label: "Mengaji" },
   { slug: "bahasa-inggris", label: "Bahasa Inggris" },
   { slug: "matematika", label: "Matematika" },
@@ -111,6 +115,7 @@ const LES_PRIVATE_SUBJECTS = [
   { slug: "kimia", label: "Kimia" },
   { slug: "biologi", label: "Biologi" },
   { slug: "komputer", label: "Komputer" },
+  { slug: "membaca-anak", label: "Belajar Membaca Anak" },
 ];
 
 const lesPrivateVariants: ServiceVariant[] = LES_PRIVATE_SUBJECTS.flatMap(({ slug, label }) => [
@@ -137,6 +142,61 @@ const lesPrivateVariants: ServiceVariant[] = LES_PRIVATE_SUBJECTS.flatMap(({ slu
     tier: "PRO" as const,
   },
 ]);
+
+// ============================================================================
+// BARU (23 September 2026) -- Revisi Formulir Pesanan: Les Private sekarang
+// juga menanyakan "Tingkat Pendidikan Anak" SEBELUM mata pelajaran (form
+// pemesanan: [Tutor Fast/PRO] -> Tingkat Pendidikan Anak -> Mata Pelajaran ->
+// ...). Ini MURNI dipakai untuk (a) menyaring mata pelajaran yang masuk akal
+// ditampilkan ke klien di formulir, dan (b) disimpan di order
+// (`orders.les_private_level`, migrasi 037) sebagai informasi buat mitra --
+// TIDAK mengubah harga sama sekali (harga tetap flat per label Fast/PRO,
+// sama seperti sebelumnya).
+//
+// DIKONFIRMASI (23 September 2026, lewat pertanyaan klarifikasi):
+//   1. Mata pelajaran DIBATASI sesuai tingkat yang dipilih (bukan bebas
+//      pilih semua tingkat) -- lihat LES_PRIVATE_LEVEL_SUBJECT_SLUGS.
+//   2. Ejaan disamakan jadi "SMA" (bukan "SMU") di formulir klien MAUPUN
+//      pendaftaran mitra.
+// Pemetaan tingkat -> mapel di bawah keputusan bisnis SAYA (bukan dari
+// dokumen Anda, karena Anda tidak merinci mata pelajaran per tingkat) --
+// TOLONG DIKONFIRMASI, gampang diubah kalau ada mapel yang perlu
+// ditambah/dikurangi per tingkat.
+export const EDUCATION_LEVELS = ["TK", "SD", "SMP", "SMA"] as const;
+export type EducationLevel = (typeof EDUCATION_LEVELS)[number];
+
+/** Slug mata pelajaran (lihat LES_PRIVATE_SUBJECTS) yang masuk akal
+ *  ditampilkan untuk tiap Tingkat Pendidikan Anak. TK & SD tidak
+ *  menampilkan Fisika/Kimia/Biologi (belum diajarkan di jenjang itu);
+ *  "Belajar Membaca Anak" cuma relevan untuk TK & SD (anak yang belum/baru
+ *  bisa membaca), jadi tidak ditampilkan untuk SMP/SMA. */
+export const LES_PRIVATE_LEVEL_SUBJECT_SLUGS: Record<EducationLevel, string[]> = {
+  TK: ["mengaji", "membaca-anak", "bahasa-inggris"],
+  SD: ["mengaji", "membaca-anak", "bahasa-inggris", "matematika", "komputer"],
+  SMP: ["mengaji", "bahasa-inggris", "matematika", "fisika", "kimia", "biologi", "komputer"],
+  SMA: ["mengaji", "bahasa-inggris", "matematika", "fisika", "kimia", "biologi", "komputer"],
+};
+
+/** Daftar mata pelajaran (slug + label) yang relevan untuk sebuah Tingkat
+ *  Pendidikan Anak -- dipakai formulir pemesanan (components/OrderForm.tsx)
+ *  untuk menyusun tombol pilihan mata pelajaran SETELAH tingkat dipilih. */
+export function getLesPrivateSubjectsForLevel(
+  level: EducationLevel
+): { slug: string; label: string }[] {
+  const allowedSlugs = LES_PRIVATE_LEVEL_SUBJECT_SLUGS[level];
+  return LES_PRIVATE_SUBJECTS.filter((s) => allowedSlugs.includes(s.slug));
+}
+
+/** Opsi "Keahlian mengajar untuk tingkat pendidikan" di formulir pendaftaran
+ *  & Kelola Mitra (khusus mitra Les Private) -- BEDA dari EDUCATION_LEVELS
+ *  di atas (yang dipilih KLIEN per pesanan): mitra boleh pilih lebih dari 1
+ *  tingkat sekaligus, DITAMBAH opsi "Umum" (sanggup mengajar lintas tingkat/
+ *  mapel yang tidak terikat jenjang tertentu, mis. Komputer) yang tidak ada
+ *  di pilihan klien. Murni informasi buat admin saat menugaskan mitra --
+ *  TIDAK membatasi/memfilter dropdown "Pilih mitra eligible" (DIKONFIRMASI
+ *  23 September 2026). */
+export const MITRA_TEACHING_LEVEL_OPTIONS = ["TK", "SD", "SMP", "SMA", "Umum"] as const;
+export type MitraTeachingLevel = (typeof MITRA_TEACHING_LEVEL_OPTIONS)[number];
 
 export const services: ServiceVariant[] = [
   {

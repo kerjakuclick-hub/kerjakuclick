@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await admin
     .from("orders")
     .select(
-      "id, service_type, total_price, address, scheduled_date, preferred_time, mitra_gender_preference, status, created_at, customer_name, customer_phone, extra_time_minutes, extra_time_price, invoice_notified_at, mitra_id"
+      "id, service_type, total_price, address, scheduled_date, preferred_time, mitra_gender_preference, status, created_at, customer_name, customer_phone, extra_time_minutes, extra_time_price, invoice_notified_at, mitra_id, les_private_level"
     )
     .ilike("customer_phone", `%${last8}%`)
     .order("created_at", { ascending: false });

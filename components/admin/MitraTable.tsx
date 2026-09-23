@@ -54,16 +54,33 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { formatRupiah, MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
+import { formatRupiah, MITRA_WALLET_MIN_BALANCE, MITRA_TEACHING_LEVEL_OPTIONS } from "@/lib/services";
 import type { MitraProfile, MitraViolation, MitraTierInfo } from "@/lib/types";
 
 const SKILL_GROUPS: { label: string; options: string[] }[] = [
   { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah"] },
   {
     label: "Les Private",
-    options: ["Mengaji", "Bahasa Inggris", "Matematika", "Fisika", "Kimia", "Biologi", "Komputer"],
+    // BARU (23 September 2026) -- "Belajar Membaca Anak" ditambahkan,
+    // konsisten dengan LES_PRIVATE_SUBJECTS di lib/services.ts &
+    // MitraApplicationForm.tsx.
+    options: [
+      "Mengaji",
+      "Bahasa Inggris",
+      "Matematika",
+      "Fisika",
+      "Kimia",
+      "Biologi",
+      "Komputer",
+      "Belajar Membaca Anak",
+    ],
   },
 ];
+
+// Opsi keahlian kategori "Les Private" -- dipakai menentukan kapan
+// checkbox "Keahlian mengajar untuk tingkat pendidikan" (di bawah,
+// TeachingLevelCheckboxes) perlu ditampilkan utk seorang mitra.
+const LES_PRIVATE_SKILL_OPTIONS = SKILL_GROUPS.find((g) => g.label === "Les Private")?.options ?? [];
 
 function PhotoUploadAvatar({
   mitra,
@@ -194,6 +211,55 @@ function SkillCheckboxes({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// BARU -- migrasi 037 (revisi Daftar Mitra, 23 September 2026): "Keahlian
+// mengajar untuk tingkat pendidikan", CUMA ditampilkan (lihat pemanggilnya
+// di bawah) kalau mitra ybs punya minimal 1 keahlian Les Private. Pola
+// persis sama dengan SkillCheckboxes di atas -- murni informasi admin,
+// TIDAK membatasi eligible_mitra_for_order() (DIKONFIRMASI 23 September
+// 2026).
+function TeachingLevelCheckboxes({
+  mitra,
+  busy,
+  onChange,
+}: {
+  mitra: MitraProfile;
+  busy: boolean;
+  onChange: (levels: string[]) => void;
+}) {
+  const current: string[] = Array.isArray(mitra.les_private_teaching_levels)
+    ? mitra.les_private_teaching_levels
+    : [];
+
+  function toggle(level: string) {
+    const next = current.includes(level)
+      ? current.filter((l) => l !== level)
+      : [...current, level];
+    onChange(next);
+  }
+
+  return (
+    <div className="mt-1.5 border-t border-line/60 pt-1.5 min-w-[220px]">
+      <p className="text-[9px] font-bold uppercase text-ink/40 mb-0.5">
+        Keahlian Mengajar Tingkat
+      </p>
+      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+        {MITRA_TEACHING_LEVEL_OPTIONS.map((level) => (
+          <label key={level} className="flex items-center gap-1 text-xs text-ink cursor-pointer">
+            <input
+              type="checkbox"
+              checked={current.includes(level)}
+              disabled={busy}
+              onChange={() => toggle(level)}
+              className="rounded border-line shrink-0"
+            />
+            <span className="truncate">{level}</span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
@@ -469,6 +535,9 @@ export default function MitraTable({
       status?: "training" | "ahli";
       /** BARU (22 September 2026) -- syarat tier loyalty Pro. */
       sosmed_active?: boolean;
+      /** BARU -- migrasi 037 (23 September 2026): murni informasi admin,
+       *  lihat TeachingLevelCheckboxes di atas. */
+      les_private_teaching_levels?: string[];
     }
   ) {
     setBusyId(id);
@@ -631,6 +700,20 @@ export default function MitraTable({
                     busy={busyId === m.id}
                     onChange={(skills) => handleUpdateAttributes(m.id, { skill_category: skills })}
                   />
+                  {/* BARU -- migrasi 037: nested di sel Keahlian yang sama
+                      (bukan kolom ke-13 baru) supaya tidak mengganggu lebar
+                      tabel yang sudah lebar -- cuma tampil kalau mitra
+                      punya minimal 1 keahlian Les Private. */}
+                  {Array.isArray(m.skill_category) &&
+                    m.skill_category.some((s) => LES_PRIVATE_SKILL_OPTIONS.includes(s)) && (
+                      <TeachingLevelCheckboxes
+                        mitra={m}
+                        busy={busyId === m.id}
+                        onChange={(levels) =>
+                          handleUpdateAttributes(m.id, { les_private_teaching_levels: levels })
+                        }
+                      />
+                    )}
                 </td>
                 <td className="px-4 py-3 align-top">
                   {/* BARU (22 September 2026): sekarang bisa diklik -- status

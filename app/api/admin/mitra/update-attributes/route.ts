@@ -36,7 +36,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const { mitraId, gender, skill_category, status, sosmed_active } = await req.json();
+  const {
+    mitraId,
+    gender,
+    skill_category,
+    status,
+    sosmed_active,
+    les_private_teaching_levels,
+  } = await req.json();
   if (!mitraId) {
     return NextResponse.json({ error: "mitraId wajib diisi." }, { status: 400 });
   }
@@ -55,6 +62,19 @@ export async function POST(req: NextRequest) {
   if (sosmed_active !== undefined && typeof sosmed_active !== "boolean") {
     return NextResponse.json({ error: "sosmed_active harus boolean." }, { status: 400 });
   }
+  // BARU -- migrasi 037 (revisi Daftar Mitra, 23 September 2026): pola
+  // validasi sama persis dengan skill_category di atas -- array of string
+  // atau null, murni informasi (tidak membatasi eligible_mitra_for_order()).
+  if (
+    les_private_teaching_levels !== undefined &&
+    les_private_teaching_levels !== null &&
+    !Array.isArray(les_private_teaching_levels)
+  ) {
+    return NextResponse.json(
+      { error: "les_private_teaching_levels harus berupa array (bisa lebih dari 1 tingkat)." },
+      { status: 400 }
+    );
+  }
 
   const admin = getSupabaseAdmin();
 
@@ -63,6 +83,9 @@ export async function POST(req: NextRequest) {
   if (skill_category !== undefined) updateFields.skill_category = skill_category;
   if (status !== undefined) updateFields.status = status;
   if (sosmed_active !== undefined) updateFields.sosmed_active = sosmed_active;
+  if (les_private_teaching_levels !== undefined) {
+    updateFields.les_private_teaching_levels = les_private_teaching_levels;
+  }
 
   const { data: updated, error } = await admin
     .from("profiles")

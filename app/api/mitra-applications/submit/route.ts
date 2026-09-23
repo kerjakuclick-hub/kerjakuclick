@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
   const has_ktp = formData.get("has_ktp") === "true";
   const has_kk = formData.get("has_kk") === "true";
   const skillCategory = formData.getAll("skill_category") as string[];
+  // BARU -- migrasi 037 (revisi Daftar Mitra, 23 September 2026): opsional,
+  // cuma dikirim frontend kalau pendaftar memilih keahlian Les Private.
+  // Disimpan null (bukan array kosong) kalau memang tidak diisi.
+  const lesPrivateTeachingLevels = formData.getAll("les_private_teaching_levels") as string[];
   const photo = formData.get("photo") as File | null;
   const studentId = formData.get("student_id") as File | null;
 
@@ -96,6 +100,8 @@ export async function POST(req: NextRequest) {
       has_ktp,
       has_kk,
       skill_category: skillCategory,
+      les_private_teaching_levels:
+        lesPrivateTeachingLevels.length > 0 ? lesPrivateTeachingLevels : null,
       photo_path: photoPath,
       ktp_path: null,
       kk_path: null,

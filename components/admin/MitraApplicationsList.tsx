@@ -23,6 +23,10 @@ interface MitraApplication {
   has_ktp: boolean;
   has_kk: boolean;
   skill_category: string[];
+  // BARU -- migrasi 037 (revisi Daftar Mitra, 23 September 2026): subset
+  // dari TK/SD/SMP/SMA/Umum, cuma diisi kalau skill_category mengandung
+  // salah satu keahlian Les Private. Murni referensi admin.
+  les_private_teaching_levels: string[] | null;
   photo_path: string | null;
   ktp_path: string | null;
   kk_path: string | null;
@@ -146,6 +150,21 @@ export default function MitraApplicationsList({
                     </span>
                   ))}
                 </div>
+                {app.les_private_teaching_levels && app.les_private_teaching_levels.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] font-medium text-ink/50">
+                      Keahlian mengajar tingkat:
+                    </span>
+                    {app.les_private_teaching_levels.map((l) => (
+                      <span
+                        key={l}
+                        className="rounded-full bg-bridge/20 px-2 py-0.5 text-[10px] font-medium text-bay-deep"
+                      >
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <p className="text-[10px] text-ink/40 mt-2">
                   Daftar: {new Date(app.submitted_at).toLocaleString("id-ID")}
                 </p>

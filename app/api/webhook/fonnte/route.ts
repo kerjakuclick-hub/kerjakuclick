@@ -21,6 +21,10 @@ type ParsedOrder = {
   tanggal?: string;
   waktu?: string;
   preferensi?: string;
+  // BARU -- migrasi 037 (revisi Formulir Pesanan, 23 September 2026): cuma
+  // ada di pesan WA untuk order Les Private (lihat lib/whatsapp.ts
+  // buildOrderMessage) -- undefined untuk Setrika/Bersihkan Rumah.
+  tingkatPendidikan?: string;
 };
 
 function parseOrderMessage(raw: string): ParsedOrder | null {
@@ -49,12 +53,13 @@ function parseOrderMessage(raw: string): ParsedOrder | null {
   const tanggal = fields["tanggal"];
   const waktu = fields["waktu"];
   const preferensi = fields["preferensi"];
+  const tingkatPendidikan = fields["tingkatpendidikan"];
 
   if (!nama || !noHp || !alamat || !jasa) {
     return null;
   }
 
-  return { nama, noHp, alamat, jasa, tanggal, waktu, preferensi };
+  return { nama, noHp, alamat, jasa, tanggal, waktu, preferensi, tingkatPendidikan };
 }
 
 // Deteksi permintaan reset PIN: kombinasi kata "reset"/"lupa" + "pin"/"sandi"/"password".
@@ -284,6 +289,9 @@ export async function POST(req: NextRequest) {
         scheduled_date: parsed.tanggal ?? null,
         preferred_time: parsed.waktu ?? null,
         mitra_gender_preference: parsed.preferensi ?? null,
+        // BARU -- migrasi 037: cuma terisi untuk order Les Private, lihat
+        // catatan ParsedOrder.tingkatPendidikan di atas.
+        les_private_level: parsed.tingkatPendidikan ?? null,
         status: "unassigned",
       });
 

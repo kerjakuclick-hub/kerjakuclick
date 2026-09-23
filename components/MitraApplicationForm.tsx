@@ -22,14 +22,31 @@
 "use client";
 
 import { useState } from "react";
+import { MITRA_TEACHING_LEVEL_OPTIONS } from "@/lib/services";
 
 const SKILL_GROUPS: { label: string; options: string[] }[] = [
   { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah"] },
   {
     label: "Les Private",
-    options: ["Mengaji", "Bahasa Inggris", "Matematika", "Fisika", "Kimia", "Biologi", "Komputer"],
+    // BARU (23 September 2026) -- "Belajar Membaca Anak" ditambahkan,
+    // konsisten dengan LES_PRIVATE_SUBJECTS di lib/services.ts.
+    options: [
+      "Mengaji",
+      "Bahasa Inggris",
+      "Matematika",
+      "Fisika",
+      "Kimia",
+      "Biologi",
+      "Komputer",
+      "Belajar Membaca Anak",
+    ],
   },
 ];
+
+// Opsi keahlian yang termasuk kategori "Les Private" -- dipakai untuk
+// menentukan kapan field "Keahlian mengajar untuk tingkat pendidikan" di
+// bawah perlu ditampilkan.
+const LES_PRIVATE_SKILL_OPTIONS = SKILL_GROUPS.find((g) => g.label === "Les Private")?.options ?? [];
 
 const EDUCATION_OPTIONS = ["SMA/SMK/Sederajat", "D3", "S1", "S2", "Lainnya"];
 
@@ -41,10 +58,22 @@ export default function MitraApplicationForm() {
   const [isStudent, setIsStudent] = useState(false);
   const [hasKtp, setHasKtp] = useState(false);
   const [hasKk, setHasKk] = useState(false);
+  // BARU -- migrasi 037 (revisi Daftar Mitra, 23 September 2026): "Keahlian
+  // mengajar untuk tingkat pendidikan", cuma relevan kalau pendaftar
+  // mencentang minimal 1 keahlian Les Private.
+  const [teachingLevels, setTeachingLevels] = useState<string[]>([]);
+
+  const wantsLesPrivate = skills.some((s) => LES_PRIVATE_SKILL_OPTIONS.includes(s));
 
   function toggleSkill(skill: string) {
     setSkills((prev) =>
       prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]
+    );
+  }
+
+  function toggleTeachingLevel(level: string) {
+    setTeachingLevels((prev) =>
+      prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
     );
   }
 
@@ -64,6 +93,11 @@ export default function MitraApplicationForm() {
     const formEl = e.currentTarget;
     const formData = new FormData(formEl);
     skills.forEach((s) => formData.append("skill_category", s));
+    // BARU -- migrasi 037: cuma dikirim kalau pendaftar pilih keahlian Les
+    // Private -- kalau tidak, array kosong (backend menyimpan null/kosong).
+    if (wantsLesPrivate) {
+      teachingLevels.forEach((l) => formData.append("les_private_teaching_levels", l));
+    }
     formData.set("is_student", isStudent ? "true" : "false");
     formData.set("has_ktp", hasKtp ? "true" : "false");
     formData.set("has_kk", hasKk ? "true" : "false");
@@ -87,6 +121,7 @@ export default function MitraApplicationForm() {
       setSuccess(true);
       formEl.reset();
       setSkills([]);
+      setTeachingLevels([]);
       setIsStudent(false);
       setHasKtp(false);
       setHasKk(false);
@@ -241,6 +276,38 @@ export default function MitraApplicationForm() {
           ))}
         </div>
       </div>
+
+      {wantsLesPrivate && (
+        <div>
+          <label className="text-sm font-medium text-[#12202A] block mb-2">
+            Keahlian Mengajar untuk Tingkat Pendidikan (boleh lebih dari 1)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {MITRA_TEACHING_LEVEL_OPTIONS.map((level) => (
+              <label
+                key={level}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm cursor-pointer transition ${
+                  teachingLevels.includes(level)
+                    ? "border-[#1D6F8C] bg-[#1D6F8C]/10 text-[#1D6F8C] font-medium"
+                    : "border-[#dfe3e0] text-[#3f484d]"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={teachingLevels.includes(level)}
+                  onChange={() => toggleTeachingLevel(level)}
+                />
+                {level}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-[#3f484d]/70 mt-1.5">
+            Khusus pendaftar Les Private -- membantu tim kami memahami jenjang yang bisa Anda
+            ajar (TK/SD/SMP/SMA) atau "Umum" kalau lintas jenjang.
+          </p>
+        </div>
+      )}
 
       <div>
         <label className="text-sm font-medium text-[#12202A] block mb-1">Foto Profil *</label>
