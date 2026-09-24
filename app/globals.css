@@ -78,30 +78,23 @@ body {
     );
 }
 
-/* Hero background (revisi 24 September 2026, desain hero terbaru):
-   spotlight teal lembut di tengah yang memudar ke hitam di sudut-sudut --
-   tanpa grid & tanpa garis diagonal. Warna glow diturunkan dari Bay
-   (#1D6F8C) versi lebih gelap supaya tetap dalam keluarga palet brand.
-   Di mobile pusat glow digeser ke atas (di belakang logo & headline). */
-.hero-spotlight {
+/* Hero background (revisi 25 September 2026, aset resmi BRANDKIT):
+   gambar backgroundkerjaku.png (spotlight teal + aksen diagonal + logo
+   putih sudah menyatu). Mobile/tablet (< 1024px) pakai potongan portrait
+   tanpa logo (logo sudah tampil di header). Warna dasar #010304 = warna
+   sudut gambar, supaya tidak ada "kedipan" terang sebelum gambar dimuat.
+   Class lama `.hero-spotlight` (24 Sep) diganti oleh class ini. */
+.hero-brand {
   background-color: #010304;
-  background-image: radial-gradient(
-    ellipse 75% 65% at 50% 32%,
-    #134a60 0%,
-    #0b2a38 38%,
-    #041017 68%,
-    #010304 100%
-  );
+  background-image: url("/hero-bg-mobile.webp");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-@media (min-width: 768px) {
-  .hero-spotlight {
-    background-image: radial-gradient(
-      ellipse 42% 60% at 45% 42%,
-      #144a61 0%,
-      #0c2d3b 40%,
-      #041118 72%,
-      #010304 100%
-    );
+@media (min-width: 1024px) {
+  .hero-brand {
+    background-image: url("/hero-bg.webp");
+    background-position: 70% center;
   }
 }

@@ -1,36 +1,22 @@
 // GANTI ISI components/Header.tsx Anda dengan file ini.
 //
-// REDESAIN PREMIUM (20 September 2026): mengikuti disiplin brand identity
-// baru -- Warna #1D6F8C (Bay) DIHAPUS dari sini, karena Bay sekarang
-// KHUSUS section Form Order (OrderForm.tsx). Latar header pakai token
-// "paper" (bukan hex custom "#f6faf6") supaya konsisten dengan design
-// system.
-//
-// REVISI STRUKTUR NAV (21 September 2026, dari mockup Canva Anda): menu
-// diganti total jadi 5 item sesuai mockup -- Home, Pesan Jasa, AkunKU,
-// Jadi Mitra, Costumer Service. Nav lama (Layanan/Cara Pesan/Mitra Kami
-// yang scroll ke anchor di beranda, + tombol "Customer Service" pill
-// putih ala referensi kliknclean.com) DIGANTI:
-//   - "Pesan Jasa" -> /pesan (form order sekarang halaman sendiri, lihat
-//     app/pesan/page.tsx -- sebelumnya section #order-form di beranda).
-//   - "AkunKU" -> /riwayat (cuma ganti LABEL nav, halaman & isinya tetap
-//     "Riwayat Pesanan" yang sudah ada, sesuai keputusan Anda).
-//   - "Costumer Service" -> tetap link WA asli (buildCsLink()), sekarang
-//     gaya nav-link biasa (bukan pill/tombol lagi), sesuai mockup yang
-//     menampilkannya sebagai item nav biasa.
-//   - Item aktif (halaman yang sedang dibuka) ditandai bold/Ink lewat
-//     usePathname(), item lain abu-abu -- sesuai mockup (nav item halaman
-//     yang sedang aktif selalu tampil tebal/gelap).
-//
-// REVISI (21 September 2026, dari Anda langsung): "Logo di header cukup
-// ikon" -- logo lockup penuh (wordmark "KERJAKU CLICK" + ikon K) DIGANTI
-// ikon K saja (public/logo.png, aset yang sama persis dengan gambar yang
-// Anda kirim), lebih ringkas & konsisten dengan gaya nav-bar platform
-// digital modern.
+// REVISI (25 September 2026, dari desain hero terbaru + BRANDKIT):
+//   - Logo header sekarang LOCKUP penuh versi gelap (KERJAKU CLICK + ikon K)
+//     dari BRANDKIT/header-black.png -> disalin ke public/logo-header.png.
+//     Ikon K saja (public/logo.png) tidak dipakai lagi di header, tapi
+//     file-nya TIDAK dihapus (masih dipakai favicon/manifest/tempat lain).
+//   - Latar header putih bersih (sesuai desain), bukan paper lagi.
+//   - Menu HAMBURGER di SEMUA ukuran layar (desktop juga), sesuai desain.
+//     Desktop: panel dropdown kecil rata kanan. Mobile: panel selebar layar.
+//     Menu tertutup otomatis saat pindah halaman, klik di luar, atau Esc.
+//   - Isi menu SAMA seperti sebelumnya: Home, Pesan Jasa, AkunKU,
+//     Jadi Mitra, Costumer Service (link WA via buildCsLink()).
+//   - Tinggi header tetap 64px (h-16) -- Hero.tsx memakai angka ini untuk
+//     menghitung tinggi layar pertama.
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { buildCsLink } from "@/lib/whatsapp";
@@ -43,83 +29,105 @@ const NAV_ITEMS = [
 ] as const;
 
 export default function Header() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const wrapRef = useRef<HTMLDivElement>(null);
 
-  function navLinkClass(href: string) {
+  // Tutup menu saat pindah halaman.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Tutup menu saat klik di luar panel atau tekan Esc.
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function itemClass(href: string) {
     const active = pathname === href;
-    return `text-sm transition-colors ${
-      active ? "font-semibold text-ink" : "font-medium text-ink/60 hover:text-ink"
+    return `block rounded-lg px-4 py-3 text-sm transition-colors hover:bg-paper ${
+      active ? "font-semibold text-ink" : "font-medium text-ink/65 hover:text-ink"
     }`;
   }
 
-  const navLinks = (
-    <>
-      {NAV_ITEMS.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          onClick={() => setMobileOpen(false)}
-          className={navLinkClass(item.href)}
-        >
-          {item.label}
-        </Link>
-      ))}
-      <a
-        href={buildCsLink()}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={() => setMobileOpen(false)}
-        className="text-sm font-medium text-ink/60 transition-colors hover:text-ink"
-      >
-        Costumer Service
-      </a>
-    </>
-  );
-
   return (
-    <header className="sticky top-0 z-50 bg-paper/95 backdrop-blur shadow-sm">
-      <nav className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-3">
-        <Link href="/" className="flex items-center">
-          {/* Ikon K saja (public/logo.png) -- sesuai instruksi Anda "Logo di
-              header cukup ikon". */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.png"
-            alt="kerjaku.click"
-            width={40}
-            height={40}
-            className="h-10 w-10"
-          />
-        </Link>
+    <header className="sticky top-0 z-50 bg-white shadow-[0_1px_0_rgba(18,32,42,0.08)]">
+      <div ref={wrapRef} className="relative">
+        <nav className="flex h-16 w-full items-center justify-between px-5 sm:px-8">
+          <Link href="/" className="flex items-center" aria-label="kerjaku.click — Home">
+            {/* Lockup gelap dari BRANDKIT (header-black.png, 820x200). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-header.png"
+              alt="kerjaku.click"
+              width={820}
+              height={200}
+              className="h-8 w-auto"
+            />
+          </Link>
 
-        {/* Menu desktop */}
-        <div className="hidden items-center gap-8 md:flex">{navLinks}</div>
+          {/* Hamburger -- tampil di semua ukuran layar */}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="-mr-2 rounded-md p-2 text-ink transition hover:bg-paper"
+            aria-label={open ? "Tutup menu" : "Buka menu"}
+            aria-expanded={open}
+            aria-controls="site-menu"
+          >
+            {open ? (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            )}
+          </button>
+        </nav>
 
-        {/* Tombol hamburger, cuma tampil di mobile */}
-        <button
-          onClick={() => setMobileOpen((v) => !v)}
-          className="-mr-2 p-2 text-ink md:hidden"
-          aria-label="Buka menu"
-        >
-          {mobileOpen ? (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          ) : (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          )}
-        </button>
-      </nav>
-
-      {/* Menu mobile, muncul saat hamburger diklik */}
-      {mobileOpen && (
-        <div className="flex flex-col gap-4 border-t border-ink/10 bg-paper px-6 py-4 md:hidden">
-          {navLinks}
-        </div>
-      )}
+        {open && (
+          <div
+            id="site-menu"
+            className="absolute inset-x-0 top-full border-t border-ink/10 bg-white px-3 py-3 shadow-card md:inset-x-auto md:right-5 md:mt-2 md:w-64 md:rounded-card md:border md:border-ink/10 sm:px-5 md:px-2 md:py-2"
+          >
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={itemClass(item.href)}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <a
+              href={buildCsLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="block rounded-lg px-4 py-3 text-sm font-medium text-ink/65 transition-colors hover:bg-paper hover:text-ink"
+            >
+              Costumer Service
+            </a>
+          </div>
+        )}
+      </div>
     </header>
   );
 }
