@@ -12,6 +12,11 @@ import {
   phoneLookupVariants,
   isOrderPauseMode,
   buildOrderPausedReply,
+  buildMitraAboutReply,
+  buildMitraRequirementsReply,
+  buildMitraEarningsReply,
+  buildMitraHowItWorksReply,
+  buildMitraBenefitsReply,
 } from "@/lib/whatsapp";
 
 // ========================================================================
@@ -52,6 +57,52 @@ function isTopupMenu(raw: string): boolean {
 
 function isTopupRequest(raw: string): boolean {
   return TOPUP_PATTERN.test(raw);
+}
+
+// ========================================================================
+// BARU (25 September 2026) -- Q&A calon mitra. Kata kunci satu kata dari
+// menu (INFO, SYARAT, PENDAPATAN, CARA KERJA, KEUNTUNGAN) ATAU pertanyaan
+// bebas yang cocok polanya. Dicek SETELAH top up & SEBELUM balasan
+// pendaftaran/FAQ. SENGAJA tidak menangkap "jam kerja" (itu pertanyaan jam
+// operasional pelanggan, dijawab FAQ).
+// ========================================================================
+const MITRA_QA: Array<{ exact: string[]; test: RegExp; reply: () => string }> = [
+  {
+    exact: ["info", "info kerjaku", "tentang"],
+    test: /\bapa (itu|sih)\b.{0,10}\bkerjaku|\bkerjaku(\.click)?\b.{0,10}\b(itu apa|apa(an)? (itu|sih))\b/i,
+    reply: buildMitraAboutReply,
+  },
+  {
+    exact: ["syarat", "persyaratan", "syarat mitra"],
+    test: /\b(syarat|persyaratan|kualifikasi)\b|\b(jadi|daftar|lowongan|loker)\b.{0,15}\b(guru|tutor|pengajar)\b/i,
+    reply: buildMitraRequirementsReply,
+  },
+  {
+    exact: ["pendapatan", "gaji", "penghasilan"],
+    test: /\b(gaji\w*|pendapatan\w*|penghasilan\w*|bagi hasil|komisi)\b/i,
+    reply: buildMitraEarningsReply,
+  },
+  {
+    exact: ["cara kerja", "sistem kerja"],
+    test: /\b(cara|sistem)\s+kerja(nya)?\b|\bkemitraan\b|\bwaktu kerja\b/i,
+    reply: buildMitraHowItWorksReply,
+  },
+  {
+    exact: ["keuntungan", "benefit"],
+    test: /\b(keuntungan|benefit|manfaat)\b.{0,20}\bmitra\b|\bmitra\b.{0,20}\b(keuntungan|benefit|manfaat)\b/i,
+    reply: buildMitraBenefitsReply,
+  },
+];
+
+function matchMitraQa(raw: string): string | null {
+  const short = normalizeShort(raw);
+  for (const qa of MITRA_QA) {
+    if (qa.exact.includes(short)) return qa.reply();
+  }
+  for (const qa of MITRA_QA) {
+    if (qa.test.test(raw)) return qa.reply();
+  }
+  return null;
 }
 
 /** Cari profil MITRA dari nomor pengirim WA (format 62.../0...). */
@@ -472,6 +523,16 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error("Top up auto-reply error:", err);
       return NextResponse.json({ ok: true, topup: "error" });
+    }
+  }
+
+  // --- Jalur 2c-a (BARU 25 Sep 2026): Q&A calon mitra (info, syarat,
+  // pendapatan, cara kerja, keuntungan) ---
+  if (sender) {
+    const qaReply = matchMitraQa(rawMessage);
+    if (qaReply) {
+      await sendFonnteReply(sender, qaReply);
+      return NextResponse.json({ ok: true, mitra_qa: "sent" });
     }
   }
 

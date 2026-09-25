@@ -61,7 +61,11 @@
 //      (nilai secret yang SAMA seperti sebelumnya), supaya pesan #BARU yang
 //      masuk ke nomor baru tetap otomatis tercatat jadi order.
 
-import { getServiceMaterials, getWorkScopeText, formatMinutesAsDurasi } from "./services";
+import {
+  getServiceMaterials,
+  getWorkScopeText,
+  formatMinutesAsDurasi,
+} from "./services";
 
 // Nomor WA TUNGGAL kerjaku.click -- +62 811-4110-9567. Nomor ini yang
 // tersambung ke Fonnte (webhook parsing #BARU) -- lihat catatan "Perubahan
@@ -497,14 +501,16 @@ const DAFTAR_MITRA_URL = "www.kerjaku.click/daftar-mitra";
 export function buildMitraRegistrationReply(): string {
   return (
     `Halo kak, terima kasih sudah tertarik jadi *Mitra kerjaku.click* 🤝\n\n` +
-    `Daftar langsung lewat link ini (±5 menit):\n👉 ${DAFTAR_MITRA_URL}\n\n` +
-    `Yang perlu disiapkan:\n` +
-    `• Nomor WhatsApp aktif\n` +
-    `• Foto profil\n` +
-    `• KTP & Kartu Keluarga asli (ditunjukkan saat verifikasi)\n` +
-    `• Khusus mahasiswa: foto KTM\n\n` +
-    `Layanan yang bisa dipilih: Setrika, Bersihkan Rumah, dan Les Private. Jadwal kerja fleksibel, cocok untuk penghasilan tambahan.\n\n` +
-    `Setelah formulir terkirim, tim kami akan menghubungi kakak lewat WhatsApp untuk verifikasi & pelatihan 🤍`
+    `✅ *Pendaftaran GRATIS* — tidak dipungut biaya apa pun\n` +
+    `✅ *Pelatihan GRATIS* bagi yang lolos seleksi\n\n` +
+    `*Cara daftar:*\n` +
+    `1️⃣ Isi formulir di 👉 ${DAFTAR_MITRA_URL} (±5 menit)\n` +
+    `2️⃣ Seleksi berkas & wawancara\n` +
+    `3️⃣ Ikuti pelatihan (SOP & sistem kerja)\n` +
+    `4️⃣ Aktif menerima tugas + ID card mitra\n\n` +
+    `*Siapkan:* foto selfie terbaru (diunggah di formulir), KTP & Kartu Keluarga asli (dibawa saat verifikasi), dan khusus mahasiswa foto KTM. Usia minimal 18 tahun.\n\n` +
+    `Tim kami akan menghubungi kakak lewat WhatsApp setelah formulir terkirim 🤍` +
+    MITRA_QA_MENU
   );
 }
 
@@ -630,5 +636,100 @@ export function buildOrderPausedReply(input: OrderPausedInput): string {
     `Pesanan ini *belum tercatat* di sistem kami, jadi tidak ada biaya apa pun.\n\n` +
     `Kami akan kabari lewat WhatsApp ini begitu layanan dibuka kembali 🤍\n\n` +
     `Info terbaru: www.kerjaku.click`
+  );
+}
+
+
+// ============================================================================
+// BARU (25 September 2026) -- Q&A OTOMATIS CALON MITRA (WA 0811-4110-9567).
+// Dipicu dari app/api/webhook/fonnte/route.ts (matchMitraQa). Isi sesuai
+// arahan 25 Sep 2026: pendapatan cukup gambaran umum (rincian bagi hasil
+// dijelaskan saat pelatihan), pendaftaran & pelatihan gratis, usia min 18.
+// ============================================================================
+
+/** Menu kata kunci di akhir setiap balasan calon mitra. */
+export const MITRA_QA_MENU =
+  `\n\n———\nInfo lain, ketik:\n*INFO* · *SYARAT* · *PENDAPATAN* · *CARA KERJA* · *KEUNTUNGAN* · *DAFTAR*`;
+
+/** INFO -- apa itu kerjaku.click. */
+export function buildMitraAboutReply(): string {
+  return (
+    `*kerjaku.click* adalah platform penyedia jasa tenaga kerja ke rumah di Kota Palu 🏠\n\n` +
+    `Layanan kami:\n` +
+    `🧺 Setrika pakaian\n` +
+    `🧹 Bersihkan rumah (cleaning service)\n` +
+    `📚 Guru les private anak (TK–SMA)\n\n` +
+    `Klien memesan lewat website & WhatsApp, lalu dikerjakan oleh mitra yang sudah terverifikasi dan terlatih.\n\n` +
+    `Kenal kami lebih dekat:\n` +
+    `🌐 www.kerjaku.click\n` +
+    `📸 Instagram: @kerjaku.click\n` +
+    `▶️ YouTube: youtube.com/@Kerjakuclick` +
+    MITRA_QA_MENU
+  );
+}
+
+/** SYARAT -- umum + per layanan. */
+export function buildMitraRequirementsReply(): string {
+  return (
+    `*Syarat jadi Mitra kerjaku.click* 📋\n\n` +
+    `*Semua mitra (wajib):*\n` +
+    `• Usia minimal 18 tahun\n` +
+    `• HP Android/smartphone + WhatsApp aktif (untuk dashboard mitra)\n` +
+    `• Foto selfie terbaru (diunggah di formulir)\n` +
+    `• KTP & Kartu Keluarga asli, dibawa saat verifikasi\n` +
+    `• Lolos wawancara & mengikuti pelatihan\n\n` +
+    `*Mitra Setrika:* punya setrika sendiri\n` +
+    `*Mitra Bersihkan Rumah:* punya alat kebersihan sendiri — sikat kamar mandi (2 buah), kain lap kasar & halus, sarung tangan\n` +
+    `*Mitra Guru Les Private:* menguasai mata pelajaran yang dipilih, sabar & sayang anak-anak; mahasiswa melampirkan foto KTM\n\n` +
+    `*Disarankan:* punya kendaraan sendiri, serta motivasi & semangat kerja 💪\n\n` +
+    `Pendaftaran & pelatihan *GRATIS*, tidak dipungut biaya apa pun.` +
+    MITRA_QA_MENU
+  );
+}
+
+/** PENDAPATAN -- gambaran umum saja (rincian bagi hasil dijelaskan saat
+ *  pelatihan, sesuai arahan 25 Sep 2026). */
+export function buildMitraEarningsReply(): string {
+  return (
+    `*Pendapatan Mitra kerjaku.click* 💵\n\n` +
+    `Sistem kami *kemitraan bagi hasil*, bukan gaji bulanan.\n\n` +
+    `• Pendapatan dihitung per jam kerja: kurang lebih *Rp30.000–Rp80.000/jam*\n` +
+    `• Estimasi per bulan: *Rp2 juta–Rp5 juta*, tergantung jumlah tugas & keaktifan\n` +
+    `• Dibayar *langsung oleh klien* setiap selesai kerja\n` +
+    `• *Program loyalty:* siapa rajin, dia makin besar pendapatannya\n` +
+    `• *Bonus tambah waktu:* kalau klien menambah waktu kerja, pendapatan ikut bertambah\n\n` +
+    `Rincian bagi hasil & sistem saldo mitra dijelaskan lengkap saat pelatihan.\n\n` +
+    `_*Estimasi, syarat & ketentuan berlaku._` +
+    MITRA_QA_MENU
+  );
+}
+
+/** CARA KERJA -- alur tugas sehari-hari. */
+export function buildMitraHowItWorksReply(): string {
+  return (
+    `*Cara kerja Mitra kerjaku.click* ⚙️\n\n` +
+    `1️⃣ Atur sendiri kapan siap kerja — tinggal nyalakan status *Siap Menerima Tugas* di dashboard mitra.\n` +
+    `2️⃣ Admin menugaskan pesanan sesuai keahlian kakak → notifikasi masuk ke WhatsApp & dashboard.\n` +
+    `3️⃣ Datang tepat waktu ke rumah klien, tekan *Mulai Kerja* di dashboard, kerjakan sesuai SOP & durasi paket.\n` +
+    `4️⃣ Selesai → klien membayar langsung ke kakak, invoice terkirim otomatis.\n` +
+    `5️⃣ Komunikasi dengan klien lewat *Chat Pesanan* di dashboard.\n\n` +
+    `🤝 Kunci utama jadi mitra: *kejujuran & integritas*. SOP lengkap dijelaskan saat pelatihan.` +
+    MITRA_QA_MENU
+  );
+}
+
+/** KEUNTUNGAN jadi mitra. */
+export function buildMitraBenefitsReply(): string {
+  return (
+    `*Keuntungan jadi Mitra kerjaku.click* 🌟\n\n` +
+    `✅ Pendapatan tambahan, dibayar langsung setiap selesai kerja\n` +
+    `✅ Waktu kerja fleksibel, tidak terikat jam kantor\n` +
+    `✅ Program loyalty — siapa rajin, dia makin besar pendapatannya\n` +
+    `✅ Bonus dari tambahan waktu kerja klien\n` +
+    `✅ Pendaftaran & pelatihan GRATIS + ID card mitra resmi\n` +
+    `✅ Pesanan datang dari sistem — tidak perlu cari klien sendiri\n` +
+    `✅ Bisa jadi pekerjaan tambahan untuk meningkatkan ekonomi keluarga\n` +
+    `✅ Bergabung dalam ekosistem perusahaan digital & peluang berkarir di perusahaan` +
+    MITRA_QA_MENU
   );
 }
