@@ -37,6 +37,13 @@
 // produk ybs), error-nya jelas ketahuan di sini, bukan diam-diam dipaksa
 // benar.
 //
+// REVISI (25 September 2026, konfirmasi Anda): durasi TIDAK LAGI fixed per
+// label -- Fast & PRO sama-sama bisa +30 ATAU +60 menit (60 menit = 2x harga
+// 30 menit). Fee Platform di dalam harga tambah waktu sekarang disimpan di
+// kolom BARU orders.extra_time_fee (migrasi 038) dan dipotong PENUH dari
+// saldo deposit mitra saat order selesai. Rumus: lib/services.ts
+// getExtraTimeBreakdown().
+//
 // Begitu berhasil: total_price pesanan bertambah, DAN sebuah pesan sistem
 // otomatis masuk ke Chat Pesanan (order_messages) supaya mitra langsung
 // tahu real-time tanpa perlu refresh -- pola sender_type='system' yang sama
@@ -46,10 +53,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
 import {
-  getExtraTimePrice,
+  getExtraTimeBreakdown,
   formatRupiah,
   findServiceByLabel,
-  EXTRA_TIME_MINUTES_BY_LABEL,
   type MitraLoyaltyTier,
 } from "@/lib/services";
 import { sendFonnteMessage, buildExtraTimeAddedMessage } from "@/lib/whatsapp";
@@ -120,24 +126,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
   }
 
-  // BARU (22 September 2026, dokumen "Logika Hitung Harga Tambah Waktu"
-  // final): durasi tambah waktu SEKARANG FIXED per label produk -- Fast
-  // HANYA +30 menit, PRO HANYA +60 menit. Dicek eksplisit di sini (bukan
-  // cuma mengandalkan getExtraTimePrice() balik null) supaya klien dapat
-  // pesan error yang jelas kalau kliknya salah durasi.
+  // Sejak 25 September 2026: Fast & PRO sama-sama boleh 30 ATAU 60 menit
+  // (sudah divalidasi di atas), cukup pastikan layanannya dikenali.
   const variant = findServiceByLabel(order.service_type);
   if (!variant) {
     return NextResponse.json(
       { error: "Tambah waktu tidak berlaku untuk jenis layanan ini." },
-      { status: 400 }
-    );
-  }
-  const requiredMinutes = EXTRA_TIME_MINUTES_BY_LABEL[variant.tier];
-  if ((minutes as 30 | 60) !== requiredMinutes) {
-    return NextResponse.json(
-      {
-        error: `Layanan ${variant.tier} hanya bisa ditambah ${requiredMinutes} menit, bukan ${minutes} menit.`,
-      },
       { status: 400 }
     );
   }
@@ -155,13 +149,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   const tierName = (tierInfoRows?.[0]?.tier_name as MitraLoyaltyTier | undefined) ?? "New";
 
-  const extraPrice = getExtraTimePrice(tierName, order.service_type, minutes as 30 | 60);
-  if (extraPrice === null) {
+  const breakdown = getExtraTimeBreakdown(tierName, order.service_type, minutes as 30 | 60);
+  if (breakdown === null) {
     return NextResponse.json(
       { error: "Tambah waktu tidak berlaku untuk jenis layanan ini." },
       { status: 400 }
     );
   }
+  const extraPrice = breakdown.price;
   const newTotalPrice = order.total_price + extraPrice;
 
   const { data: updatedOrder, error: updateError } = await admin
@@ -170,6 +165,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       total_price: newTotalPrice,
       extra_time_minutes: minutes,
       extra_time_price: extraPrice,
+      // BARU (migrasi 038): fee penuh di dalam harga tambah waktu, dipotong
+      // dari deposit mitra saat order selesai.
+      extra_time_fee: breakdown.fee,
       extra_time_requested_at: new Date().toISOString(),
     })
     .eq("id", orderId)

@@ -70,6 +70,7 @@ import {
   formatRupiah,
   formatMinutesAsDurasi,
   getPlatformFeePercent,
+  estimateOrderPlatformFee,
   getMaterialCost,
   getTransportCost,
   type MitraLoyaltyTier,
@@ -271,7 +272,15 @@ export default function TaskList({
             // ditampilkan supaya mitra tahu upah bersihnya secara transparan.
             const feePct = getPlatformFeePercent(tierName, o.service_type);
             const feePctLabel = `${Math.round(feePct * 100)}%`;
-            const estimasiFee = Math.round(o.total_price * feePct);
+            // REVISI (25 Sep 2026, migrasi 038): fee tambah waktu dipotong
+            // PENUH (extra_time_fee), bukan lagi Fee% x total.
+            const estimasiFee = estimateOrderPlatformFee(
+              tierName,
+              o.service_type,
+              o.total_price,
+              o.extra_time_price ?? 0,
+              o.extra_time_fee ?? 0
+            );
             const bahanBaku = getMaterialCost(o.service_type);
             const transport = getTransportCost(o.service_type);
             const estimasiTunai = o.total_price - estimasiFee;
@@ -361,6 +370,12 @@ export default function TaskList({
                   <p>
                     Potongan platform (tier {tierName}, {feePctLabel}):{" "}
                     <span className="font-mono">{formatRupiah(estimasiFee)}</span>
+                    {(o.extra_time_fee ?? 0) > 0 && (
+                      <span className="text-ink/50">
+                        {" "}
+                        (termasuk fee tambah waktu {formatRupiah(o.extra_time_fee)})
+                      </span>
+                    )}
                   </p>
                   <p className="mt-0.5">
                     Tunai diterima dari klien:{" "}

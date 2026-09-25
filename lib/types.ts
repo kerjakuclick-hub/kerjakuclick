@@ -63,7 +63,7 @@ export type Order = {
   mitra_id: string | null;
   status: OrderStatus;
   created_at: string;
-  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007) -- SEKARANG HANYA acuan lama/tampilan; ambang kelayakan riil sejak migrasi 030/034 adalah FLAT (lihat mitra_wallet_threshold()/MITRA_WALLET_MIN_BALANCE, Rp10.500 sejak 22 Sep 2026), bukan lagi 20% ataupun dinamis per tier (migrasi 024/028)
+  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007) -- SEKARANG HANYA acuan lama/tampilan; ambang kelayakan riil sejak migrasi 030/034 adalah FLAT (lihat mitra_wallet_threshold()/MITRA_WALLET_MIN_BALANCE, Rp9.100 sejak 25 Sep 2026 (13% x Setrika Fast, migrasi 038)), bukan lagi 20% ataupun dinamis per tier (migrasi 024/028)
   completed_at: string | null; // BARU — migrasi 034 (22 September 2026): waktu order status berubah jadi 'completed' (diisi otomatis oleh trigger), dipakai utk hitung "job selesai bulan kalender berjalan" pada Program Loyalty Tier. Data lama (completed sebelum migrasi 034) di-backfill dari created_at sebagai pendekatan.
   mitra_id_card_sent_at: string | null; // migrasi 017 — TIDAK dipakai lagi sejak notifikasi klien otomatis (migrasi 020), dibiarkan ada di DB untuk histori
   mitra_id_card_sent_by: string | null; // migrasi 017 — idem
@@ -74,6 +74,7 @@ export type Order = {
   extra_time_minutes: number; // BARU — migrasi 027: 0 | 30 | 60, tambah waktu yang diajukan klien
   extra_time_price: number; // BARU — migrasi 027: nominal tambah waktu (sudah termasuk di total_price), murni jejak audit/tampilan
   extra_time_requested_at: string | null; // BARU — migrasi 027
+  extra_time_fee: number; // BARU — migrasi 038 (25 Sep 2026): Fee Platform di dalam harga tambah waktu, dipotong PENUH dari deposit mitra saat order selesai (0 = tidak ada tambah waktu / order lama)
   invoice_notified_at: string | null; // BARU — migrasi 027: waktu invoice pembayaran berhasil terkirim otomatis ke WA klien
   invoice_notify_error: string | null; // BARU — migrasi 027: pesan error terakhir kalau pengiriman otomatis gagal
   working_started_at: string | null; // BARU — migrasi 035 (fitur "Alarm Waktu Habis"): waktu mitra klik "Mulai Kerjakan" (assigned -> working), titik awal hitungan alarm

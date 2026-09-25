@@ -1,5 +1,15 @@
 // GANTI ISI lib/services.ts Anda dengan file ini.
 //
+// REVISI (25 September 2026) -- 3 KONFIRMASI Anda (lihat juga migrasi
+// 038_fee_penuh_tambah_waktu_dan_ambang_saldo_13persen.sql):
+//   1. Fee Platform dari tambah waktu dipotong PENUH (dipakai platform utk
+//      biaya marketing/promosi) -- lihat getExtraTimeBreakdown() di bawah.
+//   2. Tambah waktu Fast & PRO sama-sama bisa +30 ATAU +60 menit; 60 menit
+//      = 2x harga 30 menit (fee ikut 2x). EXTRA_TIME_MINUTES_BY_LABEL
+//      (durasi fixed per label) DIHAPUS, diganti EXTRA_TIME_OPTIONS.
+//   3. Ambang saldo minimum = 13% (persentase awal, tidak ikut tier) x
+//      Setrika Fast = Rp9.100, satu angka flat (sebelumnya 15% = Rp10.500).
+//
 // Revisi FINAL (22 September 2026) -- 3 dokumen final yang Anda kirim &
 // konfirmasi sebagai acuan resmi TERBARU ("Logika Hitung Harga Jual Paket",
 // "Logika Hitung Harga Tambah Waktu", "Program Loyalty Tier Mitra"),
@@ -476,6 +486,8 @@ export function getUpahMitraBersih(tierName: MitraLoyaltyTier, serviceType: stri
 }
 
 // ============================================================================
+// [RIWAYAT -- durasi fixed per label & cara potong fee di catatan ini sudah
+// DIGANTI 25 September 2026, lihat blok REVISI tepat di bawahnya.]
 // Fitur "Tambah Waktu Kerja" -- rumus FINAL (22 September 2026), dokumen
 // "Logika Hitung Harga Tambah Waktu" yang Anda konfirmasi sebagai acuan
 // resmi TERBARU, MENGGANTIKAN TOTAL rumus 2-komponen (Fee Tambah Waktu % +
@@ -508,50 +520,95 @@ export function getUpahMitraBersih(tierName: MitraLoyaltyTier, serviceType: stri
 //      = Rp60.900 : 2 + Rp9.100 = Rp30.450 + Rp9.100   = Rp39.550 ✓ (cocok dokumen)
 // ============================================================================
 
-/** Durasi tambah waktu yang FIXED per label produk (22 September 2026,
- *  dokumen "Logika Hitung Harga Tambah Waktu"). Fast selalu +30 menit, PRO
- *  selalu +60 menit -- tidak ada kombinasi lain yang berlaku. */
-export const EXTRA_TIME_MINUTES_BY_LABEL: Record<"Fast" | "PRO", ExtraTimeMinutes> = {
-  Fast: 30,
-  PRO: 60,
+// ----------------------------------------------------------------------------
+// REVISI (25 September 2026, konfirmasi Anda) -- MENGGANTIKAN durasi fixed
+// per label di atas:
+//   - Fast & PRO sama-sama bisa tambah +30 ATAU +60 menit.
+//   - Rumus dokumen = harga per 30 menit:
+//       HT_30 = ROUND((HJ - Fee) / 2) + Fee,   Fee = ROUND(HJ x Fee% tier)
+//     60 menit = 2 x HT_30 (Fee ikut 2x).
+//   - Fee di dalam HT dipotong PENUH dari saldo deposit mitra saat order
+//     selesai (disimpan di orders.extra_time_fee, migrasi 038).
+// Contoh Setrika Fast, tier New: Fee Rp9.100 -> +30 menit Rp39.550 (fee
+// Rp9.100), +60 menit Rp79.100 (fee Rp18.200).
+// ----------------------------------------------------------------------------
+
+/** Pilihan durasi tambah waktu -- berlaku untuk label Fast maupun PRO. */
+export const EXTRA_TIME_OPTIONS: ExtraTimeMinutes[] = [30, 60];
+
+export type ExtraTimeBreakdown = {
+  minutes: ExtraTimeMinutes;
+  /** Harga tambah waktu yang dibayar klien (ditambahkan ke total_price). */
+  price: number;
+  /** Fee Platform di dalam harga itu -- dipotong penuh dari deposit mitra. */
+  fee: number;
 };
 
-/** Hitung total biaya "Tambah Waktu Kerja" (Rupiah, langsung ditambahkan ke
- *  total_price pesanan) untuk sebuah pesanan, berdasarkan `service_type`
- *  order ybs & TIER LOYALTY MITRA yang sedang mengerjakannya. `minutes`
- *  HARUS persis sama dengan durasi fixed label produk ybs
- *  (EXTRA_TIME_MINUTES_BY_LABEL) -- kalau tidak cocok (mis. minta 60 menit
- *  utk produk Fast), balikan `null` sama seperti kalau service_type tidak
- *  dikenali. */
+/** Rincian harga & fee tambah waktu utk sebuah pesanan, berdasarkan
+ *  `service_type` & TIER LOYALTY MITRA yang mengerjakannya. Balikan `null`
+ *  kalau layanan tidak dikenali atau durasi bukan 30/60. */
+export function getExtraTimeBreakdown(
+  tierName: MitraLoyaltyTier,
+  serviceType: string,
+  minutes: ExtraTimeMinutes
+): ExtraTimeBreakdown | null {
+  const variant = findServiceByLabel(serviceType);
+  if (!variant) return null;
+  if (!EXTRA_TIME_OPTIONS.includes(minutes)) return null;
+
+  const units = minutes / 30; // 30 menit = 1 unit, 60 menit = 2 unit
+  const hargaJual = variant.price;
+  const feePer30 = Math.round(hargaJual * getPlatformFeePercent(tierName, serviceType));
+  const bagianMitraPer30 = Math.round((hargaJual - feePer30) / 2);
+  return {
+    minutes,
+    price: (bagianMitraPer30 + feePer30) * units,
+    fee: feePer30 * units,
+  };
+}
+
+/** Harga tambah waktu saja (Rupiah) -- pembungkus getExtraTimeBreakdown()
+ *  supaya pemanggil lama tetap jalan. */
 export function getExtraTimePrice(
   tierName: MitraLoyaltyTier,
   serviceType: string,
   minutes: ExtraTimeMinutes
 ): number | null {
-  const variant = findServiceByLabel(serviceType);
-  if (!variant) return null;
-  const requiredMinutes = EXTRA_TIME_MINUTES_BY_LABEL[variant.tier];
-  if (minutes !== requiredMinutes) return null;
+  return getExtraTimeBreakdown(tierName, serviceType, minutes)?.price ?? null;
+}
 
-  const hargaJual = variant.price;
-  const feePlatform = Math.round(hargaJual * getPlatformFeePercent(tierName, serviceType));
-  const separuhSisaHargaJual = Math.round((hargaJual - feePlatform) / 2);
-  return separuhSisaHargaJual + feePlatform;
+/** Fee Platform total yang AKAN dipotong dari deposit mitra utk sebuah
+ *  order (estimasi tampilan -- angka sebenarnya dihitung trigger database
+ *  dengan rumus yang sama): fee paket utama (tier saat ini) + fee tambah
+ *  waktu yang sudah tersimpan di order. Order lama (tambah waktu sebelum
+ *  migrasi 038, extraTimeFee = 0) memakai cara lama: Fee% x total. */
+export function estimateOrderPlatformFee(
+  tierName: MitraLoyaltyTier,
+  serviceType: string,
+  totalPrice: number,
+  extraTimePrice: number,
+  extraTimeFee: number
+): number {
+  const pct = getPlatformFeePercent(tierName, serviceType);
+  if (extraTimePrice > 0 && extraTimeFee === 0) {
+    return Math.round(totalPrice * pct);
+  }
+  return Math.round((totalPrice - extraTimePrice) * pct) + extraTimeFee;
 }
 
 // ----------------------------------------------------------------------------
-// Ambang Saldo Minimum Mitra (BARU, 20 September 2026) -- "SISTEM DOMPET
-// MITRA: AMBANG BATAS 15% dari produk berlabel FAST". Dibaca sebagai saldo
-// minimum FLAT yang mitra harus jaga supaya tetap tampil eligible
-// ditugaskan order APAPUN. Referensi "produk berlabel FAST" dipakai =
-// Setrika Fast (produk FAST termurah & paling umum) -- ANGKA IKUT NAIK (22
-// September 2026) karena harga Setrika Fast naik jadi Rp70.000, mengikuti
-// KONVENSI SINKRONISASI yang sudah ada (lihat catatan di kepala file).
-// HARUS disinkron manual dengan public.mitra_wallet_threshold() di migrasi
-// 034 kalau berubah.
+// Ambang Saldo Minimum Mitra -- REVISI (25 September 2026, konfirmasi Anda):
+// "minimal potongan produk terkecil berlabel Fast, persentase awal (tidak
+// berdasarkan tier)". Persentase awal = fee tier New label Fast (13%),
+// produk Fast terkecil = Setrika Fast (Rp70.000) -> Rp9.100, SATU angka flat
+// utk semua jenis order. Sebelumnya 15% = Rp10.500.
+// HARUS sinkron dengan public.mitra_wallet_threshold() (migrasi 038).
+export const WALLET_THRESHOLD_BASE_PERCENT = PLATFORM_FEE_TIERS.New.fast; // 13%
+
 export const MITRA_WALLET_MIN_BALANCE = Math.round(
-  0.15 * (services.find((s) => s.id === "setrika-fast")?.price ?? 70000)
-); // = Rp10.500
+  WALLET_THRESHOLD_BASE_PERCENT *
+    Math.min(...services.filter((s) => s.tier === "Fast").map((s) => s.price))
+); // = Rp9.100
 
 // ============================================================================
 // BARU (22 September 2026) -- fitur "Alarm Waktu Habis" (migrasi 035), diangkat

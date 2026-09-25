@@ -43,9 +43,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
 import {
-  getExtraTimePrice,
-  findServiceByLabel,
-  EXTRA_TIME_MINUTES_BY_LABEL,
+  getExtraTimeBreakdown,
+  EXTRA_TIME_OPTIONS,
   type MitraLoyaltyTier,
 } from "@/lib/services";
 
@@ -149,19 +148,15 @@ export async function GET(req: NextRequest) {
     tierByMitraId[mitraId] = (tierInfoRows?.[0]?.tier_name as MitraLoyaltyTier | undefined) ?? "New";
   }
 
-  // BARU (22 September 2026): 1 opsi durasi FIXED per label produk (Fast =
-  // 30 menit, PRO = 60 menit) -- bukan lagi {30, 60} dua opsi sekaligus.
-  const extraTimeRatesByOrderId: Record<number, { minutes: 30 | 60; price: number } | null> = {};
+  // REVISI (25 September 2026): Fast & PRO sama-sama punya 2 opsi (30 &
+  // 60 menit, 60 = 2x harga 30) -- dikirim sebagai array.
+  const extraTimeRatesByOrderId: Record<number, { minutes: 30 | 60; price: number }[] | null> = {};
   for (const o of eligibleForExtraTime) {
     const tierName = tierByMitraId[o.mitra_id as string] ?? "New";
-    const variant = findServiceByLabel(o.service_type);
-    if (!variant) {
-      extraTimeRatesByOrderId[o.id] = null;
-      continue;
-    }
-    const minutes = EXTRA_TIME_MINUTES_BY_LABEL[variant.tier];
-    const price = getExtraTimePrice(tierName, o.service_type, minutes);
-    extraTimeRatesByOrderId[o.id] = price !== null ? { minutes, price } : null;
+    const rates = EXTRA_TIME_OPTIONS.map((m) => getExtraTimeBreakdown(tierName, o.service_type, m))
+      .filter((b): b is NonNullable<typeof b> => b !== null)
+      .map((b) => ({ minutes: b.minutes, price: b.price }));
+    extraTimeRatesByOrderId[o.id] = rates.length > 0 ? rates : null;
   }
 
   // `mitra_id` dibuang lagi sebelum dikirim ke client -- cukup dipakai

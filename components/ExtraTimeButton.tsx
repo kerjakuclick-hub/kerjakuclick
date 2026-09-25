@@ -21,6 +21,10 @@
 // pesanan ybs (`rates` sekarang `{ minutes, price }`, bukan lagi `{30, 60}`
 // dua opsi sekaligus).
 //
+// REVISI (25 September 2026, konfirmasi Anda): Fast & PRO sama-sama bisa
+// +30 ATAU +60 menit (60 menit = 2x harga 30 menit). `rates` sekarang ARRAY
+// berisi 2 opsi dari server -- klien pilih salah satu, lalu konfirmasi.
+//
 // Alur: klien klik tombol tambah waktu -> konfirmasi harga (langkah kedua,
 // supaya tidak kepencet tidak sengaja karena ini nambah tagihan) -> POST
 // ke /api/customer/orders/[id]/extra-time -> sukses -> onSuccess(order)
@@ -39,21 +43,22 @@ export default function ExtraTimeButton({
   onSuccess,
 }: {
   orderId: number;
-  rates: ExtraTimeRate;
+  rates: ExtraTimeRate[];
   onSuccess: (updatedOrder: any) => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
+  const [selected, setSelected] = useState<ExtraTimeRate | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function konfirmasi() {
+    if (!selected) return;
     setLoading(true);
     setError("");
     try {
       const res = await fetch(`/api/customer/orders/${orderId}/extra-time`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ minutes: rates.minutes }),
+        body: JSON.stringify({ minutes: selected.minutes }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -68,12 +73,12 @@ export default function ExtraTimeButton({
     }
   }
 
-  if (confirming) {
+  if (selected) {
     return (
       <div className="mt-3 rounded-lg border border-bridge/40 bg-bridge/10 p-3">
         <p className="text-sm text-white/85">
-          Tambah <span className="font-semibold">{rates.minutes} menit</span> — biaya tambahan{" "}
-          <span className="font-semibold">{formatRupiah(rates.price)}</span>. Ini hanya bisa
+          Tambah <span className="font-semibold">{selected.minutes} menit</span> — biaya tambahan{" "}
+          <span className="font-semibold">{formatRupiah(selected.price)}</span>. Ini hanya bisa
           diajukan sekali per pesanan. Lanjutkan?
         </p>
         {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
@@ -87,7 +92,7 @@ export default function ExtraTimeButton({
           </button>
           <button
             onClick={() => {
-              setConfirming(false);
+              setSelected(null);
               setError("");
             }}
             disabled={loading}
@@ -103,12 +108,15 @@ export default function ExtraTimeButton({
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
       <span className="text-xs font-medium text-white/60">Butuh waktu lebih?</span>
-      <button
-        onClick={() => setConfirming(true)}
-        className="rounded-full border border-bridge/50 px-4 py-1.5 text-xs font-semibold text-bridge transition hover:bg-bridge/10"
-      >
-        ⏱️ Tambah {rates.minutes} Menit (+{formatRupiah(rates.price)})
-      </button>
+      {rates.map((r) => (
+        <button
+          key={r.minutes}
+          onClick={() => setSelected(r)}
+          className="rounded-full border border-bridge/50 px-4 py-1.5 text-xs font-semibold text-bridge transition hover:bg-bridge/10"
+        >
+          ⏱️ +{r.minutes} Menit ({formatRupiah(r.price)})
+        </button>
+      ))}
     </div>
   );
 }
