@@ -37,7 +37,15 @@
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import Link from "next/link";
 import OrderForm from "@/components/OrderForm";
+
+// BARU (25 September 2026) -- MODE JEDA PESANAN: kalau env
+// ORDER_PAUSE_MODE di Vercel = "true", tampil bar pengumuman di atas
+// formulir. Formulir TETAP bisa diisi; pesanan yang terkirim dibalas
+// otomatis lewat WA (lib/whatsapp.ts buildOrderPausedReply) dan tidak
+// disimpan. Ubah env lalu redeploy untuk menyalakan/mematikan.
+const ORDER_PAUSED = process.env.ORDER_PAUSE_MODE === "true";
 
 export const metadata = {
   title: "Pesan Jasa — Kerjaku.click",
@@ -50,6 +58,27 @@ export default function PesanPage() {
     <>
       <Header />
       <main>
+        {ORDER_PAUSED && (
+          <div className="border-b border-bridge/40 bg-bridge/15">
+            <div className="mx-auto flex max-w-[1200px] gap-3 px-5 py-4 sm:px-8">
+              <span aria-hidden="true" className="text-xl leading-6">📢</span>
+              <div className="text-sm leading-relaxed text-ink">
+                <p className="font-semibold">
+                  kerjaku.click sedang Pelatihan Mitra &amp; Rekrutmen Mitra Baru
+                </p>
+                <p className="mt-0.5 text-ink/75">
+                  Kami sedang meningkatkan skill mitra dengan SOP &amp; sistem layanan baru, sekaligus
+                  merekrut mitra baru. Untuk sementara pesanan <strong>belum kami layani</strong> —
+                  layanan akan dibuka kembali setelah pelatihan selesai. Tertarik bergabung?{" "}
+                  <Link href="/daftar-mitra" className="font-semibold text-bay underline underline-offset-2">
+                    Daftar jadi mitra
+                  </Link>
+                  .
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         <OrderForm />
       </main>
       <Footer />

@@ -10,6 +10,8 @@ import {
   buildTopupUnknownSenderReply,
   extractTopupAmount,
   phoneLookupVariants,
+  isOrderPauseMode,
+  buildOrderPausedReply,
 } from "@/lib/whatsapp";
 
 // ========================================================================
@@ -372,6 +374,21 @@ export async function POST(req: NextRequest) {
   const parsed = parseOrderMessage(rawMessage);
   if (parsed) {
     const matchedService = findServiceByLabel(parsed.jasa);
+
+    // BARU (25 Sep 2026) -- MODE JEDA PESANAN (env ORDER_PAUSE_MODE=true):
+    // selama pelatihan & rekrutmen mitra, pesanan TIDAK disimpan, klien
+    // cukup dibalas pemberitahuan. Fungsi lain (FAQ, reset PIN, daftar
+    // mitra, top up) tetap jalan normal di bawah.
+    if (isOrderPauseMode()) {
+      await sendFonnteReply(
+        sender || parsed.noHp,
+        buildOrderPausedReply({
+          nama: parsed.nama,
+          jasa: matchedService?.name ?? parsed.jasa,
+        })
+      );
+      return NextResponse.json({ ok: true, order_paused: true });
+    }
 
     try {
       const supabase = getSupabaseAdmin();

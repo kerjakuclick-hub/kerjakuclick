@@ -599,3 +599,36 @@ export function buildTopupSuccessMessage(input: TopupSuccessInput): string {
     `Cek riwayat saldo di ${MITRA_DASHBOARD_URL}`
   );
 }
+
+// ============================================================================
+// BARU (25 September 2026) -- MODE JEDA PESANAN (env ORDER_PAUSE_MODE=true).
+// Website online penuh (daftar mitra, formulir, akun, dst), tapi pesanan
+// baru BELUM dilayani selama pelatihan mitra (upgrade skill, SOP & sistem
+// baru) dan rekrutmen mitra baru. Pesanan #BARU yang masuk TIDAK disimpan
+// ke sistem -- cukup dibalas pesan ini (data tetap terlihat di riwayat chat
+// WA untuk di-follow up manual saat layanan dibuka).
+// ============================================================================
+
+/** Aktif kalau env ORDER_PAUSE_MODE di Vercel bernilai "true". */
+export function isOrderPauseMode(): boolean {
+  return process.env.ORDER_PAUSE_MODE === "true";
+}
+
+export type OrderPausedInput = {
+  nama: string;
+  jasa: string;
+};
+
+/** Balasan otomatis untuk klien yang mengirim pesanan selama jeda. */
+export function buildOrderPausedReply(input: OrderPausedInput): string {
+  return (
+    `Halo kak ${input.nama}, terima kasih sudah memesan *${input.jasa}* di kerjaku.click 🙏\n\n` +
+    `Saat ini kami *belum menerima pesanan* dulu karena sedang fokus pada:\n` +
+    `📚 *Pelatihan mitra* — upgrade skill, SOP & sistem layanan baru\n` +
+    `🤝 *Rekrutmen mitra baru*\n\n` +
+    `Semua ini supaya layanan yang kakak terima nanti lebih rapi, aman, dan berkualitas. ` +
+    `Pesanan ini *belum tercatat* di sistem kami, jadi tidak ada biaya apa pun.\n\n` +
+    `Kami akan kabari lewat WhatsApp ini begitu layanan dibuka kembali 🤍\n\n` +
+    `Info terbaru: www.kerjaku.click`
+  );
+}
