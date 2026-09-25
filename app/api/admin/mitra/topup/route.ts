@@ -5,10 +5,17 @@
 // topup_wallet() (migrasi 008) supaya SETIAP top up otomatis tercatat di
 // wallet_transactions (AC9) — update saldo & pencatatan audit selalu satu
 // paket, tidak mungkin salah satu tertinggal.
+//
+// BARU (25 September 2026): setelah saldo berhasil diisi, mitra otomatis
+// dapat WA "Saldo Masuk" (nominal, saldo baru, sudah/belum di atas ambang
+// minimum). Best-effort -- kalau WA gagal terkirim, top up TETAP berhasil;
+// status kirimnya dikembalikan di field `waNotify` untuk admin.
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { sendFonnteMessage, buildTopupSuccessMessage } from "@/lib/whatsapp";
+import { MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
 
 export async function POST(req: NextRequest) {
   const supabase = createClient();
@@ -55,5 +62,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ profile: updated, newBalance });
+  let waNotify: { ok: boolean; error?: string } = { ok: false, error: "Nomor mitra kosong." };
+  if (updated?.phone) {
+    const result = await sendFonnteMessage(
+      updated.phone,
+      buildTopupSuccessMessage({
+        mitraName: updated.name ?? "Mitra",
+        amount: Number(amount),
+        newBalance: Number(newBalance ?? updated.wallet_balance ?? 0),
+        minBalance: MITRA_WALLET_MIN_BALANCE,
+      })
+    );
+    waNotify = result.ok ? { ok: true } : { ok: false, error: result.error };
+    if (!result.ok) console.error("Gagal kirim WA saldo masuk ke mitra:", result.error);
+  }
+
+  return NextResponse.json({ profile: updated, newBalance, waNotify });
 }

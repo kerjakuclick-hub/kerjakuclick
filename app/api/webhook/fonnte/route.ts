@@ -2,6 +2,85 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { findServiceByLabel, services, formatRupiah } from "@/lib/services";
 import { requestPinReset } from "@/lib/customerAuth";
+import {
+  buildMitraRegistrationReply,
+  buildMitraRegistrationClosedReply,
+  buildTopupInstructionsReply,
+  buildTopupReceivedReply,
+  buildTopupUnknownSenderReply,
+  extractTopupAmount,
+  phoneLookupVariants,
+} from "@/lib/whatsapp";
+
+// ========================================================================
+// BARU (25 September 2026) -- menu Salam WA Bisnis (0811-4110-9567):
+//   1 Konfirmasi pesanan  -> sudah otomatis lewat alur order web (#BARU)
+//   2 Keluhan pelanggan   -> FAQ otomatis; keluhan berat ditangani manual
+//   3 Daftar mitra        -> balasan otomatis link pendaftaran (DI SINI)
+//   4 Top up saldo        -> instruksi / konfirmasi otomatis (DI SINI);
+//                            notifikasi "saldo masuk" dikirim dari
+//                            app/api/admin/mitra/topup/route.ts
+// ========================================================================
+
+/** Normalisasi pesan pendek: huruf kecil, tanpa tanda baca/emoji di ujung. */
+function normalizeShort(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+}
+
+// Calon mitra: "daftar", "daftar mitra", angka menu "3", atau tanya
+// lowongan/jadi mitra (materi iklan lowongan mengarahkan ke nomor ini).
+// SENGAJA tidak menangkap kata "mitra" sendirian -- klien yang menulis
+// "mitra saya belum datang" itu keluhan, bukan calon mitra.
+const MITRA_REGISTRATION_PATTERN =
+  /\b(lowongan|loker|lamar|melamar|lamaran|rekrut|rekrutmen)\b|\b(jadi|gabung|daftar|syarat|cara)\b.{0,20}\bmitra\b|\bmitra\b.{0,15}\b(jadi|gabung|daftar)\b/i;
+
+function isMitraRegistrationRequest(raw: string): boolean {
+  const short = normalizeShort(raw);
+  if (short === "3" || short === "daftar" || short === "daftar mitra") return true;
+  return MITRA_REGISTRATION_PATTERN.test(raw);
+}
+
+// Top up: pesan berisi "topup"/"top up"/"isi saldo"/"tambah saldo"
+// (biasanya caption foto bukti transfer), atau angka menu "4".
+const TOPUP_PATTERN = /\btop\s*-?\s*up\b|\b(isi|tambah)\s+saldo\b/i;
+
+function isTopupMenu(raw: string): boolean {
+  return normalizeShort(raw) === "4";
+}
+
+function isTopupRequest(raw: string): boolean {
+  return TOPUP_PATTERN.test(raw);
+}
+
+/** Cari profil MITRA dari nomor pengirim WA (format 62.../0...). */
+async function findMitraBySender(sender: string) {
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, name, wallet_balance, role")
+    .in("phone", phoneLookupVariants(sender))
+    .eq("role", "mitra")
+    .limit(1);
+  return data?.[0] ?? null;
+}
+
+/** Balas pesan top up: konfirmasi kalau pengirim mitra terdaftar. */
+async function handleTopup(sender: string, raw: string) {
+  const mitra = await findMitraBySender(sender);
+  if (!mitra) {
+    await sendFonnteReply(sender, buildTopupUnknownSenderReply());
+    return "unknown_sender";
+  }
+  await sendFonnteReply(
+    sender,
+    buildTopupReceivedReply({
+      mitraName: mitra.name,
+      currentBalance: Number(mitra.wallet_balance ?? 0),
+      amount: extractTopupAmount(raw),
+    })
+  );
+  return "received";
+}
 
 // Bentuk payload webhook Fonnte untuk pesan masuk (lihat docs.fonnte.com).
 // Field yang relevan buat kita: sender, message, name, device.
@@ -128,9 +207,10 @@ const FAQ_HOW_TO_ORDER_REPLY =
   `4️⃣ Tinggal kirim, sistem kami langsung proses & kasih konfirmasi\n\n` +
   `Coba langsung di www.kerjaku.click ya 🤍`;
 
-const FAQ_JOIN_MITRA_REPLY =
-  `Mau gabung jadi Mitra kerjaku.click? Gampang, daftar langsung di www.kerjaku.click/daftar-mitra 🤍\n\n` +
-  `Cocok buat ibu rumah tangga, mahasiswa akhir, guru, atau siapa saja yang mau penghasilan tambahan dengan jadwal fleksibel. Nanti tim kami hubungi untuk proses selanjutnya.`;
+// 25 Sep 2026: disamakan dengan balasan "daftar" (lib/whatsapp.ts) --
+// praktis tidak terpakai lagi karena Jalur 2c menangkap pertanyaan mitra
+// lebih dulu, dibiarkan sebagai cadangan.
+const FAQ_JOIN_MITRA_REPLY = buildMitraRegistrationReply();
 
 const FAQ_PATTERNS: Array<{ test: RegExp; reply: string }> = [
   {
@@ -264,6 +344,21 @@ export async function POST(req: NextRequest) {
   // disimpan, TIDAK ada FAQ auto-reply, TIDAK ada reset PIN -- semua pesan
   // masuk cukup dibalas 1 pesan singkat pemberitahuan maintenance.
   if (process.env.MAINTENANCE_MODE === "true") {
+    // BARU (25 Sep 2026): top up saldo mitra TETAP dilayani selama
+    // maintenance (dasbor mitra & admin juga tetap buka), dan calon mitra
+    // dapat info bahwa pendaftaran sedang ditutup sementara.
+    if (sender && isTopupMenu(rawMessage)) {
+      await sendFonnteReply(sender, buildTopupInstructionsReply());
+      return NextResponse.json({ ok: true, maintenance: true, topup: "instructions" });
+    }
+    if (sender && isTopupRequest(rawMessage)) {
+      const result = await handleTopup(sender, rawMessage);
+      return NextResponse.json({ ok: true, maintenance: true, topup: result });
+    }
+    if (sender && isMitraRegistrationRequest(rawMessage)) {
+      await sendFonnteReply(sender, buildMitraRegistrationClosedReply());
+      return NextResponse.json({ ok: true, maintenance: true, mitra_registration: "closed" });
+    }
     if (sender) {
       await sendFonnteReply(
         sender,
@@ -344,6 +439,29 @@ export async function POST(req: NextRequest) {
       console.error("Reset PIN error:", err);
       return NextResponse.json({ ok: false, reason: "server_error" }, { status: 500 });
     }
+  }
+
+  // --- Jalur 2b (BARU 25 Sep 2026): menu "4" / top up saldo mitra ---
+  // Dicek SEBELUM pendaftaran mitra & FAQ supaya "topup 50000" tidak
+  // tertangkap pola lain.
+  if (sender && isTopupMenu(rawMessage)) {
+    await sendFonnteReply(sender, buildTopupInstructionsReply());
+    return NextResponse.json({ ok: true, topup: "instructions" });
+  }
+  if (sender && isTopupRequest(rawMessage)) {
+    try {
+      const result = await handleTopup(sender, rawMessage);
+      return NextResponse.json({ ok: true, topup: result });
+    } catch (err) {
+      console.error("Top up auto-reply error:", err);
+      return NextResponse.json({ ok: true, topup: "error" });
+    }
+  }
+
+  // --- Jalur 2c (BARU 25 Sep 2026): "daftar" / menu "3" / tanya jadi mitra ---
+  if (sender && isMitraRegistrationRequest(rawMessage)) {
+    await sendFonnteReply(sender, buildMitraRegistrationReply());
+    return NextResponse.json({ ok: true, mitra_registration: "sent" });
   }
 
   // --- Jalur 3: FAQ (harga, jam operasional, cara pesan, cara jadi mitra) ---

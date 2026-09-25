@@ -483,3 +483,119 @@ export function buildTimeUpMessage(order: TimeUpInput): string {
     `Ada pertanyaan? Chat lewat ikon 💬 di kerjaku.click.`
   );
 }
+
+// ============================================================================
+// BARU (25 September 2026) -- balasan otomatis menu WA CS (Salam WA Bisnis:
+// "3 Daftar mitra", "4 Top up saldo"). Dipakai app/api/webhook/fonnte/route.ts
+// & app/api/admin/mitra/topup/route.ts.
+// ============================================================================
+
+const DAFTAR_MITRA_URL = "www.kerjaku.click/daftar-mitra";
+
+/** Balasan untuk calon mitra: ketik "daftar", "3", atau tanya soal jadi
+ *  mitra/lowongan (materi iklan lowongan mengarahkan ke nomor ini). */
+export function buildMitraRegistrationReply(): string {
+  return (
+    `Halo kak, terima kasih sudah tertarik jadi *Mitra kerjaku.click* 🤝\n\n` +
+    `Daftar langsung lewat link ini (±5 menit):\n👉 ${DAFTAR_MITRA_URL}\n\n` +
+    `Yang perlu disiapkan:\n` +
+    `• Nomor WhatsApp aktif\n` +
+    `• Foto profil\n` +
+    `• KTP & Kartu Keluarga asli (ditunjukkan saat verifikasi)\n` +
+    `• Khusus mahasiswa: foto KTM\n\n` +
+    `Layanan yang bisa dipilih: Setrika, Bersihkan Rumah, dan Les Private. Jadwal kerja fleksibel, cocok untuk penghasilan tambahan.\n\n` +
+    `Setelah formulir terkirim, tim kami akan menghubungi kakak lewat WhatsApp untuk verifikasi & pelatihan 🤍`
+  );
+}
+
+/** Sama seperti di atas, tapi selama MAINTENANCE_MODE (halaman
+ *  /daftar-mitra sedang ditutup untuk publik -- lihat middleware.ts). */
+export function buildMitraRegistrationClosedReply(): string {
+  return (
+    `Halo kak, terima kasih sudah tertarik jadi *Mitra kerjaku.click* 🤝\n\n` +
+    `Pendaftaran mitra baru sedang kami tutup sementara selama pemeliharaan sistem. ` +
+    `Silakan cek lagi dalam waktu dekat di ${DAFTAR_MITRA_URL} ya 🙏`
+  );
+}
+
+/** Info rekening top up -- diisi lewat env var TOPUP_REKENING_INFO di
+ *  Vercel (mis. "BRI 1234-5678-90 a.n. PT Kerjaku Bangun Negeri").
+ *  Kalau belum diisi, mitra diminta menanyakan rekening ke admin. */
+function topupRekeningLine(): string {
+  const info = process.env.TOPUP_REKENING_INFO?.trim();
+  return info
+    ? `1️⃣ Transfer ke rekening resmi kerjaku.click:\n   *${info}*\n`
+    : `1️⃣ Transfer ke rekening resmi kerjaku.click (balas chat ini untuk minta nomor rekening ke admin)\n`;
+}
+
+/** Balasan menu "4" / tanya cara top up (tanpa bukti transfer). */
+export function buildTopupInstructionsReply(): string {
+  return (
+    `Cara *top up saldo deposit mitra* kerjaku.click 💳\n\n` +
+    topupRekeningLine() +
+    `2️⃣ Kirim *foto bukti transfer* ke chat ini dengan keterangan:\n   *TOPUP <nominal>*  (contoh: TOPUP 50000)\n` +
+    `3️⃣ Admin cek & isi saldo — kakak dapat WA otomatis begitu saldo masuk.\n\n` +
+    `Pastikan kirim dari nomor WA yang terdaftar sebagai mitra ya 🙏`
+  );
+}
+
+/** Ambil nominal dari teks top up: "TOPUP 50000", "top up 50.000",
+ *  "topup 50rb", "topup 100k". Balikan null kalau tidak ada angka yang
+ *  masuk akal (< Rp1.000). */
+export function extractTopupAmount(raw: string): number | null {
+  const m = raw.replace(/\s+/g, " ").match(/(\d[\d.,]*)\s*(rb|ribu|k)?\b/i);
+  if (!m) return null;
+  let value = Number(m[1].replace(/[.,]/g, ""));
+  if (m[2]) value *= 1000;
+  return Number.isFinite(value) && value >= 1000 ? value : null;
+}
+
+export type TopupReceivedInput = {
+  mitraName: string;
+  currentBalance: number;
+  amount: number | null;
+};
+
+/** Balasan otomatis begitu mitra terdaftar mengirim pesan top up. */
+export function buildTopupReceivedReply(input: TopupReceivedInput): string {
+  return (
+    `Permintaan top up diterima ✅\n\n` +
+    `Mitra: ${input.mitraName}\n` +
+    (input.amount ? `Nominal: Rp${input.amount.toLocaleString("id-ID")}\n` : "") +
+    `Saldo saat ini: Rp${input.currentBalance.toLocaleString("id-ID")}\n\n` +
+    `Admin akan mengecek bukti transfer dan mengisi saldo kakak. Kakak akan dapat WA otomatis begitu saldo masuk.\n\n` +
+    `⚠️ Pastikan *foto bukti transfer* sudah terkirim di chat ini. Kalau belum, kirim sekarang ya.`
+  );
+}
+
+/** Balasan kalau nomor pengirim pesan top up tidak terdaftar sebagai mitra. */
+export function buildTopupUnknownSenderReply(): string {
+  return (
+    `Nomor WhatsApp ini belum terdaftar sebagai mitra kerjaku.click 🙏\n\n` +
+    `Top up saldo hanya bisa dari nomor yang terdaftar di akun mitra. Kalau kakak sudah jadi mitra dengan nomor lain, kirim dari nomor itu ya. ` +
+    `Kalau belum jadi mitra, daftar dulu di ${DAFTAR_MITRA_URL}`
+  );
+}
+
+export type TopupSuccessInput = {
+  mitraName: string;
+  amount: number;
+  newBalance: number;
+  minBalance: number;
+};
+
+/** Notifikasi PROAKTIF ke mitra begitu admin mengisi saldo
+ *  (app/api/admin/mitra/topup/route.ts). */
+export function buildTopupSuccessMessage(input: TopupSuccessInput): string {
+  const eligible = input.newBalance >= input.minBalance;
+  return (
+    `💰 *Saldo Masuk* — kerjaku.click\n\n` +
+    `Halo ${input.mitraName}, top up saldo deposit kakak sudah diproses ✅\n\n` +
+    `Top up: +Rp${input.amount.toLocaleString("id-ID")}\n` +
+    `Saldo sekarang: *Rp${input.newBalance.toLocaleString("id-ID")}*\n\n` +
+    (eligible
+      ? `Saldo sudah di atas batas minimum (Rp${input.minBalance.toLocaleString("id-ID")}), kakak siap menerima tugas baru 🤍\n\n`
+      : `Saldo masih di bawah batas minimum Rp${input.minBalance.toLocaleString("id-ID")} — top up lagi supaya bisa menerima tugas.\n\n`) +
+    `Cek riwayat saldo di ${MITRA_DASHBOARD_URL}`
+  );
+}
