@@ -42,6 +42,9 @@ import {
   EDUCATION_LEVELS,
   LES_PRIVATE_LEVEL_SUBJECT_SLUGS,
   getLesPrivateSubjectsForLevel,
+  isLesPrivateCategory,
+  serviceCategoryList,
+  slugify,
   type EducationLevel,
 } from "@/lib/services";
 import { buildOrderMessage, buildWaLink } from "@/lib/whatsapp";
@@ -54,14 +57,15 @@ const HOUSEHOLD_TIME_SLOTS = ["09.00-11.00", "13.00-15.00", "15.00-18.00"];
 const LES_PRIVATE_TIME_SLOTS = ["15.00-17.00", "17.00-18.00", "19.00-21.00"];
 const PREFERENSI_OPTIONS = ["Pria", "Wanita", "Bebas"];
 
-// Kategori jasa -- `key` harus PERSIS sama dengan `category` di
-// lib/services.ts, `label` adalah teks tombol sesuai permintaan (mis.
-// "Setrika" bukan "Setrika Pakaian").
-const CATEGORY_OPTIONS: { key: string; label: string }[] = [
-  { key: "Setrika Pakaian", label: "Setrika" },
-  { key: "Bersihkan Rumah", label: "Bersihkan Rumah" },
-  { key: "Les Private", label: "Les Private" },
-];
+// Kategori jasa -- DINAMIS dari katalog (Parameter Bisnis, migrasi 040).
+// `key` = nama kategori (sama dengan `category` produk), `label` = teks
+// tombol yang diisi Super Admin (mis. "Setrika" utk "Setrika Pakaian").
+// Hanya kategori aktif yang punya minimal 1 produk bisa dipesan.
+function getCategoryOptions(): { key: string; label: string }[] {
+  return serviceCategoryList
+    .filter((c) => services.some((s) => s.category === c.name))
+    .map((c) => ({ key: c.name, label: c.buttonLabel || c.name }));
+}
 
 const TIER_LABELS: Record<"Fast" | "PRO", string> = {
   Fast: "FAST",
@@ -94,7 +98,7 @@ export default function OrderForm() {
   const [preferensi, setPreferensi] = useState("Bebas");
   const [touched, setTouched] = useState(false);
 
-  const isLesPrivate = category === "Les Private";
+  const isLesPrivate = category !== "" && isLesPrivateCategory(category);
 
   // Cek status login pelanggan sekali di awal.
   useEffect(() => {
@@ -158,13 +162,11 @@ export default function OrderForm() {
     setCategory(variant.category);
     setTier(variant.tier);
 
-    if (variant.category !== "Les Private") return;
+    if (!isLesPrivateCategory(variant.category)) return;
 
-    // ID varian Les Private selalu berpola "les-<slug>-fast"/"les-<slug>-pro"
-    // (lihat lib/services.ts) -- dipakai di sini untuk mengambil kembali
-    // slug mata pelajarannya.
-    const match = variant.id.match(/^les-(.+)-(fast|pro)$/);
-    const slug = match?.[1];
+    // Slug mata pelajaran = slugify(label mata pelajaran varian) -- sama
+    // dengan cara LES_PRIVATE_SUBJECTS dibentuk di lib/services.ts.
+    const slug = variant.subjectLabel ? slugify(variant.subjectLabel) : "";
     if (!slug) return;
     setSubjectSlug(slug);
 
@@ -176,13 +178,13 @@ export default function OrderForm() {
     if (
       savedTingkat &&
       isEducationLevel(savedTingkat) &&
-      LES_PRIVATE_LEVEL_SUBJECT_SLUGS[savedTingkat].includes(slug)
+      (LES_PRIVATE_LEVEL_SUBJECT_SLUGS[savedTingkat] ?? []).includes(slug)
     ) {
       setTingkatPendidikan(savedTingkat);
       return;
     }
     const fallbackLevel = EDUCATION_LEVELS.find((level) =>
-      LES_PRIVATE_LEVEL_SUBJECT_SLUGS[level].includes(slug)
+      (LES_PRIVATE_LEVEL_SUBJECT_SLUGS[level] ?? []).includes(slug)
     );
     if (fallbackLevel) setTingkatPendidikan(fallbackLevel);
   }
@@ -208,7 +210,7 @@ export default function OrderForm() {
       const subject = LES_PRIVATE_SUBJECTS.find((s) => s.slug === subjectSlug);
       if (!subject) return undefined;
       return services.find(
-        (s) => s.category === "Les Private" && s.tier === tier && s.name === `${subject.label} ${tier}`
+        (s) => s.category === category && s.tier === tier && s.subjectLabel === subject.label
       );
     }
     return services.find((s) => s.category === category && s.tier === tier);
@@ -349,7 +351,7 @@ export default function OrderForm() {
                   Pilihan Jasa Tenaga Kerja
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {CATEGORY_OPTIONS.map((opt) => (
+                  {getCategoryOptions().map((opt) => (
                     <button
                       key={opt.key}
                       type="button"

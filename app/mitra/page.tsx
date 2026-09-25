@@ -56,12 +56,14 @@ import { createClient } from "@/lib/supabase/server";
 import TaskList from "@/components/mitra/TaskList";
 import DigitalIdCard from "@/components/mitra/DigitalIdCard";
 import AvailabilityToggle from "@/components/mitra/AvailabilityToggle";
-import { formatRupiah, MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
+import { formatRupiah, getWalletMinBalance } from "@/lib/services";
+import { ensureBusinessParams } from "@/lib/businessParams";
 import type { MitraTierInfo } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function MitraDashboardPage() {
+  await ensureBusinessParams();
   const supabase = createClient();
 
   const {
@@ -113,7 +115,7 @@ export default async function MitraDashboardPage() {
   const tierInfo: MitraTierInfo | null = tierInfoRows?.[0] ?? null;
   const tierName = tierInfo?.tier_name ?? "New";
 
-  const saldoWarningThreshold = MITRA_WALLET_MIN_BALANCE;
+  const saldoWarningThreshold = getWalletMinBalance();
 
   return (
     <div className="space-y-8">

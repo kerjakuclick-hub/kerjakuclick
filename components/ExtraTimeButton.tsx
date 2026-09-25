@@ -35,7 +35,7 @@
 import { useState } from "react";
 import { formatRupiah } from "@/lib/services";
 
-type ExtraTimeRate = { minutes: 30 | 60; price: number };
+type ExtraTimeRate = { minutes: number; price: number };
 
 export default function ExtraTimeButton({
   orderId,

@@ -3,7 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export default function AdminNav({ adminName }: { adminName: string }) {
+export default function AdminNav({
+  adminName,
+  isSuperAdmin = false,
+}: {
+  adminName: string;
+  /** BARU (25 Sep 2026): menu Parameter Bisnis hanya untuk Super Admin. */
+  isSuperAdmin?: boolean;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navLinks = (
@@ -23,6 +30,15 @@ export default function AdminNav({ adminName }: { adminName: string }) {
       <Link href="/admin/media" onClick={() => setMobileOpen(false)} className="hover:text-white">
         Media
       </Link>
+      {isSuperAdmin && (
+        <Link
+          href="/admin/parameter"
+          onClick={() => setMobileOpen(false)}
+          className="text-bridge hover:text-white"
+        >
+          Parameter Bisnis
+        </Link>
+      )}
     </>
   );
 

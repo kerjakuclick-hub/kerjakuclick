@@ -37,6 +37,7 @@
 // Query order di atas ditambah `service_type` supaya snapshot ini bisa
 // dihitung sebelum baris `orders` di-update.
 
+import { ensureBusinessParams } from "@/lib/businessParams";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -50,6 +51,9 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 };
 
 export async function POST(req: NextRequest) {
+  // Parameter Bisnis (harga, katalog, fee -- migrasi 040), cache 60 detik.
+  await ensureBusinessParams();
+
   const supabase = createClient();
 
   const {

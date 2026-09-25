@@ -29,7 +29,7 @@
 //     dari sistem, lihat lib/services.ts).
 //   - Badge peringatan saldo mitra ("merah" kalau di bawah ambang) DULU
 //     dihitung dinamis dari 20% harga termurah (MIN_TARIF) -- sekarang
-//     pakai ambang FLAT MITRA_WALLET_MIN_BALANCE (15% x harga Setrika
+//     pakai ambang FLAT getWalletMinBalance() (15% x harga Setrika
 //     Fast) yang sama persis dengan validasi assign mitra
 //     (app/api/admin/orders/assign/route.ts) & RPC mitra_wallet_threshold()
 //     di database, supaya tidak ada 2 angka ambang saldo yang beda-beda.
@@ -54,33 +54,19 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { formatRupiah, MITRA_WALLET_MIN_BALANCE, MITRA_TEACHING_LEVEL_OPTIONS } from "@/lib/services";
+import { formatRupiah, getWalletMinBalance, getSkillGroups, MITRA_TEACHING_LEVEL_OPTIONS } from "@/lib/services";
 import type { MitraProfile, MitraViolation, MitraTierInfo } from "@/lib/types";
 
-const SKILL_GROUPS: { label: string; options: string[] }[] = [
-  { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah"] },
-  {
-    label: "Les Private",
-    // BARU (23 September 2026) -- "Belajar Membaca Anak" ditambahkan,
-    // konsisten dengan LES_PRIVATE_SUBJECTS di lib/services.ts &
-    // MitraApplicationForm.tsx.
-    options: [
-      "Mengaji",
-      "Bahasa Inggris",
-      "Matematika",
-      "Fisika",
-      "Kimia",
-      "Biologi",
-      "Komputer",
-      "Belajar Membaca Anak",
-    ],
-  },
-];
-
-// Opsi keahlian kategori "Les Private" -- dipakai menentukan kapan
-// checkbox "Keahlian mengajar untuk tingkat pendidikan" (di bawah,
-// TeachingLevelCheckboxes) perlu ditampilkan utk seorang mitra.
-const LES_PRIVATE_SKILL_OPTIONS = SKILL_GROUPS.find((g) => g.label === "Les Private")?.options ?? [];
+// Grup keahlian DINAMIS dari katalog (Parameter Bisnis, migrasi 040):
+// kategori/mapel baru yang ditambah Super Admin otomatis muncul di sini.
+// Dipanggil sebagai fungsi (bukan konstanta modul) supaya membaca katalog
+// yang sudah diterapkan <BusinessParamsProvider>.
+function skillGroups() {
+  return getSkillGroups();
+}
+function lesPrivateSkillOptions(): string[] {
+  return getSkillGroups().find((g) => g.label === "Les Private")?.options ?? [];
+}
 
 function PhotoUploadAvatar({
   mitra,
@@ -191,7 +177,7 @@ function SkillCheckboxes({
 
   return (
     <div className="flex flex-col gap-2 min-w-[220px]">
-      {SKILL_GROUPS.map((group) => (
+      {skillGroups().map((group) => (
         <div key={group.label}>
           <p className="text-[9px] font-bold uppercase text-ink/40 mb-0.5">{group.label}</p>
           {/* 2 kolom, supaya baris tabel tidak terlalu tinggi memanjang ke bawah */}
@@ -674,7 +660,7 @@ export default function MitraTable({
                 <td className="px-4 py-3 font-medium text-ink align-top">{m.name}</td>
                 <td className="px-4 py-3 text-ink/70 align-top">{m.phone}</td>
                 <td className="px-4 py-3 align-top">
-                  <span className={m.wallet_balance < MITRA_WALLET_MIN_BALANCE ? "text-red-600" : "text-ink"}>
+                  <span className={m.wallet_balance < getWalletMinBalance() ? "text-red-600" : "text-ink"}>
                     {formatRupiah(m.wallet_balance)}
                   </span>
                 </td>
@@ -705,7 +691,7 @@ export default function MitraTable({
                       tabel yang sudah lebar -- cuma tampil kalau mitra
                       punya minimal 1 keahlian Les Private. */}
                   {Array.isArray(m.skill_category) &&
-                    m.skill_category.some((s) => LES_PRIVATE_SKILL_OPTIONS.includes(s)) && (
+                    m.skill_category.some((s) => lesPrivateSkillOptions().includes(s)) && (
                       <TeachingLevelCheckboxes
                         mitra={m}
                         busy={busyId === m.id}

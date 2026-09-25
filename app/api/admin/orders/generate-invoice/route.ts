@@ -6,12 +6,16 @@
 // dibuat belakangan — tinggal klik ulang, tidak perlu tugaskan ulang
 // mitranya).
 
+import { ensureBusinessParams } from "@/lib/businessParams";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { generateInvoicesForOrder } from "@/lib/pdf/generate-invoice";
 
 export async function POST(req: NextRequest) {
+  // Parameter Bisnis (harga, katalog, fee -- migrasi 040), cache 60 detik.
+  await ensureBusinessParams();
+
   const supabase = createClient();
 
   const {

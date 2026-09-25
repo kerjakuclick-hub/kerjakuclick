@@ -1,118 +1,37 @@
-// GANTI ISI lib/services.ts Anda dengan file ini.
+// lib/services.ts -- KATALOG PRODUK & LOGIKA HITUNG BISNIS kerjaku.click
 //
-// REVISI HARGA & FEE (25 September 2026, setelah kajian UMR Kota Palu &
-// kelayakan harga di Palu) -- lihat migrasi 039:
-//   Harga jual: Setrika Fast Rp60.000 (25 pcs) · Setrika PRO Rp85.000 ·
-//     Cleaning Fast Rp80.000 · Cleaning PRO Rp125.000 · Les Private Fast
-//     Rp65.000 · Les Private PRO Rp90.000.
-//   Fee platform (Fast/PRO): New 11%/10% · Reguler 10%/9% · Commit 9%/8% ·
-//     Pro 8%/7%.
-//   Transport Rp20.000 flat -- asumsi mitra diutamakan punya kendaraan
-//     sendiri; kalau dapat klien berikutnya tanpa isi BBM lagi, biaya
-//     transport klien jadi pendapatan tambahan mitra.
-//   Ambang saldo = 11% x Setrika Fast Rp60.000 = Rp6.600 (dihitung otomatis).
-//   Platform dapat pendapatan lain dari fee penuh tambah waktu (marketing).
+// REVISI BESAR (25 September 2026) -- "Parameter Bisnis" di Dasbor Admin:
+// SEMUA angka acuan (harga jual final per produk, katalog produk & varian,
+// kategori, fee platform per tier x label, syarat tier, transport, bahan
+// baku, aturan tambah waktu) sekarang DISIMPAN DI DATABASE (migrasi 040)
+// dan diisi Super Admin lewat halaman /admin/parameter -- TIDAK PERLU lagi
+// mengubah kode ini untuk ganti angka.
 //
-// REVISI (25 September 2026) -- 3 KONFIRMASI Anda (lihat juga migrasi
-// 038_fee_penuh_tambah_waktu_dan_ambang_saldo_13persen.sql):
-//   1. Fee Platform dari tambah waktu dipotong PENUH (dipakai platform utk
-//      biaya marketing/promosi) -- lihat getExtraTimeBreakdown() di bawah.
-//   2. Tambah waktu Fast & PRO sama-sama bisa +30 ATAU +60 menit; 60 menit
-//      = 2x harga 30 menit (fee ikut 2x). EXTRA_TIME_MINUTES_BY_LABEL
-//      (durasi fixed per label) DIHAPUS, diganti EXTRA_TIME_OPTIONS.
-//   3. Ambang saldo minimum = 13% (persentase awal, tidak ikut tier) x
-//      Setrika Fast = Rp9.100, satu angka flat (sebelumnya 15% = Rp10.500).
+// Cara kerjanya:
+//   - File ini tetap menyediakan fungsi & daftar yang SAMA seperti sebelumnya
+//     (services, findServiceByLabel, getPlatformFeePercent, getMaterialCost,
+//     getExtraTimeBreakdown, dst), jadi halaman lain tidak perlu berubah cara
+//     pakainya.
+//   - Isinya diisi oleh applyBusinessParams(): di server lewat
+//     ensureBusinessParams() (lib/businessParams.ts, cache 60 detik), di
+//     browser lewat <BusinessParamsProvider> di app/layout.tsx.
+//   - DEFAULT_BUSINESS_PARAMS di bawah = nilai resmi 25 Sep 2026 (sama
+//     persis dengan seed migrasi 040). Dipakai sebagai cadangan kalau
+//     database tidak bisa dijangkau, supaya website tidak pernah kosong.
 //
-// Revisi FINAL (22 September 2026) -- 3 dokumen final yang Anda kirim &
-// konfirmasi sebagai acuan resmi TERBARU ("Logika Hitung Harga Jual Paket",
-// "Logika Hitung Harga Tambah Waktu", "Program Loyalty Tier Mitra"),
-// MENGGANTIKAN TOTAL skema fee tier & sebagian harga dari migrasi 030 (20
-// September 2026, cuma berumur 2 hari):
-//
-//   1. HARGA JUAL (HJ) SEMUA produk NAIK:
-//        Setrika Fast   : Rp55.000 -> Rp70.000
-//        Setrika PRO    : Rp85.000 -> Rp100.000
-//        Cleaning Fast  : Rp65.000 -> Rp90.000
-//        Cleaning PRO   : Rp100.000 -> Rp135.000
-//        Les Private Fast : Rp65.000 -> Rp75.000 (semua 7 mata pelajaran)
-//        Les Private PRO  : Rp100.000 -> Rp115.000 (semua 7 mata pelajaran)
-//   2. Transport PP (T): flat Rp10.000 -> flat Rp25.000, SEMUA produk (dari
-//      dokumen "Logika Hitung Harga Jual Paket", kolom TRANSPORT PP sama
-//      persis Rp25.000 di setiap baris tabel FAST maupun PRO).
-//   3. Bahan Baku (B) Les Private: Rp2.500/Rp5.000 -> Rp0 (dokumen baru
-//      mengosongkan kolom BAHAN utk Les Private -- Setrika & Cleaning TIDAK
-//      berubah, tetap Rp1.250/2.500 & Rp8.000/16.000).
-//   4. Fee Platform SEKARANG murni fungsi TIER LOYALTY MITRA (skema baru: 4
-//      tier New/Reguler/Commit/Pro, berdasar JUMLAH JOB SELESAI BULAN
-//      KALENDER BERJALAN + status aktif + 0 pelanggaran + aktif sosmed) x
-//      LABEL Fast/PRO produk -- MENGGANTIKAN TOTAL skema tier lama
-//      "Baru/Reguler/Terpercaya" (berdasar total order seumur hidup +
-//      rating) dari migrasi 024/030. Syarat RATING DIHAPUS TOTAL
-//      (DIKONFIRMASI 22 September 2026) -- rating TIDAK lagi jadi syarat
-//      kenaikan tier apa pun (kolom profiles.rating TETAP ada di database,
-//      cuma tidak lagi dipakai untuk fee tier). Lihat PLATFORM_FEE_TIERS &
-//      MitraLoyaltyTier di bawah, dan migrasi
-//      034_program_loyalty_tier_dan_harga_final.sql untuk definisi tier
-//      lengkap (dihitung ulang otomatis tiap tanggal 1, DIKONFIRMASI).
-//   5. Fitur "Tambah Waktu Kerja" (getExtraTimePrice()) DIHITUNG ULANG TOTAL
-//      dengan rumus jauh lebih sederhana dari dokumen "Logika Hitung Harga
-//      Tambah Waktu": HT = (HJ - Fee Platform) : 2 + Fee Platform (Bahan
-//      Baku & Transport TIDAK ikut dihitung lagi utk tambah waktu). DURASI
-//      SEKARANG FIXED per label (Fast = cuma bisa +30 menit, PRO = cuma
-//      bisa +60 menit -- BUKAN LAGI bebas pilih 30 ATAU 60 utk semua
-//      produk, dokumen cuma menunjukkan 1 opsi durasi per label). Fee
-//      Platform di rumus ini DIKONFIRMASI ikut tier loyalty mitra yang
-//      sedang mengerjakan order (bukan flat tier 1), lihat catatan lengkap
-//      di getExtraTimePrice() di bawah.
-//   6. MITRA_WALLET_MIN_BALANCE ikut disinkronkan ke harga Setrika Fast yang
-//      baru (15% x Rp70.000 = Rp10.500) mengikuti KONVENSI SINKRONISASI yang
-//      SUDAH ADA sejak migrasi 030 -- dokumen baru tidak menyebut ambang ini
-//      secara eksplisit, jadi TOLONG DIKONFIRMASI kalau ternyata seharusnya
-//      TETAP di Rp8.250. Kalau perlu diubah balik, cukup ganti angka di
-//      bawah + public.mitra_wallet_threshold() di migrasi 034.
-//
-// Revisi BESAR (20 September 2026) -- "UPDATE WEBSITE KERJAKU.CLICK" (dokumen
-// struktur versi baru yang Anda kirim), Tahap 1/Backend:
-//   - Cleaning PRO: durasi 2 Jam -> 2,5 Jam (harga TETAP Rp100.000), unit
-//     diperjelas "+ Cuci piring" sesuai dokumen (detilPekerjaan sudah
-//     menyebutnya, tidak berubah).
-//   - Les Private: SEKARANG orderable (`orderable: false` dihapus), harga
-//     disederhanakan jadi FLAT per tier (bukan lagi per-mata-pelajaran+beda
-//     skema paket): Fast Rp65.000/1 Jam per sesi, PRO Rp100.000/2 Jam per
-//     sesi, sama untuk ke-7 mata pelajaran. Nama varian diubah jadi
-//     "<Mata Pelajaran> Fast"/"<Mata Pelajaran> PRO" (bukan lagi "-- 1x
-//     Pertemuan"/"-- Paket 3x/Minggu") supaya konsisten dengan pola
-//     penamaan Setrika/Cleaning (dibutuhkan fungsi SQL
-//     order_product_tier_label() di migrasi 030 yang mendeteksi Fast/PRO
-//     dari NAMA produk).
-//   - Cuci Kendaraan (Cuci Motor, Cuci Mobil): DIHAPUS TOTAL dari sistem --
-//     tidak lagi termasuk salah satu dari "3 Pilar Layanan" versi baru
-//     (Setrika, Bersihkan Rumah, Les Private). Bukan cuma disembunyikan
-//     (`orderable: false`) seperti sebelumnya.
-//   - TECH_FEE_RATES/getServiceTechFee() (migrasi 028) DIHAPUS -- skema
-//     "Biaya Teknologi flat" digantikan total oleh skema fee tier baru yang
-//     sudah termasuk komponen tersebut secara implisit (lihat
-//     PLATFORM_FEE_TIERS/getPlatformFeePercent di bawah).
-//   - BARU: getMaterialCost()/getTransportCost() -- biaya bahan baku &
-//     transport dalam Rupiah (sebelumnya SERVICE_MATERIALS cuma menyimpan
-//     nama merek, tanpa angka), dipakai untuk breakdown "Upah Mitra" di
-//     Dashboard Mitra (components/mitra/TaskList.tsx).
-//
-// Perubahan (riwayat lama, ringkas -- selengkapnya lihat riwayat git):
-// - 18 September 2026: Setrika/Cleaning harga naik (Bagian 5.1 Dokumen
-//   Bisnis Revisi Pasca-Audit Fraud), fee platform berubah dari flat 20%
-//   jadi tier berjenjang 7-10% (migrasi 024), lalu 2 dimensi tier x label
-//   Fast/PRO (migrasi 030, 15/14/13% Fast & 13/12/11% PRO -- SEKARANG SUDAH
-//   DIGANTI lagi oleh skema loyalty baru di atas).
-// - Cuci Kendaraan & Les Private sempat disembunyikan (`orderable: false`)
-//   sebelum akhirnya Les Private jadi orderable & Cuci Kendaraan dihapus
-//   total (20 September 2026).
-// Tidak ada perubahan pada findServiceByLabel, formatRupiah, atau
-// serviceCategories.
+// Riwayat angka sebelum 25 Sep 2026: lihat riwayat git & migrasi 024-039.
+
+// ============================================================================
+// TIPE
+// ============================================================================
 
 export type ServiceVariant = {
   id: string;
+  /** Nama kategori (mis. "Setrika Pakaian") -- dipakai seluruh UI. */
   category: string;
+  categoryId: string;
+  /** Nama produk -- TERSIMPAN di orders.service_type, jadi tidak boleh
+   *  diganti setelah produk dibuat (lihat halaman Parameter Bisnis). */
   name: string;
   price: number;
   unit: string;
@@ -120,114 +39,131 @@ export type ServiceVariant = {
   tier: "Fast" | "PRO";
   desc?: string;
   detilPekerjaan?: string[];
-  /** false = disembunyikan dari dropdown form pemesanan (ServiceSelect.tsx)
-   *  -- dipakai untuk layanan yang belum siap operasional. Default true
-   *  kalau field ini tidak diisi. */
+  /** Khusus kategori Les Private: nama mata pelajaran & tingkat pendidikan. */
+  subjectLabel?: string | null;
+  subjectLevels?: string[] | null;
+  /** false = disembunyikan dari formulir pemesanan. Default true. */
   orderable?: boolean;
+  sortOrder?: number;
 };
 
-// BARU (23 September 2026) -- Revisi Formulir Pesanan: mata pelajaran ke-8
-// "Belajar Membaca Anak" ditambahkan (dokumen daftar mapel dari Anda). Harga
-// & durasi ikut pola Les Private biasa (lihat lesPrivateVariants di bawah) --
-// tidak ada tarif khusus, murni menambah 1 varian Fast & 1 varian PRO baru.
-export const LES_PRIVATE_SUBJECTS = [
-  { slug: "mengaji", label: "Mengaji" },
-  { slug: "bahasa-inggris", label: "Bahasa Inggris" },
-  { slug: "matematika", label: "Matematika" },
-  { slug: "fisika", label: "Fisika" },
-  { slug: "kimia", label: "Kimia" },
-  { slug: "biologi", label: "Biologi" },
-  { slug: "komputer", label: "Komputer" },
-  { slug: "membaca-anak", label: "Belajar Membaca Anak" },
-];
+export type ServiceMaterial = { label: string; merek: string };
 
-const lesPrivateVariants: ServiceVariant[] = LES_PRIVATE_SUBJECTS.flatMap(({ slug, label }) => [
-  {
-    id: `les-${slug}-fast`,
-    category: "Les Private",
-    // Nama HARUS diakhiri "Fast"/"PRO" persis seperti Setrika/Cleaning --
-    // dipakai order_product_tier_label() di database utk deteksi label
-    // Fast/PRO dari teks service_type.
-    name: `${label} Fast`,
-    price: 65000, // 25 Sep 2026: Rp75.000 -> Rp65.000 (revisi harga Palu)
-    unit: "1x Pertemuan",
-    duration: "1 Jam",
-    tier: "Fast" as const,
-    // orderable dihapus (20 Sep 2026) -- sekarang jadi produk sungguhan.
-  },
-  {
-    id: `les-${slug}-pro`,
-    category: "Les Private",
-    name: `${label} PRO`,
-    price: 90000, // 25 Sep 2026: Rp115.000 -> Rp90.000 (revisi harga Palu)
-    unit: "1x Pertemuan",
-    duration: "2 Jam",
-    tier: "PRO" as const,
-  },
-]);
+export type ServiceCategory = {
+  id: string;
+  /** Nama kategori, mis. "Setrika Pakaian". */
+  name: string;
+  /** Label tombol di formulir pemesanan, mis. "Setrika". */
+  buttonLabel: string;
+  /** Label keahlian mitra yang cocok (checkbox Kelola Mitra/pendaftaran).
+   *  NULL untuk Les Private -- keahliannya per mata pelajaran. */
+  skillLabel: string | null;
+  isLesPrivate: boolean;
+  materialCostFast: number;
+  materialCostPro: number;
+  /** Merek bahan standar (ditampilkan di invoice & WA konfirmasi). */
+  materials: ServiceMaterial[];
+  active: boolean;
+  sortOrder: number;
+};
+
+export type MitraLoyaltyTier = "New" | "Reguler" | "Commit" | "Pro";
+
+export const LOYALTY_TIERS: MitraLoyaltyTier[] = ["New", "Reguler", "Commit", "Pro"];
+
+export type FeeTierParam = {
+  tier: MitraLoyaltyTier;
+  fastPct: number;
+  proPct: number;
+  /** Syarat naik tier: job selesai bulan kalender berjalan LEBIH DARI angka
+   *  ini (tidak dipakai untuk New). */
+  minMonthlyJobs: number;
+  requireZeroViolations: boolean;
+  requireSosmed: boolean;
+};
+
+export type BusinessSettings = {
+  transportCost: number;
+  /** Durasi 1 unit tambah waktu (menit) -- rumus dokumen berlaku per unit. */
+  extraTimeUnitMinutes: number;
+  /** Pilihan durasi tambah waktu (menit), kelipatan unit. */
+  extraTimeOptions: number[];
+};
+
+export type BusinessParams = {
+  /** Penanda versi (updated_at terakhir) -- dipakai supaya apply idempoten. */
+  version: string;
+  settings: BusinessSettings;
+  feeTiers: FeeTierParam[];
+  categories: ServiceCategory[];
+  products: ServiceVariant[];
+};
 
 // ============================================================================
-// BARU (23 September 2026) -- Revisi Formulir Pesanan: Les Private sekarang
-// juga menanyakan "Tingkat Pendidikan Anak" SEBELUM mata pelajaran (form
-// pemesanan: [Tutor Fast/PRO] -> Tingkat Pendidikan Anak -> Mata Pelajaran ->
-// ...). Ini MURNI dipakai untuk (a) menyaring mata pelajaran yang masuk akal
-// ditampilkan ke klien di formulir, dan (b) disimpan di order
-// (`orders.les_private_level`, migrasi 037) sebagai informasi buat mitra --
-// TIDAK mengubah harga sama sekali (harga tetap flat per label Fast/PRO,
-// sama seperti sebelumnya).
-//
-// DIKONFIRMASI (23 September 2026, lewat pertanyaan klarifikasi):
-//   1. Mata pelajaran DIBATASI sesuai tingkat yang dipilih (bukan bebas
-//      pilih semua tingkat) -- lihat LES_PRIVATE_LEVEL_SUBJECT_SLUGS.
-//   2. Ejaan disamakan jadi "SMA" (bukan "SMU") di formulir klien MAUPUN
-//      pendaftaran mitra.
-// Pemetaan tingkat -> mapel di bawah keputusan bisnis SAYA (bukan dari
-// dokumen Anda, karena Anda tidak merinci mata pelajaran per tingkat) --
-// TOLONG DIKONFIRMASI, gampang diubah kalau ada mapel yang perlu
-// ditambah/dikurangi per tingkat.
-export const EDUCATION_LEVELS = ["TK", "SD", "SMP", "SMA"] as const;
-export type EducationLevel = (typeof EDUCATION_LEVELS)[number];
+// NILAI DEFAULT (resmi 25 September 2026) -- sama dengan seed migrasi 040
+// ============================================================================
 
-/** Slug mata pelajaran (lihat LES_PRIVATE_SUBJECTS) yang masuk akal
- *  ditampilkan untuk tiap Tingkat Pendidikan Anak. TK & SD tidak
- *  menampilkan Fisika/Kimia/Biologi (belum diajarkan di jenjang itu);
- *  "Belajar Membaca Anak" cuma relevan untuk TK & SD (anak yang belum/baru
- *  bisa membaca), jadi tidak ditampilkan untuk SMP/SMA. */
-export const LES_PRIVATE_LEVEL_SUBJECT_SLUGS: Record<EducationLevel, string[]> = {
-  TK: ["mengaji", "membaca-anak", "bahasa-inggris"],
-  SD: ["mengaji", "membaca-anak", "bahasa-inggris", "matematika", "komputer"],
-  SMP: ["mengaji", "bahasa-inggris", "matematika", "fisika", "kimia", "biologi", "komputer"],
-  SMA: ["mengaji", "bahasa-inggris", "matematika", "fisika", "kimia", "biologi", "komputer"],
-};
+const DEFAULT_CATEGORIES: ServiceCategory[] = [
+  {
+    id: "setrika",
+    name: "Setrika Pakaian",
+    buttonLabel: "Setrika",
+    skillLabel: "Setrika",
+    isLesPrivate: false,
+    materialCostFast: 1250,
+    materialCostPro: 2500,
+    materials: [{ label: "Pelembut & pewangi pakaian", merek: "Kispray" }],
+    active: true,
+    sortOrder: 1,
+  },
+  {
+    id: "bersihkan-rumah",
+    name: "Bersihkan Rumah",
+    buttonLabel: "Bersihkan Rumah",
+    skillLabel: "Bersihkan Rumah",
+    isLesPrivate: false,
+    materialCostFast: 8000,
+    materialCostPro: 16000,
+    materials: [
+      { label: "Pembersih toilet", merek: "Vixal" },
+      { label: "Cairan pel lantai", merek: "Super Pel" },
+    ],
+    active: true,
+    sortOrder: 2,
+  },
+  {
+    id: "les-private",
+    name: "Les Private",
+    buttonLabel: "Les Private",
+    skillLabel: null,
+    isLesPrivate: true,
+    materialCostFast: 0,
+    materialCostPro: 0,
+    materials: [],
+    active: true,
+    sortOrder: 3,
+  },
+];
 
-/** Daftar mata pelajaran (slug + label) yang relevan untuk sebuah Tingkat
- *  Pendidikan Anak -- dipakai formulir pemesanan (components/OrderForm.tsx)
- *  untuk menyusun tombol pilihan mata pelajaran SETELAH tingkat dipilih. */
-export function getLesPrivateSubjectsForLevel(
-  level: EducationLevel
-): { slug: string; label: string }[] {
-  const allowedSlugs = LES_PRIVATE_LEVEL_SUBJECT_SLUGS[level];
-  return LES_PRIVATE_SUBJECTS.filter((s) => allowedSlugs.includes(s.slug));
-}
+const DEFAULT_LES_SUBJECTS: { slug: string; label: string; levels: string[] }[] = [
+  { slug: "mengaji", label: "Mengaji", levels: ["TK", "SD", "SMP", "SMA"] },
+  { slug: "bahasa-inggris", label: "Bahasa Inggris", levels: ["TK", "SD", "SMP", "SMA"] },
+  { slug: "matematika", label: "Matematika", levels: ["SD", "SMP", "SMA"] },
+  { slug: "fisika", label: "Fisika", levels: ["SMP", "SMA"] },
+  { slug: "kimia", label: "Kimia", levels: ["SMP", "SMA"] },
+  { slug: "biologi", label: "Biologi", levels: ["SMP", "SMA"] },
+  { slug: "komputer", label: "Komputer", levels: ["SD", "SMP", "SMA"] },
+  { slug: "membaca-anak", label: "Belajar Membaca Anak", levels: ["TK", "SD"] },
+];
 
-/** Opsi "Keahlian mengajar untuk tingkat pendidikan" di formulir pendaftaran
- *  & Kelola Mitra (khusus mitra Les Private) -- BEDA dari EDUCATION_LEVELS
- *  di atas (yang dipilih KLIEN per pesanan): mitra boleh pilih lebih dari 1
- *  tingkat sekaligus, DITAMBAH opsi "Umum" (sanggup mengajar lintas tingkat/
- *  mapel yang tidak terikat jenjang tertentu, mis. Komputer) yang tidak ada
- *  di pilihan klien. Murni informasi buat admin saat menugaskan mitra --
- *  TIDAK membatasi/memfilter dropdown "Pilih mitra eligible" (DIKONFIRMASI
- *  23 September 2026). */
-export const MITRA_TEACHING_LEVEL_OPTIONS = ["TK", "SD", "SMP", "SMA", "Umum"] as const;
-export type MitraTeachingLevel = (typeof MITRA_TEACHING_LEVEL_OPTIONS)[number];
-
-export const services: ServiceVariant[] = [
+const DEFAULT_PRODUCTS: ServiceVariant[] = [
   {
     id: "setrika-fast",
     category: "Setrika Pakaian",
+    categoryId: "setrika",
     name: "Setrika Fast",
-    price: 60000, // 25 Sep 2026: Rp70.000 -> Rp60.000 (revisi harga Palu)
-    unit: "25 Pcs / Paket", // 25 Sep 2026: 20 -> 25 pcs
+    price: 60000,
+    unit: "25 Pcs / Paket",
     duration: "1 Jam",
     tier: "Fast",
     desc: "Layanan setrika pakaian harian yang dikerjakan dengan waktu singkat dan padat.",
@@ -236,12 +172,14 @@ export const services: ServiceVariant[] = [
       "Pakaian disemprot pelembut & pewangi Kispray sebelum disetrika",
       "Pilihan finishing: dilipat rapi atau digantung (hanger)",
     ],
+    sortOrder: 1,
   },
   {
     id: "setrika-pro",
     category: "Setrika Pakaian",
+    categoryId: "setrika",
     name: "Setrika PRO",
-    price: 85000, // 25 Sep 2026: Rp100.000 -> Rp85.000 (revisi harga Palu)
+    price: 85000,
     unit: "40 Pcs / Paket",
     duration: "2 Jam",
     tier: "PRO",
@@ -251,12 +189,14 @@ export const services: ServiceVariant[] = [
       "Pakaian disemprot pelembut & pewangi Kispray sebelum disetrika",
       "Pilihan finishing: dilipat rapi atau digantung (hanger)",
     ],
+    sortOrder: 2,
   },
   {
     id: "cleaning-fast",
     category: "Bersihkan Rumah",
+    categoryId: "bersihkan-rumah",
     name: "Cleaning Fast",
-    price: 80000, // 25 Sep 2026: Rp90.000 -> Rp80.000 (revisi harga Palu)
+    price: 80000,
     unit: "1 Rumah (Tipe 36/40)",
     duration: "1.5 Jam",
     tier: "Fast",
@@ -265,14 +205,16 @@ export const services: ServiceVariant[] = [
       "Menyapu & mengepel seluruh ruangan",
       "Penataan ruang: kamar, toilet, ruang tamu (living room), dapur",
     ],
+    sortOrder: 3,
   },
   {
     id: "cleaning-pro",
     category: "Bersihkan Rumah",
+    categoryId: "bersihkan-rumah",
     name: "Cleaning PRO",
-    price: 125000, // 25 Sep 2026: Rp135.000 -> Rp125.000 (revisi harga Palu)
+    price: 125000,
     unit: "1 Rumah (Tipe 50/80)",
-    duration: "2.5 Jam", // 20 Sep 2026: 2 Jam -> 2,5 Jam sesuai dokumen struktur baru
+    duration: "2.5 Jam",
     tier: "PRO",
     desc: "Layanan pembersihan harian rumah/properti menengah yang dikerjakan lebih lengkap dan menyeluruh.",
     detilPekerjaan: [
@@ -280,46 +222,234 @@ export const services: ServiceVariant[] = [
       "Penataan ruang: kamar, toilet, ruang tamu, teras, dapur",
       "Mencuci alat makan & peralatan dapur",
     ],
+    sortOrder: 4,
   },
-  // Cuci Kendaraan (Cuci Motor, Cuci Mobil) DIHAPUS TOTAL (20 Sep 2026) --
-  // tidak lagi bagian dari "3 Pilar Layanan" versi baru. Kalau nanti mau
-  // diaktifkan lagi, ini bukan tinggal un-comment: perlu masuk lagi ke
-  // "3 Pilar" + card beranda (components/ServicesGrid.tsx) + biaya bahan
-  // baku/transport (getMaterialCost/getTransportCost di bawah).
-  ...lesPrivateVariants,
+  ...DEFAULT_LES_SUBJECTS.flatMap(({ slug, label, levels }, i) => [
+    {
+      id: `les-${slug}-fast`,
+      category: "Les Private",
+      categoryId: "les-private",
+      name: `${label} Fast`,
+      price: 65000,
+      unit: "1x Pertemuan",
+      duration: "1 Jam",
+      tier: "Fast" as const,
+      subjectLabel: label,
+      subjectLevels: levels,
+      sortOrder: 10 + i * 2,
+    },
+    {
+      id: `les-${slug}-pro`,
+      category: "Les Private",
+      categoryId: "les-private",
+      name: `${label} PRO`,
+      price: 90000,
+      unit: "1x Pertemuan",
+      duration: "2 Jam",
+      tier: "PRO" as const,
+      subjectLabel: label,
+      subjectLevels: levels,
+      sortOrder: 11 + i * 2,
+    },
+  ]),
 ];
 
-export const serviceCategories = Array.from(
-  new Set(services.map((s) => s.category))
-);
+export const DEFAULT_BUSINESS_PARAMS: BusinessParams = {
+  version: "default-2026-09-25",
+  settings: {
+    transportCost: 20000,
+    extraTimeUnitMinutes: 30,
+    extraTimeOptions: [30, 60],
+  },
+  feeTiers: [
+    { tier: "New", fastPct: 0.11, proPct: 0.1, minMonthlyJobs: 0, requireZeroViolations: false, requireSosmed: false },
+    { tier: "Reguler", fastPct: 0.1, proPct: 0.09, minMonthlyJobs: 30, requireZeroViolations: false, requireSosmed: false },
+    { tier: "Commit", fastPct: 0.09, proPct: 0.08, minMonthlyJobs: 60, requireZeroViolations: true, requireSosmed: false },
+    { tier: "Pro", fastPct: 0.08, proPct: 0.07, minMonthlyJobs: 90, requireZeroViolations: true, requireSosmed: true },
+  ],
+  categories: DEFAULT_CATEGORIES,
+  products: DEFAULT_PRODUCTS,
+};
 
-// Dipakai ServiceSelect.tsx (dropdown form pemesanan) supaya layanan yang
-// belum siap operasional (orderable: false) tidak muncul sebagai pilihan --
-// `services`/`serviceCategories` di atas TETAP berisi semuanya (masih dipakai
-// findServiceByLabel untuk parsing webhook & modal detail jasa di
-// ServicesGridInteractive.tsx). Sejak 20 September 2026, TIDAK ada lagi
-// varian dengan `orderable: false` (Les Private sudah orderable, Cuci
-// Kendaraan sudah dihapus total) -- filter ini dipertahankan supaya
-// mekanismenya siap kalau suatu saat ada produk baru yang perlu
-// disembunyikan sementara lagi.
-export const orderableServices = services.filter((s) => s.orderable !== false);
-export const orderableServiceCategories = Array.from(
-  new Set(orderableServices.map((s) => s.category))
-);
+// ============================================================================
+// STATE AKTIF -- diisi applyBusinessParams(). Array/objek diekspor & diubah
+// DI TEMPAT (bukan diganti), jadi semua file yang mengimpornya otomatis
+// melihat nilai terbaru.
+// ============================================================================
 
-/** Harga termurah pada satu kategori (dipakai kartu "Layanan Unggulan" di
- *  beranda, components/ServicesGrid.tsx, supaya angka "Mulai dari" selalu
- *  ikut harga terbaru di sini -- tidak lagi di-hardcode terpisah). */
+/** Semua produk (termasuk yang disembunyikan). */
+export const services: ServiceVariant[] = [];
+/** Produk yang bisa dipesan klien. */
+export const orderableServices: ServiceVariant[] = [];
+/** Nama kategori aktif (urut). */
+export const serviceCategories: string[] = [];
+/** Nama kategori yang punya produk bisa dipesan. */
+export const orderableServiceCategories: string[] = [];
+/** Data lengkap kategori aktif. */
+export const serviceCategoryList: ServiceCategory[] = [];
+/** Semua kategori (termasuk nonaktif) -- untuk halaman Parameter Bisnis. */
+export const allServiceCategories: ServiceCategory[] = [];
+
+export const PLATFORM_FEE_TIERS: Record<MitraLoyaltyTier, { fast: number; pro: number }> = {
+  New: { fast: 0, pro: 0 },
+  Reguler: { fast: 0, pro: 0 },
+  Commit: { fast: 0, pro: 0 },
+  Pro: { fast: 0, pro: 0 },
+};
+export const FEE_TIER_PARAMS: FeeTierParam[] = [];
+
+export type ExtraTimeMinutes = number;
+/** Pilihan durasi tambah waktu (menit), berlaku untuk Fast & PRO. */
+export const EXTRA_TIME_OPTIONS: ExtraTimeMinutes[] = [];
+
+export const EDUCATION_LEVELS = ["TK", "SD", "SMP", "SMA"] as const;
+export type EducationLevel = (typeof EDUCATION_LEVELS)[number];
+
+/** Mata pelajaran Les Private (diturunkan dari produk Les Private). */
+export const LES_PRIVATE_SUBJECTS: { slug: string; label: string }[] = [];
+/** Slug mata pelajaran per tingkat pendidikan (diturunkan dari produk). */
+export const LES_PRIVATE_LEVEL_SUBJECT_SLUGS: Record<EducationLevel, string[]> = {
+  TK: [],
+  SD: [],
+  SMP: [],
+  SMA: [],
+};
+
+let transportCost = 0;
+let extraTimeUnitMinutes = 30;
+let activeVersion = "";
+
+/** Slug sederhana dari teks (mis. "Bahasa Inggris" -> "bahasa-inggris"). */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function replaceArray<T>(target: T[], items: T[]) {
+  target.length = 0;
+  target.push(...items);
+}
+
+/** Terapkan parameter bisnis ke seluruh state di atas. Idempoten (versi
+ *  sama = tidak melakukan apa-apa). */
+export function applyBusinessParams(params: BusinessParams): void {
+  if (params.version && params.version === activeVersion) return;
+
+  const cats = [...params.categories].sort((a, b) => a.sortOrder - b.sortOrder);
+  replaceArray(allServiceCategories, cats);
+  const activeCats = cats.filter((c) => c.active);
+  replaceArray(serviceCategoryList, activeCats);
+  const activeCatIds = new Set(activeCats.map((c) => c.id));
+  const catById = new Map(cats.map((c) => [c.id, c]));
+
+  const products = params.products
+    .map((p) => ({ ...p, category: catById.get(p.categoryId)?.name ?? p.category }))
+    .sort((a, b) => {
+      const ca = catById.get(a.categoryId)?.sortOrder ?? 999;
+      const cb = catById.get(b.categoryId)?.sortOrder ?? 999;
+      return ca - cb || (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    });
+  replaceArray(services, products);
+  const orderable = products.filter((p) => p.orderable !== false && activeCatIds.has(p.categoryId));
+  replaceArray(orderableServices, orderable);
+  replaceArray(serviceCategories, activeCats.map((c) => c.name));
+  replaceArray(
+    orderableServiceCategories,
+    activeCats.filter((c) => orderable.some((p) => p.categoryId === c.id)).map((c) => c.name)
+  );
+
+  replaceArray(FEE_TIER_PARAMS, params.feeTiers);
+  for (const t of LOYALTY_TIERS) {
+    const row = params.feeTiers.find((f) => f.tier === t);
+    if (row) PLATFORM_FEE_TIERS[t] = { fast: row.fastPct, pro: row.proPct };
+  }
+
+  transportCost = params.settings.transportCost;
+  extraTimeUnitMinutes = params.settings.extraTimeUnitMinutes || 30;
+  replaceArray(EXTRA_TIME_OPTIONS, [...params.settings.extraTimeOptions].sort((a, b) => a - b));
+
+  // Mata pelajaran Les Private -- dari produk kategori Les Private yang bisa
+  // dipesan, urut sesuai produk.
+  const lesCatIds = new Set(activeCats.filter((c) => c.isLesPrivate).map((c) => c.id));
+  const subjects: { slug: string; label: string; levels: Set<string> }[] = [];
+  for (const p of orderable) {
+    if (!lesCatIds.has(p.categoryId) || !p.subjectLabel) continue;
+    let s = subjects.find((x) => x.label === p.subjectLabel);
+    if (!s) {
+      s = { slug: slugify(p.subjectLabel), label: p.subjectLabel, levels: new Set() };
+      subjects.push(s);
+    }
+    for (const lvl of p.subjectLevels ?? []) s.levels.add(lvl);
+  }
+  replaceArray(
+    LES_PRIVATE_SUBJECTS,
+    subjects.map(({ slug, label }) => ({ slug, label }))
+  );
+  for (const lvl of EDUCATION_LEVELS) {
+    LES_PRIVATE_LEVEL_SUBJECT_SLUGS[lvl] = subjects.filter((s) => s.levels.has(lvl)).map((s) => s.slug);
+  }
+
+  activeVersion = params.version;
+}
+
+/** Versi parameter yang sedang aktif (untuk diagnosa). */
+export function getActiveParamsVersion(): string {
+  return activeVersion;
+}
+
+// Isi awal dengan nilai default -- diganti nilai database begitu tersedia.
+applyBusinessParams(DEFAULT_BUSINESS_PARAMS);
+
+// ============================================================================
+// LES PRIVATE -- tingkat pendidikan & mata pelajaran
+// ============================================================================
+
+/** Daftar mata pelajaran yang relevan untuk sebuah Tingkat Pendidikan Anak
+ *  (formulir pemesanan, components/OrderForm.tsx). */
+export function getLesPrivateSubjectsForLevel(level: EducationLevel): { slug: string; label: string }[] {
+  const allowed = LES_PRIVATE_LEVEL_SUBJECT_SLUGS[level];
+  return LES_PRIVATE_SUBJECTS.filter((s) => allowed.includes(s.slug));
+}
+
+/** Opsi "Keahlian mengajar untuk tingkat pendidikan" mitra Les Private
+ *  (formulir pendaftaran & Kelola Mitra) -- ditambah "Umum". */
+export const MITRA_TEACHING_LEVEL_OPTIONS = ["TK", "SD", "SMP", "SMA", "Umum"] as const;
+export type MitraTeachingLevel = (typeof MITRA_TEACHING_LEVEL_OPTIONS)[number];
+
+/** Apakah nama kategori ini kategori Les Private (wizard khusus). */
+export function isLesPrivateCategory(categoryName: string): boolean {
+  return allServiceCategories.some((c) => c.name === categoryName && c.isLesPrivate);
+}
+
+/** Kelompok checkbox keahlian mitra (Kelola Mitra & formulir pendaftaran):
+ *  "Rumah Tangga" = label keahlian kategori non-Les, "Les Private" = mata
+ *  pelajaran. Otomatis bertambah saat kategori/varian baru ditambahkan. */
+export function getSkillGroups(): { label: string; options: string[] }[] {
+  const household = serviceCategoryList
+    .filter((c) => !c.isLesPrivate && c.skillLabel)
+    .map((c) => c.skillLabel as string);
+  const les = LES_PRIVATE_SUBJECTS.map((s) => s.label);
+  const groups: { label: string; options: string[] }[] = [];
+  if (household.length) groups.push({ label: "Rumah Tangga", options: household });
+  if (les.length) groups.push({ label: "Les Private", options: les });
+  return groups;
+}
+
+// ============================================================================
+// KATALOG
+// ============================================================================
+
+/** Harga termurah (produk bisa dipesan) pada satu kategori -- kartu "Layanan
+ *  Unggulan" di beranda. */
 export function cheapestPriceInCategory(category: string): number | null {
-  const prices = services.filter((s) => s.category === category).map((s) => s.price);
+  const prices = orderableServices.filter((s) => s.category === category).map((s) => s.price);
   return prices.length > 0 ? Math.min(...prices) : null;
 }
 
-/**
- * Mencocokkan teks bebas (misalnya dari pesan WhatsApp: "Cleaning Fast",
- * atau "cleaning-fast") ke salah satu varian layanan yang terdaftar.
- * Dipakai oleh webhook Fonnte untuk menentukan total_price.
- */
+/** Cocokkan teks bebas (nama produk dari WA/order, atau id) ke varian. */
 export function findServiceByLabel(label: string): ServiceVariant | undefined {
   const normalized = label.trim().toLowerCase().replace(/[\s_]+/g, "-");
   return services.find(
@@ -338,229 +468,84 @@ export function formatRupiah(value: number): string {
   }).format(value);
 }
 
-export type ExtraTimeMinutes = 30 | 60;
+function categoryOf(variant: ServiceVariant): ServiceCategory | undefined {
+  return allServiceCategories.find((c) => c.id === variant.categoryId || c.name === variant.category);
+}
 
-// ============================================================================
-// Fitur "Standar Kualitas Bahan Baku" (18 September 2026) -- ditugaskan
-// Anda: demi transparansi & kontrol kualitas di seluruh ekosistem
-// kerjaku.click (mitra dapat upah jelas, klien tahu persis apa yang dia
-// dapat, platform tetap berkembang), mitra WAJIB memakai bahan baku cairan
-// yang sudah diuji & distandarisasi kerjaku.click -- BUKAN sembarang merek.
-// Standar yang dikonfirmasi Anda:
-//   - Pelembut & pewangi pakaian (Setrika Fast/PRO)  -> Kispray
-//   - Pembersih toilet (Cleaning Fast/PRO)           -> Vixal
-//   - Cairan pel lantai (Cleaning Fast/PRO)          -> Super Pel
-// Ini properti STATIS per jenis layanan (bukan kolom database per order --
-// tidak ada migrasi baru yang diperlukan), jadi cukup didata di sini.
-// Dipakai untuk menampilkan jaminan kualitas bahan baku di invoice
-// konfirmasi & invoice pembayaran (lib/pdf/invoice-templates.tsx) serta
-// pesan WA konfirmasi pesanan (buildOrderApprovedMessage, lib/whatsapp.ts).
-export type ServiceMaterial = { label: string; merek: string };
-
-export const SERVICE_MATERIALS: Record<string, ServiceMaterial[]> = {
-  "setrika-fast": [{ label: "Pelembut & pewangi pakaian", merek: "Kispray" }],
-  "setrika-pro": [{ label: "Pelembut & pewangi pakaian", merek: "Kispray" }],
-  "cleaning-fast": [
-    { label: "Pembersih toilet", merek: "Vixal" },
-    { label: "Cairan pel lantai", merek: "Super Pel" },
-  ],
-  "cleaning-pro": [
-    { label: "Pembersih toilet", merek: "Vixal" },
-    { label: "Cairan pel lantai", merek: "Super Pel" },
-  ],
-};
-
-/** Cari daftar bahan baku terstandar untuk sebuah pesanan, berdasarkan
- *  `service_type` yang tersimpan di tabel orders (sama seperti
- *  findServiceByLabel). Balikan `null` kalau layanan ini tidak termasuk
- *  4 varian yang punya standar bahan baku bermerek (Les Private tidak
- *  pakai cairan pembersih terstandar -- Cuci Kendaraan sudah dihapus
- *  total dari sistem). */
+/** Merek bahan baku standar untuk sebuah pesanan (invoice & WA). */
 export function getServiceMaterials(serviceType: string): ServiceMaterial[] | null {
   const variant = findServiceByLabel(serviceType);
   if (!variant) return null;
-  return SERVICE_MATERIALS[variant.id] ?? null;
+  const mats = categoryOf(variant)?.materials ?? [];
+  return mats.length > 0 ? mats : null;
 }
 
 // ============================================================================
-// Skema Fee Platform FINAL (22 September 2026) -- dokumen "Program Loyalty
-// Tier Mitra" yang Anda konfirmasi sebagai acuan resmi TERBARU, MENGGANTIKAN
-// TOTAL skema tier "Baru/Reguler/Terpercaya" (berdasar total order seumur
-// hidup + rating, migrasi 024/030) yang baru berumur 2 hari.
-//
-// 4 tier loyalty BARU, ditentukan dari JUMLAH JOB SELESAI BULAN KALENDER
-// BERJALAN (reset & dievaluasi ulang otomatis tiap tanggal 1, DIKONFIRMASI)
-// + status mitra + 0 pelanggaran + aktif sosmed -- BUKAN LAGI dari total
-// order seumur hidup ataupun rating (rating DIHAPUS TOTAL dari syarat tier):
-//
-//   Tier     | Syarat                                          | Fee Fast | Fee PRO
-//   ---------|--------------------------------------------------|----------|--------
-//   New      | status TRAINING (default mitra baru)             | 13%      | 10%
-//   Reguler  | status AKTIF, >30 job selesai bulan ini           | 12%      | 9%
-//   Commit   | status AKTIF, >60 job selesai bulan ini,          | 11%      | 8%
-//            | 0 pelanggaran                                     |          |
-//   Pro      | status AKTIF, >90 job selesai bulan ini,          | 10%      | 7%
-//            | 0 pelanggaran, AKTIF SOSMED                       |          |
-//
-// "status AKTIF/TRAINING" pakai KOLOM `profiles.status` yang SUDAH ADA
-// ('training'/'ahli', dari schema awal) -- 'training' = tier New, 'ahli' =
-// syarat dasar utk naik ke Reguler/Commit/Pro (lihat migrasi
-// 034_program_loyalty_tier_dan_harga_final.sql: public.mitra_loyalty_tier()
-// utk definisi cascading lengkap, IDENTIK gaya penulisan dgn
-// mitra_fee_percent() migrasi 024/030). `violation_count` (migrasi 024) &
-// kolom BARU `sosmed_active` (migrasi 034) DIISI MANUAL oleh admin lewat
-// halaman Kelola Mitra -- persis pola "Trust & Safety" yang sudah ada.
-//
-// SATU sumber kebenaran di sisi TS untuk ESTIMASI tampilan client-side
-// (Dasbor Mitra, dropdown "Pilih mitra eligible" admin) -- potongan
-// SEBENARNYA yang dipotong dari saldo deposit mitra tetap dihitung
-// server-side oleh trigger di database (public.mitra_fee_percent(uuid,
-// text)), HARUS disinkron manual kalau salah satu berubah.
-export type MitraLoyaltyTier = "New" | "Reguler" | "Commit" | "Pro";
+// FEE PLATFORM, BIAYA MITRA, UPAH
+// ============================================================================
 
-export const PLATFORM_FEE_TIERS: Record<MitraLoyaltyTier, { fast: number; pro: number }> = {
-  // 25 Sep 2026 (revisi, migrasi 039): turun 2%/0% dari skema 22 Sep.
-  New: { fast: 0.11, pro: 0.1 },
-  Reguler: { fast: 0.1, pro: 0.09 },
-  Commit: { fast: 0.09, pro: 0.08 },
-  Pro: { fast: 0.08, pro: 0.07 },
-};
-
-/** Label Fast/PRO sebuah produk dari teks `service_type`/nama produk --
- *  SEMUA produk saat ini (Setrika, Cleaning, Les Private) namanya diakhiri
- *  "Fast" atau "PRO" persis, jadi cukup dicek dari `tier` field kalau match
- *  di `services`, atau fallback tebak dari teks kalau tidak ketemu (mis.
- *  teks bebas dari webhook yang penulisannya sedikit beda). */
+/** Label Fast/PRO sebuah produk dari teks service_type. */
 export function getProductTierLabel(serviceType: string): "Fast" | "PRO" {
   const variant = findServiceByLabel(serviceType);
   if (variant) return variant.tier;
   return /pro\b/i.test(serviceType.trim()) ? "PRO" : "Fast";
 }
 
-/** Persentase fee platform ESTIMASI untuk kombinasi tier loyalty mitra x
- *  label produk tertentu. Dipakai di client (Dasbor Mitra, dropdown admin)
- *  -- angka yang BENAR-BENAR dipotong selalu dihitung ulang server-side. */
+/** Persentase fee platform ESTIMASI (tier loyalty mitra x label produk).
+ *  Potongan sebenarnya dihitung trigger database (mitra_fee_percent). */
 export function getPlatformFeePercent(tierName: MitraLoyaltyTier, serviceType: string): number {
   const label = getProductTierLabel(serviceType);
   const row = PLATFORM_FEE_TIERS[tierName] ?? PLATFORM_FEE_TIERS.New;
   return label === "PRO" ? row.pro : row.fast;
 }
 
-// ----------------------------------------------------------------------------
-// Biaya Bahan Baku & Transport (Rupiah) -- BARU (20 September 2026), angka
-// DIPERBARUI (22 September 2026) mengikuti dokumen final "Logika Hitung
-// Harga Jual Paket". Berbeda dari SERVICE_MATERIALS di atas (yang cuma
-// menyimpan nama MEREK bahan baku untuk jaminan kualitas ke klien), ini
-// angka RUPIAH biaya bahan baku & transport yang mitra keluarkan sendiri di
-// lapangan -- dipakai untuk menghitung "Upah Bersih Mitra" (Harga Jual -
-// (Fee Platform + Bahan Baku + Transport)) yang ditampilkan transparan di
-// Dasbor Mitra. TIDAK memotong saldo deposit mitra (yang dipotong wallet
-// HANYA Fee Platform) -- ini murni biaya operasional mitra sendiri dari
-// uang tunai yang diterima dari klien.
-export const TRANSPORT_COST = 20000; // 25 Sep 2026: Rp25.000 -> Rp20.000 flat, SEMUA produk (asumsi mitra punya kendaraan sendiri)
+/** Biaya transport flat (Rupiah) yang ditanggung mitra. */
+export function getTransportCostValue(): number {
+  return transportCost;
+}
 
-const MATERIAL_COST_BY_CATEGORY_TIER: Record<string, { Fast: number; PRO: number }> = {
-  "Setrika Pakaian": { Fast: 1250, PRO: 2500 },
-  "Bersihkan Rumah": { Fast: 5000 + 3000, PRO: 10000 + 6000 }, // toilet + lantai
-  // 22 Sep 2026: Les Private Rp2.500/Rp5.000 -> Rp0 -- dokumen final
-  // "Logika Hitung Harga Jual Paket" mengosongkan kolom BAHAN utk Les
-  // Private (beda dari Setrika/Cleaning yang tetap ada bahan bakunya).
-  "Les Private": { Fast: 0, PRO: 0 },
-};
-
-/** Biaya bahan baku (Rupiah) untuk sebuah pesanan. Balikan 0 kalau kategori
- *  produknya tidak dikenal (aman, tidak seharusnya terjadi untuk produk
- *  orderable saat ini) ATAU kalau kategorinya memang Rp0 (Les Private,
- *  sejak 22 September 2026). */
+/** Biaya bahan baku (Rupiah) untuk sebuah pesanan. */
 export function getMaterialCost(serviceType: string): number {
   const variant = findServiceByLabel(serviceType);
   if (!variant) return 0;
-  const row = MATERIAL_COST_BY_CATEGORY_TIER[variant.category];
-  if (!row) return 0;
-  return variant.tier === "PRO" ? row.PRO : row.Fast;
+  const cat = categoryOf(variant);
+  if (!cat) return 0;
+  return variant.tier === "PRO" ? cat.materialCostPro : cat.materialCostFast;
 }
 
-/** Biaya transport (Rupiah) untuk sebuah pesanan -- flat Rp25.000 untuk
- *  semua produk yang dikenal, 0 kalau service_type tidak dikenal. */
+/** Biaya transport (Rupiah) untuk sebuah pesanan -- 0 kalau tidak dikenal. */
 export function getTransportCost(serviceType: string): number {
   const variant = findServiceByLabel(serviceType);
-  return variant ? TRANSPORT_COST : 0;
+  return variant ? transportCost : 0;
 }
 
-/** Upah bersih mitra ESTIMASI untuk sebuah pesanan & tier loyalty tertentu:
- *  Harga Jual - (Fee Platform + Bahan Baku + Transport). Estimasi client-side
- *  murni untuk transparansi Dasbor Mitra -- fee platform SEBENARNYA yang
- *  memotong saldo deposit dihitung server-side (database). */
+/** Upah bersih mitra ESTIMASI: Harga - (Fee + Bahan + Transport). */
 export function getUpahMitraBersih(tierName: MitraLoyaltyTier, serviceType: string, totalPrice: number): number {
   const feePct = getPlatformFeePercent(tierName, serviceType);
   const feePlatform = Math.round(totalPrice * feePct);
-  const bahanBaku = getMaterialCost(serviceType);
-  const transport = getTransportCost(serviceType);
-  return totalPrice - (feePlatform + bahanBaku + transport);
+  return totalPrice - (feePlatform + getMaterialCost(serviceType) + getTransportCost(serviceType));
 }
 
 // ============================================================================
-// [RIWAYAT -- durasi fixed per label & cara potong fee di catatan ini sudah
-// DIGANTI 25 September 2026, lihat blok REVISI tepat di bawahnya.]
-// Fitur "Tambah Waktu Kerja" -- rumus FINAL (22 September 2026), dokumen
-// "Logika Hitung Harga Tambah Waktu" yang Anda konfirmasi sebagai acuan
-// resmi TERBARU, MENGGANTIKAN TOTAL rumus 2-komponen (Fee Tambah Waktu % +
-// Komponen Upah Mitra) dari migrasi 030 (20 September 2026, cuma berumur 2
-// hari). Rumus baru jauh lebih sederhana -- 1 komponen saja:
-//
-//   Harga Tambah Waktu (HT) = (Harga Jual - Fee Platform) : 2 + Fee Platform
-//
-// dengan "Fee Platform" = persentase tier loyalty mitra YANG SEDANG
-// MENGERJAKAN order ini x label Fast/PRO produk (PERSIS getPlatformFeePercent()
-// di atas -- DIKONFIRMASI 22 September 2026: mitra tier lebih tinggi dapat
-// harga Tambah Waktu yang lebih rendah juga, bukan flat tier 1 seperti
-// contoh di dokumen). Bahan Baku & Transport TIDAK ikut dihitung sama
-// sekali di sini (beda dari harga jual paket biasa).
-//
-// PERUBAHAN PENTING: durasi tambah waktu SEKARANG FIXED per label produk,
-// BUKAN LAGI bebas pilih 30 ATAU 60 menit utk semua produk seperti
-// sebelumnya -- dokumen final cuma menunjukkan SATU opsi durasi per label:
-//   Label Fast : HANYA bisa tambah +30 menit
-//   Label PRO  : HANYA bisa tambah +60 menit
-// (rumus HT di atas tidak punya faktor pengali "menit" sama sekali -- angka
-// HT yang dihasilkan MEMANG mewakili paket tambahan waktu yang fixed itu,
-// bukan tarif per-menit yang bisa dikalikan bebas). TOLONG DIKONFIRMASI
-// kalau ternyata maksud dokumen bukan begini -- kalau salah, cukup ubah
-// EXTRA_TIME_MINUTES_BY_LABEL di bawah + UI-nya (ExtraTimeButton.tsx).
-//
-// Contoh dari dokumen (Setrika Fast, tier New/tier-1, +30 menit):
-//   Fee Platform = 13% x Rp70.000                     = Rp9.100
-//   HT = (Rp70.000 - Rp9.100) : 2 + Rp9.100
-//      = Rp60.900 : 2 + Rp9.100 = Rp30.450 + Rp9.100   = Rp39.550 ✓ (cocok dokumen)
+// TAMBAH WAKTU -- per unit (default 30 menit):
+//   HT_unit = ROUND((HJ - Fee) / 2) + Fee,  Fee = ROUND(HJ x Fee% tier)
+//   Durasi = n unit -> harga & fee x n. Fee dipotong PENUH dari deposit mitra
+//   (orders.extra_time_fee, migrasi 038).
 // ============================================================================
-
-// ----------------------------------------------------------------------------
-// REVISI (25 September 2026, konfirmasi Anda) -- MENGGANTIKAN durasi fixed
-// per label di atas:
-//   - Fast & PRO sama-sama bisa tambah +30 ATAU +60 menit.
-//   - Rumus dokumen = harga per 30 menit:
-//       HT_30 = ROUND((HJ - Fee) / 2) + Fee,   Fee = ROUND(HJ x Fee% tier)
-//     60 menit = 2 x HT_30 (Fee ikut 2x).
-//   - Fee di dalam HT dipotong PENUH dari saldo deposit mitra saat order
-//     selesai (disimpan di orders.extra_time_fee, migrasi 038).
-// Contoh Setrika Fast Rp60.000, tier New (11%): Fee Rp6.600 -> +30 menit
-// Rp33.300 (fee Rp6.600), +60 menit Rp66.600 (fee Rp13.200).
-// ----------------------------------------------------------------------------
-
-/** Pilihan durasi tambah waktu -- berlaku untuk label Fast maupun PRO. */
-export const EXTRA_TIME_OPTIONS: ExtraTimeMinutes[] = [30, 60];
 
 export type ExtraTimeBreakdown = {
   minutes: ExtraTimeMinutes;
-  /** Harga tambah waktu yang dibayar klien (ditambahkan ke total_price). */
+  /** Harga tambah waktu yang dibayar klien. */
   price: number;
-  /** Fee Platform di dalam harga itu -- dipotong penuh dari deposit mitra. */
+  /** Fee platform di dalam harga itu (dipotong penuh dari deposit). */
   fee: number;
 };
 
-/** Rincian harga & fee tambah waktu utk sebuah pesanan, berdasarkan
- *  `service_type` & TIER LOYALTY MITRA yang mengerjakannya. Balikan `null`
- *  kalau layanan tidak dikenali atau durasi bukan 30/60. */
+/** Durasi 1 unit tambah waktu (menit). */
+export function getExtraTimeUnitMinutes(): number {
+  return extraTimeUnitMinutes;
+}
+
 export function getExtraTimeBreakdown(
   tierName: MitraLoyaltyTier,
   serviceType: string,
@@ -569,20 +554,19 @@ export function getExtraTimeBreakdown(
   const variant = findServiceByLabel(serviceType);
   if (!variant) return null;
   if (!EXTRA_TIME_OPTIONS.includes(minutes)) return null;
+  if (minutes % extraTimeUnitMinutes !== 0) return null;
 
-  const units = minutes / 30; // 30 menit = 1 unit, 60 menit = 2 unit
+  const units = minutes / extraTimeUnitMinutes;
   const hargaJual = variant.price;
-  const feePer30 = Math.round(hargaJual * getPlatformFeePercent(tierName, serviceType));
-  const bagianMitraPer30 = Math.round((hargaJual - feePer30) / 2);
+  const feePerUnit = Math.round(hargaJual * getPlatformFeePercent(tierName, serviceType));
+  const bagianMitraPerUnit = Math.round((hargaJual - feePerUnit) / 2);
   return {
     minutes,
-    price: (bagianMitraPer30 + feePer30) * units,
-    fee: feePer30 * units,
+    price: (bagianMitraPerUnit + feePerUnit) * units,
+    fee: feePerUnit * units,
   };
 }
 
-/** Harga tambah waktu saja (Rupiah) -- pembungkus getExtraTimeBreakdown()
- *  supaya pemanggil lama tetap jalan. */
 export function getExtraTimePrice(
   tierName: MitraLoyaltyTier,
   serviceType: string,
@@ -591,11 +575,8 @@ export function getExtraTimePrice(
   return getExtraTimeBreakdown(tierName, serviceType, minutes)?.price ?? null;
 }
 
-/** Fee Platform total yang AKAN dipotong dari deposit mitra utk sebuah
- *  order (estimasi tampilan -- angka sebenarnya dihitung trigger database
- *  dengan rumus yang sama): fee paket utama (tier saat ini) + fee tambah
- *  waktu yang sudah tersimpan di order. Order lama (tambah waktu sebelum
- *  migrasi 038, extraTimeFee = 0) memakai cara lama: Fee% x total. */
+/** Fee platform total ESTIMASI untuk sebuah order (fee paket + fee tambah
+ *  waktu tersimpan). Order lama (extraTimeFee = 0) memakai cara lama. */
 export function estimateOrderPlatformFee(
   tierName: MitraLoyaltyTier,
   serviceType: string,
@@ -610,71 +591,34 @@ export function estimateOrderPlatformFee(
   return Math.round((totalPrice - extraTimePrice) * pct) + extraTimeFee;
 }
 
-// ----------------------------------------------------------------------------
-// Ambang Saldo Minimum Mitra -- REVISI (25 September 2026, konfirmasi Anda):
-// "minimal potongan produk terkecil berlabel Fast, persentase awal (tidak
-// berdasarkan tier)". Persentase awal = fee tier New label Fast (13%),
-// produk Fast terkecil = Setrika Fast. REVISI 25 Sep 2026: 11% x Rp60.000 =
-// Rp6.600 (dulu 13% x Rp70.000 = Rp9.100), SATU angka flat
-// utk semua jenis order. Sebelumnya 15% = Rp10.500.
-// HARUS sinkron dengan public.mitra_wallet_threshold() (migrasi 038).
-export const WALLET_THRESHOLD_BASE_PERCENT = PLATFORM_FEE_TIERS.New.fast; // 13%
+// ============================================================================
+// AMBANG SALDO MINIMUM = fee awal (tier New, label Fast) x harga produk Fast
+// termurah yang bisa dipesan. Sama dengan mitra_wallet_threshold() di DB.
+// ============================================================================
 
-export const MITRA_WALLET_MIN_BALANCE = Math.round(
-  WALLET_THRESHOLD_BASE_PERCENT *
-    Math.min(...services.filter((s) => s.tier === "Fast").map((s) => s.price))
-);  // = Rp6.600 sejak 25 Sep 2026 (11% x Rp60.000)
+export function getWalletMinBalance(): number {
+  const fastPrices = orderableServices.filter((s) => s.tier === "Fast").map((s) => s.price);
+  if (fastPrices.length === 0) return 0;
+  return Math.round(PLATFORM_FEE_TIERS.New.fast * Math.min(...fastPrices));
+}
 
 // ============================================================================
-// BARU (22 September 2026) -- fitur "Alarm Waktu Habis" (migrasi 035), diangkat
-// dari temuan audit lapangan: hampir seluruh klien mengabaikan durasi & cakupan
-// kerja yang disepakati, dan mitra segan menegur klien secara langsung --
-// menyebabkan kerja lembur tanpa tambahan bayaran. Solusinya 3 bagian:
-//   1. WA "pesanan disetujui" (buildOrderApprovedMessage, lib/whatsapp.ts)
-//      SEKARANG mencantumkan durasi & cakupan kerja secara eksplisit, supaya
-//      batasannya sudah disampaikan SISTEM sejak awal -- bukan mitra yang
-//      harus "menegur" klien di lapangan.
-//   2. Dasbor Mitra menghitung mundur otomatis dari `working_started_at`
-//      (diisi migrasi 035 saat mitra klik "Mulai Kerjakan") + durasi/tambah
-//      waktu, dan menampilkan alarm + tombol "Ingatkan Klien" begitu waktu
-//      habis (components/mitra/TaskList.tsx).
-//   3. pg_cron (Supabase) mengecek tiap 5 menit lewat
-//      app/api/cron/time-up-check/route.ts, kirim WA otomatis ke klien kalau
-//      mitra belum sempat klik tombol pengingat manual.
-// Dua fungsi di bawah ini MURNI helper tampilan/perhitungan waktu (tidak ada
-// perhitungan uang) -- dipakai oleh lib/whatsapp.ts, TaskList.tsx, dan kedua
-// API route "time-up" di atas supaya format & cara hitungnya konsisten di
-// semua tempat.
+// DURASI & CAKUPAN KERJA (fitur Alarm Waktu Habis, migrasi 035)
+// ============================================================================
 
-/** Ubah teks durasi bebas dari katalog (mis. "1 Jam", "1.5 Jam", "2,5 Jam")
- *  jadi jumlah menit. Balikan 60 (fallback aman, kira-kira durasi Fast
- *  tersingkat) kalau formatnya tidak dikenali -- seharusnya tidak pernah
- *  terjadi untuk produk yang terdaftar di `services` di atas. */
+/** "1 Jam" / "1.5 Jam" / "2,5 Jam" -> menit. Fallback 60. */
 export function parseDurationMinutes(duration: string): number {
   const match = duration.replace(",", ".").match(/(\d+(?:\.\d+)?)\s*jam/i);
   if (!match) return 60;
   return Math.round(parseFloat(match[1]) * 60);
 }
 
-/** Estimasi durasi (menit) sebuah pesanan, dari `service_type` yang
- *  tersimpan di tabel orders. Dipakai untuk MENGISI snapshot
- *  `orders.duration_minutes` saat mitra klik "Mulai Kerjakan" (migrasi 035) --
- *  DIKUNCI di kolom itu supaya tidak ikut berubah kalau durasi produk di
- *  katalog ini berubah belakangan (order yang sudah berjalan tetap pakai
- *  acuan durasi saat itu). */
 export function getDurationMinutes(serviceType: string): number {
   const variant = findServiceByLabel(serviceType);
   return parseDurationMinutes(variant?.duration ?? "1 Jam");
 }
 
-/** Teks "Cakupan Area Kerja" siap-tampil untuk sebuah pesanan -- unit paket +
- *  estimasi durasi + rincian pekerjaan (kalau ada). Dipakai di 3 tempat:
- *  WA "pesanan disetujui" (klien tahu batasannya sejak awal), snapshot
- *  `orders.work_scope_snapshot` yang dikunci saat "Mulai Kerjakan" (migrasi
- *  035, supaya mitra & klien punya acuan identik yang tidak berubah walau
- *  katalog berubah), dan WA "waktu habis" (mengingatkan cakupan yang
- *  disepakati). Balikan "-" kalau service_type tidak dikenali (seharusnya
- *  tidak pernah terjadi untuk produk yang terdaftar). */
+/** Teks "Cakupan Area Kerja" siap tampil (WA & snapshot order). */
 export function getWorkScopeText(serviceType: string): string {
   const variant = findServiceByLabel(serviceType);
   if (!variant) return "-";
@@ -685,10 +629,7 @@ export function getWorkScopeText(serviceType: string): string {
   return lines.join("\n");
 }
 
-/** Format jumlah menit jadi teks Indonesia ringkas ("90 menit" -> "1 jam 30
- *  menit"). Dipakai untuk menampilkan sisa waktu/keterlambatan di Dasbor
- *  Mitra & WA "waktu habis" -- angka menit mentah kurang enak dibaca kalau
- *  sudah lebih dari 1 jam. */
+/** 90 -> "1 jam 30 menit". */
 export function formatMinutesAsDurasi(minutes: number): string {
   const bulat = Math.max(0, Math.round(minutes));
   if (bulat === 0) return "0 menit";

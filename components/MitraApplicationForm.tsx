@@ -22,31 +22,10 @@
 "use client";
 
 import { useState } from "react";
-import { MITRA_TEACHING_LEVEL_OPTIONS } from "@/lib/services";
+import { MITRA_TEACHING_LEVEL_OPTIONS, getSkillGroups } from "@/lib/services";
 
-const SKILL_GROUPS: { label: string; options: string[] }[] = [
-  { label: "Rumah Tangga", options: ["Setrika", "Bersihkan Rumah"] },
-  {
-    label: "Les Private",
-    // BARU (23 September 2026) -- "Belajar Membaca Anak" ditambahkan,
-    // konsisten dengan LES_PRIVATE_SUBJECTS di lib/services.ts.
-    options: [
-      "Mengaji",
-      "Bahasa Inggris",
-      "Matematika",
-      "Fisika",
-      "Kimia",
-      "Biologi",
-      "Komputer",
-      "Belajar Membaca Anak",
-    ],
-  },
-];
-
-// Opsi keahlian yang termasuk kategori "Les Private" -- dipakai untuk
-// menentukan kapan field "Keahlian mengajar untuk tingkat pendidikan" di
-// bawah perlu ditampilkan.
-const LES_PRIVATE_SKILL_OPTIONS = SKILL_GROUPS.find((g) => g.label === "Les Private")?.options ?? [];
+// Grup keahlian DINAMIS dari katalog (Parameter Bisnis, migrasi 040):
+// kategori/mapel les baru dari Super Admin otomatis muncul di formulir.
 
 const EDUCATION_OPTIONS = ["SMA/SMK/Sederajat", "D3", "S1", "S2", "Lainnya"];
 
@@ -63,6 +42,8 @@ export default function MitraApplicationForm() {
   // mencentang minimal 1 keahlian Les Private.
   const [teachingLevels, setTeachingLevels] = useState<string[]>([]);
 
+  const SKILL_GROUPS = getSkillGroups();
+  const LES_PRIVATE_SKILL_OPTIONS = SKILL_GROUPS.find((g) => g.label === "Les Private")?.options ?? [];
   const wantsLesPrivate = skills.some((s) => LES_PRIVATE_SKILL_OPTIONS.includes(s));
 
   function toggleSkill(skill: string) {

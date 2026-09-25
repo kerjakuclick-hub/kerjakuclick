@@ -49,7 +49,13 @@
 // untuk kompatibilitas tipe & jaga-jaga.
 
 import { createClient } from "@/lib/supabase/server";
-import { cheapestPriceInCategory, formatRupiah } from "@/lib/services";
+import {
+  cheapestPriceInCategory,
+  formatRupiah,
+  orderableServices,
+  serviceCategoryList,
+} from "@/lib/services";
+import { ensureBusinessParams } from "@/lib/businessParams";
 import ServicesGridInteractive, { type ServiceCardData } from "./ServicesGridInteractive";
 
 const services: Omit<ServiceCardData, "imageUrl" | "priceFrom">[] = [
@@ -80,19 +86,47 @@ const services: Omit<ServiceCardData, "imageUrl" | "priceFrom">[] = [
   },
 ];
 
+// PARAMETER BISNIS (migrasi 040): harga "Mulai dari" dibaca dari katalog
+// di database. 3 kartu inti di atas tetap tampil dengan foto/teksnya
+// (selama kategorinya aktif & punya produk). Kategori BARU yang ditambah
+// Super Admin otomatis dapat kartu tambahan (ikon default; foto bisa
+// diupload lewat Media Library dengan slug "service_<slug-kategori>").
+function buildCards(): Omit<ServiceCardData, "imageUrl" | "priceFrom">[] {
+  const hasProducts = (cat: string) => orderableServices.some((v) => v.category === cat);
+  const curated = services.filter((s) => hasProducts(s.serviceCategory));
+  const curatedCats = new Set(services.map((s) => s.serviceCategory));
+  const extra = serviceCategoryList
+    .filter((c) => !curatedCats.has(c.name) && hasProducts(c.name))
+    .map((c) => {
+      const products = orderableServices.filter((v) => v.category === c.name);
+      const durations = Array.from(new Set(products.map((v) => v.duration).filter(Boolean)));
+      return {
+        slug: `service_${c.id.replace(/-/g, "_")}`,
+        name: c.buttonLabel || c.name,
+        serviceCategory: c.name,
+        desc: products.find((v) => v.desc)?.desc ?? `Layanan ${c.name} oleh mitra terlatih kerjaku.click.`,
+        duration: durations.length ? `Est. ${durations.join(" / ")}` : "",
+        icon: "default",
+      };
+    });
+  return [...curated, ...extra];
+}
+
 export default async function ServicesGrid() {
+  await ensureBusinessParams();
+  const cards = buildCards();
   const supabase = createClient();
   const { data: media } = await supabase
     .from("site_media")
     .select("slug, image_url")
     .in(
       "slug",
-      services.map((s) => s.slug)
+      cards.map((s) => s.slug)
     );
 
   const imageBySlug = new Map((media ?? []).map((m) => [m.slug, m.image_url]));
 
-  const resolvedServices: ServiceCardData[] = services.map((s) => {
+  const resolvedServices: ServiceCardData[] = cards.map((s) => {
     const cheapest = cheapestPriceInCategory(s.serviceCategory);
     return {
       ...s,

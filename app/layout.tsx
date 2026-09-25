@@ -4,6 +4,13 @@ import "./globals.css";
 import FloatingChatLauncher from "@/components/FloatingChatLauncher";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import PublicInstallBanner from "@/components/PublicInstallBanner";
+import BusinessParamsProvider from "@/components/BusinessParamsProvider";
+import { ensureBusinessParams, toPublicBusinessParams } from "@/lib/businessParams";
+
+// BARU (25 Sep 2026): halaman memuat ulang Parameter Bisnis (harga,
+// katalog -- migrasi 040) paling lambat tiap 60 detik; langsung saat Super
+// Admin menyimpan perubahan (revalidateTag di API parameter).
+export const revalidate = 60;
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -51,12 +58,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Parameter Bisnis: diterapkan di server (lengkap) + dikirim ke browser
+  // versi publik (fee/transport/bahan dikosongkan -- lihat
+  // toPublicBusinessParams).
+  const businessParams = await ensureBusinessParams();
+  const publicParams = toPublicBusinessParams(businessParams);
+
   return (
     <html lang="id" className={`${spaceGrotesk.variable} ${inter.variable} ${plexMono.variable}`}>
       <body className="font-body antialiased">
+        <BusinessParamsProvider params={publicParams}>
         {children}
         {/* Tombol Chat Pesanan melayang -- lihat components/FloatingChatLauncher.tsx.
             Dipasang di root layout supaya otomatis muncul di semua halaman publik;
@@ -69,6 +83,7 @@ export default function RootLayout({
         {/* BARU (25 Sep 2026): ajakan install aplikasi untuk pelanggan di
             website publik -- lihat components/PublicInstallBanner.tsx. */}
         <PublicInstallBanner />
+        </BusinessParamsProvider>
       </body>
     </html>
   );

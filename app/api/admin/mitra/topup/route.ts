@@ -11,13 +11,17 @@
 // minimum). Best-effort -- kalau WA gagal terkirim, top up TETAP berhasil;
 // status kirimnya dikembalikan di field `waNotify` untuk admin.
 
+import { ensureBusinessParams } from "@/lib/businessParams";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendFonnteMessage, buildTopupSuccessMessage } from "@/lib/whatsapp";
-import { MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
+import { getWalletMinBalance } from "@/lib/services";
 
 export async function POST(req: NextRequest) {
+  // Parameter Bisnis (harga, katalog, fee -- migrasi 040), cache 60 detik.
+  await ensureBusinessParams();
+
   const supabase = createClient();
 
   const {
@@ -70,7 +74,7 @@ export async function POST(req: NextRequest) {
         mitraName: updated.name ?? "Mitra",
         amount: Number(amount),
         newBalance: Number(newBalance ?? updated.wallet_balance ?? 0),
-        minBalance: MITRA_WALLET_MIN_BALANCE,
+        minBalance: getWalletMinBalance(),
       })
     );
     waNotify = result.ok ? { ok: true } : { ok: false, error: result.error };

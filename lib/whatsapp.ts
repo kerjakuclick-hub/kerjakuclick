@@ -390,7 +390,7 @@ export function buildMitraAssignedMessage(order: MitraAssignedInput): string {
 // ============================================================================
 
 export type ExtraTimeAddedInput = {
-  minutes: 30 | 60;
+  minutes: number;
   extraPrice: number;
   newTotalPrice: number;
   serviceType: string;

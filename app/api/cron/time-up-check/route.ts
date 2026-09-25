@@ -54,11 +54,15 @@
 //   ini tiap 5 menit, tapi selalu ditolak 401 (header rahasianya kosong/tidak
 //   cocok) -- tidak ada WA yang benar-benar terkirim sampai keduanya diisi.
 
+import { ensureBusinessParams } from "@/lib/businessParams";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendFonnteMessage, buildTimeUpMessage } from "@/lib/whatsapp";
 
 export async function POST(req: NextRequest) {
+  // Parameter Bisnis (harga, katalog, fee -- migrasi 040), cache 60 detik.
+  await ensureBusinessParams();
+
   const secret = req.headers.get("x-cron-secret");
   if (!secret || !process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

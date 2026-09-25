@@ -63,7 +63,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { formatRupiah, MITRA_WALLET_MIN_BALANCE } from "@/lib/services";
+import { formatRupiah, getWalletMinBalance } from "@/lib/services";
 import OrderChat from "@/components/shared/OrderChat";
 import type { Order, OrderStatus, EligibleMitra, Invoice } from "@/lib/types";
 
@@ -364,7 +364,7 @@ export default function OrdersFeed({
                     </p>
                   )}
                   <p className="text-xs text-ink/40">
-                    Ambang saldo minimum mitra: {formatRupiah(MITRA_WALLET_MIN_BALANCE)} (flat,
+                    Ambang saldo minimum mitra: {formatRupiah(getWalletMinBalance())} (flat,
                     berlaku sama untuk semua pesanan) — persentase fee yang terpotong tetap
                     mengikuti tier &amp; label Fast/PRO tiap mitra, lihat dropdown mitra
                   </p>

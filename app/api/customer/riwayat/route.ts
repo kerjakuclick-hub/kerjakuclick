@@ -39,6 +39,7 @@
 // sekaligus). Tier mitra tetap dipakai (lihat getExtraTimePrice() di
 // lib/services.ts), sekarang tier LOYALTY (New/Reguler/Commit/Pro).
 
+import { ensureBusinessParams } from "@/lib/businessParams";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
@@ -65,6 +66,9 @@ function localSuffix(phone: string): string {
 }
 
 export async function GET(req: NextRequest) {
+  // Parameter Bisnis (harga, katalog, fee -- migrasi 040), cache 60 detik.
+  await ensureBusinessParams();
+
   const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
   const customer = await getCustomerFromToken(token);
 
@@ -150,7 +154,7 @@ export async function GET(req: NextRequest) {
 
   // REVISI (25 September 2026): Fast & PRO sama-sama punya 2 opsi (30 &
   // 60 menit, 60 = 2x harga 30) -- dikirim sebagai array.
-  const extraTimeRatesByOrderId: Record<number, { minutes: 30 | 60; price: number }[] | null> = {};
+  const extraTimeRatesByOrderId: Record<number, { minutes: number; price: number }[] | null> = {};
   for (const o of eligibleForExtraTime) {
     const tierName = tierByMitraId[o.mitra_id as string] ?? "New";
     const rates = EXTRA_TIME_OPTIONS.map((m) => getExtraTimeBreakdown(tierName, o.service_type, m))

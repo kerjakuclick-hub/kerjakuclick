@@ -9,6 +9,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import InstallAppCard from "@/components/InstallAppCard";
 import MitraNav from "@/components/mitra/MitraNav";
+import BusinessParamsProvider from "@/components/BusinessParamsProvider";
+import { ensureBusinessParams } from "@/lib/businessParams";
 
 export const metadata: Metadata = {
   title: "Kerjaku.click Mitra",
@@ -38,7 +40,12 @@ export default async function MitraLayout({ children }: { children: React.ReactN
     redirect("/");
   }
 
+  // Parameter Bisnis versi LENGKAP (fee, transport, bahan) untuk rincian
+  // upah di dasbor mitra -- migrasi 040.
+  const businessParams = await ensureBusinessParams();
+
   return (
+    <BusinessParamsProvider params={businessParams}>
     <div className="min-h-screen bg-paper">
       <MitraNav mitraName={profile?.name ?? "Mitra"} walletBalance={profile?.wallet_balance ?? 0} />
       <main className="mx-auto max-w-4xl px-6 py-8 lg:px-8">
@@ -47,5 +54,6 @@ export default async function MitraLayout({ children }: { children: React.ReactN
         {children}
       </main>
     </div>
+    </BusinessParamsProvider>
   );
 }

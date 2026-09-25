@@ -84,7 +84,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { services as serviceVariants, formatRupiah } from "@/lib/services";
+import { orderableServices as serviceVariants, formatRupiah } from "@/lib/services";
 import { IronIcon, HomeSparkleIcon, BookOpenIcon } from "./Icons";
 
 export type ServiceCardData = {
@@ -126,7 +126,7 @@ export default function ServicesGridInteractive({ services }: { services: Servic
       <div className="grid items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3">
         {services.map((s) => {
           const clickable = !s.comingSoon;
-          const Icon = SERVICE_ICON_MAP[s.icon];
+          const Icon = SERVICE_ICON_MAP[s.icon] ?? HomeSparkleIcon;
           return (
             <div
               key={s.slug}

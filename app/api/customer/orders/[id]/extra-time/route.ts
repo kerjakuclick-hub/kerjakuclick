@@ -49,11 +49,13 @@
 // tahu real-time tanpa perlu refresh -- pola sender_type='system' yang sama
 // dipakai fitur lain di tabel ini (migrasi 025).
 
+import { ensureBusinessParams } from "@/lib/businessParams";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { SESSION_COOKIE_NAME, getCustomerFromToken } from "@/lib/customerAuth";
 import {
   getExtraTimeBreakdown,
+  EXTRA_TIME_OPTIONS,
   formatRupiah,
   findServiceByLabel,
   type MitraLoyaltyTier,
@@ -73,6 +75,9 @@ function localSuffix(phone: string): string {
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  // Parameter Bisnis (harga, katalog, fee -- migrasi 040), cache 60 detik.
+  await ensureBusinessParams();
+
   const orderId = Number(params.id);
   if (!Number.isFinite(orderId)) {
     return NextResponse.json({ error: "ID pesanan tidak valid." }, { status: 400 });
@@ -85,8 +90,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const { minutes } = (await req.json()) as { minutes?: number };
-  if (minutes !== 30 && minutes !== 60) {
-    return NextResponse.json({ error: "Pilih tambah waktu 30 atau 60 menit." }, { status: 400 });
+  // Pilihan durasi dari Parameter Bisnis (default 30 & 60 menit).
+  if (typeof minutes !== "number" || !EXTRA_TIME_OPTIONS.includes(minutes)) {
+    return NextResponse.json(
+      { error: `Pilih tambah waktu ${EXTRA_TIME_OPTIONS.join(" atau ")} menit.` },
+      { status: 400 }
+    );
   }
 
   const admin = getSupabaseAdmin();
@@ -149,7 +158,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
   const tierName = (tierInfoRows?.[0]?.tier_name as MitraLoyaltyTier | undefined) ?? "New";
 
-  const breakdown = getExtraTimeBreakdown(tierName, order.service_type, minutes as 30 | 60);
+  const breakdown = getExtraTimeBreakdown(tierName, order.service_type, minutes);
   if (breakdown === null) {
     return NextResponse.json(
       { error: "Tambah waktu tidak berlaku untuk jenis layanan ini." },

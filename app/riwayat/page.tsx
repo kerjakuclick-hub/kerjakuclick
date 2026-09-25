@@ -84,7 +84,7 @@ type RiwayatOrder = {
   customer_phone: string;
   extra_time_minutes: number;
   extra_time_price: number;
-  extra_time_rates: { minutes: 30 | 60; price: number }[] | null; // 25 Sep 2026: 2 opsi (30 & 60 menit) utk Fast maupun PRO
+  extra_time_rates: { minutes: number; price: number }[] | null; // 25 Sep 2026: 2 opsi (30 & 60 menit) utk Fast maupun PRO
   invoice_notified_at: string | null;
   invoice: { file_url: string; created_at: string } | null;
   // BARU -- migrasi 037 (revisi Formulir Pesanan, 23 September 2026): cuma

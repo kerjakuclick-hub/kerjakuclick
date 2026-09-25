@@ -1,6 +1,7 @@
+import { ensureBusinessParams } from "@/lib/businessParams";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { findServiceByLabel, services, formatRupiah } from "@/lib/services";
+import { findServiceByLabel, formatRupiah, orderableServices, serviceCategoryList } from "@/lib/services";
 import { requestPinReset } from "@/lib/customerAuth";
 import {
   buildMitraRegistrationReply,
@@ -229,24 +230,42 @@ function isResetPinRequest(raw: string): boolean {
 // manual di sini lagi.
 // ========================================================================
 
-function faqPriceLine(emoji: string, label: string, serviceId: string): string {
-  const variant = services.find((s) => s.id === serviceId);
-  if (!variant) return ""; // aman kalau id-nya suatu saat dihapus/berubah
-  return `${emoji} ${label}: ${formatRupiah(variant.price)} (${variant.unit}, ±${variant.duration})\n`;
-}
+// REVISI (25 Sep 2026, Parameter Bisnis -- migrasi 040): daftar harga
+// disusun per permintaan dari katalog aktif (bisa bertambah kategori/produk
+// baru dari Dasbor Admin), bukan lagi daftar id yang ditulis tetap.
+const FAQ_CATEGORY_EMOJI: Record<string, string> = {
+  setrika: "🧺",
+  "bersihkan-rumah": "🧹",
+  "les-private": "📚",
+};
 
-const FAQ_PRICE_REPLY =
-  `Berikut harga layanan kerjaku.click ya kak 🙏\n\n` +
-  faqPriceLine("🧺", "Setrika Fast", "setrika-fast") +
-  faqPriceLine("🧺", "Setrika PRO", "setrika-pro") +
-  faqPriceLine("🧹", "Cleaning Fast", "cleaning-fast") +
-  faqPriceLine("🧹", "Cleaning PRO", "cleaning-pro") +
-  // Les Private: harga/durasi SAMA utk ke-7 mata pelajaran (lihat
-  // lesPrivateVariants di lib/services.ts) -- cukup ambil 1 (Mengaji)
-  // sebagai representasi, tidak perlu daftar semua mata pelajaran di sini.
-  faqPriceLine("📚", "Les Private Fast", "les-mengaji-fast") +
-  faqPriceLine("📚", "Les Private PRO", "les-mengaji-pro") +
-  `\nUntuk pesan, langsung isi form di www.kerjaku.click ya 🤍`;
+function buildFaqPriceReply(): string {
+  let lines = "";
+  for (const cat of serviceCategoryList) {
+    const emoji = FAQ_CATEGORY_EMOJI[cat.id] ?? "✅";
+    const items = orderableServices.filter((s) => s.categoryId === cat.id);
+    if (items.length === 0) continue;
+    if (cat.isLesPrivate) {
+      // Les Private: cukup harga termurah per label Fast/PRO.
+      for (const tier of ["Fast", "PRO"] as const) {
+        const perTier = items.filter((s) => s.tier === tier).sort((a, b) => a.price - b.price);
+        const v = perTier[0];
+        if (!v) continue;
+        const mulai = perTier.some((s) => s.price !== v.price) ? "mulai " : "";
+        lines += `${emoji} ${cat.buttonLabel} ${tier}: ${mulai}${formatRupiah(v.price)} (${v.unit}, ±${v.duration})\n`;
+      }
+    } else {
+      for (const v of items) {
+        lines += `${emoji} ${v.name}: ${formatRupiah(v.price)} (${v.unit}, ±${v.duration})\n`;
+      }
+    }
+  }
+  return (
+    `Berikut harga layanan kerjaku.click ya kak 🙏\n\n` +
+    lines +
+    `\nUntuk pesan, langsung isi form di www.kerjaku.click ya 🤍`
+  );
+}
 
 const FAQ_HOURS_REPLY =
   `Jam operasional kerjaku.click: *07.00–20.00 WITA*, setiap hari 🙏\n\n` +
@@ -265,7 +284,7 @@ const FAQ_HOW_TO_ORDER_REPLY =
 // lebih dulu, dibiarkan sebagai cadangan.
 const FAQ_JOIN_MITRA_REPLY = buildMitraRegistrationReply();
 
-const FAQ_PATTERNS: Array<{ test: RegExp; reply: string }> = [
+const FAQ_PATTERNS: Array<{ test: RegExp; reply: string | (() => string) }> = [
   {
     // "jadi mitra", "gabung mitra", "daftar mitra", "cara jadi mitra", dst.
     test: /\b(jadi|gabung|daftar)\b.{0,15}\bmitra\b|\bmitra\b.{0,15}\b(jadi|gabung|daftar)\b/i,
@@ -275,7 +294,7 @@ const FAQ_PATTERNS: Array<{ test: RegExp; reply: string }> = [
     // "harga", "tarif", "biaya" — dicek sebelum "cara pesan" supaya
     // "berapa harga buat pesan" tetap kena harga, bukan cara-pesan.
     test: /\b(harga|tarif|biaya)\b/i,
-    reply: FAQ_PRICE_REPLY,
+    reply: buildFaqPriceReply,
   },
   {
     // "jam operasional/buka/kerja/layanan", "kapan buka/online"
@@ -291,7 +310,7 @@ const FAQ_PATTERNS: Array<{ test: RegExp; reply: string }> = [
 
 function matchFaq(raw: string): string | null {
   for (const { test, reply } of FAQ_PATTERNS) {
-    if (test.test(raw)) return reply;
+    if (test.test(raw)) return typeof reply === "function" ? reply() : reply;
   }
   return null;
 }
@@ -365,6 +384,9 @@ function buildOtpMessage(otp: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Parameter Bisnis (harga, katalog, fee -- migrasi 040), cache 60 detik.
+  await ensureBusinessParams();
+
   // Verifikasi token rahasia di URL — tanpa ini, siapa pun di internet yang
   // tahu alamat endpoint ini bisa mengirim data order palsu langsung ke
   // database. Fonnte tidak menandatangani webhook-nya, jadi kita yang

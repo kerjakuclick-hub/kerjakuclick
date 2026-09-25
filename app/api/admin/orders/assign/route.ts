@@ -50,6 +50,7 @@
 // pribadi. Kegagalan menulis pesan ini TIDAK menggagalkan penugasan (log
 // saja), sama seperti pola notifikasi WA di atas.
 
+import { ensureBusinessParams } from "@/lib/businessParams";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -61,6 +62,9 @@ import {
 } from "@/lib/whatsapp";
 
 export async function POST(req: NextRequest) {
+  // Parameter Bisnis (harga, katalog, fee -- migrasi 040), cache 60 detik.
+  await ensureBusinessParams();
+
   const supabase = createClient();
 
   const {
