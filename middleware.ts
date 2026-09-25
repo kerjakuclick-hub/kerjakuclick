@@ -171,6 +171,16 @@ function handleMaintenanceMode(request: NextRequest): NextResponse | null {
   return NextResponse.rewrite(maintenanceUrl);
 }
 
+/** `pathname` persis `prefix` atau diawali `prefix + "/"`. PERBAIKAN (25 Sep
+ *  2026): sebelumnya dicek pakai startsWith("/mitra") biasa, sehingga file
+ *  publik /mitra-manifest.webmanifest ikut dianggap halaman dasbor mitra dan
+ *  dialihkan ke /login -- manifest diambil browser TANPA cookie login, jadi
+ *  Chrome HP menerima halaman login, bukan manifest, dan dasbor mitra tidak
+ *  bisa di-install. Sama untuk /admin-manifest.webmanifest. */
+function isRouteUnder(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + "/");
+}
+
 export async function middleware(request: NextRequest) {
   const maintenanceResponse = handleMaintenanceMode(request);
   if (maintenanceResponse) return maintenanceResponse;
@@ -191,7 +201,7 @@ export async function middleware(request: NextRequest) {
 
   // Kalau ada yang masih buka /admin lewat domain lama (www/apex),
   // arahkan ke subdomain admin yang baru supaya link/bookmark lama tetap jalan.
-  if (!isAdminHost && request.nextUrl.pathname.startsWith("/admin")) {
+  if (!isAdminHost && isRouteUnder(request.nextUrl.pathname, "/admin")) {
     const redirectUrl = new URL(
       request.nextUrl.pathname + request.nextUrl.search,
       `https://${ADMIN_HOST}`
@@ -231,8 +241,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAdminRoute = effectivePathname.startsWith("/admin");
-  const isMitraRoute = effectivePathname.startsWith("/mitra");
+  const isAdminRoute = isRouteUnder(effectivePathname, "/admin");
+  const isMitraRoute = isRouteUnder(effectivePathname, "/mitra");
 
   if (isAdminRoute || isMitraRoute) {
     if (!user) {
@@ -270,5 +280,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon\\.ico).*)"],
+  // PERBAIKAN (25 Sep 2026): file statis di public/ (manifest, ikon,
+  // gambar) TIDAK lewat middleware sama sekali -- tidak butuh login, dan
+  // harus tetap bisa diambil browser/server Google (pembuat aplikasi
+  // Android) tanpa cookie, termasuk saat mode maintenance.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|icons/|.*\\.(?:webmanifest|png|jpg|jpeg|gif|svg|webp|ico|txt|xml)$).*)",
+  ],
 };
