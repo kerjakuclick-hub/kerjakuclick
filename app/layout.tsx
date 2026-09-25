@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import FloatingChatLauncher from "@/components/FloatingChatLauncher";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -61,6 +62,9 @@ export default function RootLayout({
             komponennya sendiri yang menentukan kapan harus disembunyikan (belum
             login, tidak ada pesanan aktif, atau sedang di dasbor admin/mitra). */}
         <FloatingChatLauncher />
+        {/* BARU (25 Sep 2026): service worker utk syarat install aplikasi di
+            HP Android -- lihat components/ServiceWorkerRegister.tsx. */}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

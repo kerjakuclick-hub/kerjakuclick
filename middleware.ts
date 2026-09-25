@@ -285,6 +285,6 @@ export const config = {
   // harus tetap bisa diambil browser/server Google (pembuat aplikasi
   // Android) tanpa cookie, termasuk saat mode maintenance.
   matcher: [
-    "/((?!_next/static|_next/image|favicon\\.ico|icons/|.*\\.(?:webmanifest|png|jpg|jpeg|gif|svg|webp|ico|txt|xml)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|icons/|.*\\.(?:webmanifest|png|jpg|jpeg|gif|svg|webp|ico|txt|xml)$).*)",
   ],
 };
