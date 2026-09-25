@@ -161,7 +161,7 @@ export default async function MitraDashboardPage() {
           <p className="text-xs uppercase text-ink/50">Tier Mitra &amp; Fee Platform</p>
           <p className="mt-1 font-display text-xl font-semibold text-ink">{tierName}</p>
           <p className="mt-1 text-xs text-ink/60">
-            {Math.round((tierInfo?.fast_fee_percent ?? 0.13) * 100)}% fee layanan Fast ·{" "}
+            {Math.round((tierInfo?.fast_fee_percent ?? 0.11) * 100)}% fee layanan Fast ·{" "}
             {Math.round((tierInfo?.pro_fee_percent ?? 0.1) * 100)}% fee layanan PRO
           </p>
           <p className="mt-1 text-xs text-ink/50">
@@ -195,7 +195,7 @@ export default async function MitraDashboardPage() {
           Daftar ini otomatis diperbarui saat admin menugaskan pesanan baru untuk Anda. Rincian
           biaya di bawah dihitung memakai fee tier loyalty Anda saat ini ({tierName}) --
           persentasenya beda untuk pesanan layanan Fast (
-          {Math.round((tierInfo?.fast_fee_percent ?? 0.13) * 100)}%) dan PRO (
+          {Math.round((tierInfo?.fast_fee_percent ?? 0.11) * 100)}%) dan PRO (
           {Math.round((tierInfo?.pro_fee_percent ?? 0.1) * 100)}%), tergantung pesanan yang Anda
           kerjakan.
         </p>

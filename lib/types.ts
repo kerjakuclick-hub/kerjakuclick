@@ -63,7 +63,7 @@ export type Order = {
   mitra_id: string | null;
   status: OrderStatus;
   created_at: string;
-  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007) -- SEKARANG HANYA acuan lama/tampilan; ambang kelayakan riil sejak migrasi 030/034 adalah FLAT (lihat mitra_wallet_threshold()/MITRA_WALLET_MIN_BALANCE, Rp9.100 sejak 25 Sep 2026 (13% x Setrika Fast, migrasi 038)), bukan lagi 20% ataupun dinamis per tier (migrasi 024/028)
+  min_wallet_required: number; // generated column, 20% dari total_price (migrasi 007) -- SEKARANG HANYA acuan lama/tampilan; ambang kelayakan riil sejak migrasi 030/034 adalah FLAT (lihat mitra_wallet_threshold()/MITRA_WALLET_MIN_BALANCE, Rp6.600 sejak revisi 25 Sep 2026 (11% x Setrika Fast Rp60.000, migrasi 039)), bukan lagi 20% ataupun dinamis per tier (migrasi 024/028)
   completed_at: string | null; // BARU — migrasi 034 (22 September 2026): waktu order status berubah jadi 'completed' (diisi otomatis oleh trigger), dipakai utk hitung "job selesai bulan kalender berjalan" pada Program Loyalty Tier. Data lama (completed sebelum migrasi 034) di-backfill dari created_at sebagai pendekatan.
   mitra_id_card_sent_at: string | null; // migrasi 017 — TIDAK dipakai lagi sejak notifikasi klien otomatis (migrasi 020), dibiarkan ada di DB untuk histori
   mitra_id_card_sent_by: string | null; // migrasi 017 — idem
@@ -187,7 +187,7 @@ export type EligibleMitra = {
 // (menggantikan Baru/Reguler/Terpercaya).
 export type MitraTierInfo = {
   tier_name: "New" | "Reguler" | "Commit" | "Pro";
-  fast_fee_percent: number; // 0.13 | 0.12 | 0.11 | 0.10
+  fast_fee_percent: number; // 0.11 | 0.10 | 0.09 | 0.08 (revisi 25 Sep 2026, migrasi 039)
   pro_fee_percent: number; // 0.10 | 0.09 | 0.08 | 0.07
   monthly_completed_orders: number; // job selesai bulan kalender berjalan (reset tiap tanggal 1)
   status: "training" | "ahli"; // syarat dasar tier Reguler+ ('ahli') vs New ('training')

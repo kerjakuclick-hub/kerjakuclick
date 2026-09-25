@@ -1,5 +1,18 @@
 // GANTI ISI lib/services.ts Anda dengan file ini.
 //
+// REVISI HARGA & FEE (25 September 2026, setelah kajian UMR Kota Palu &
+// kelayakan harga di Palu) -- lihat migrasi 039:
+//   Harga jual: Setrika Fast Rp60.000 (25 pcs) · Setrika PRO Rp85.000 ·
+//     Cleaning Fast Rp80.000 · Cleaning PRO Rp125.000 · Les Private Fast
+//     Rp65.000 · Les Private PRO Rp90.000.
+//   Fee platform (Fast/PRO): New 11%/10% · Reguler 10%/9% · Commit 9%/8% ·
+//     Pro 8%/7%.
+//   Transport Rp20.000 flat -- asumsi mitra diutamakan punya kendaraan
+//     sendiri; kalau dapat klien berikutnya tanpa isi BBM lagi, biaya
+//     transport klien jadi pendapatan tambahan mitra.
+//   Ambang saldo = 11% x Setrika Fast Rp60.000 = Rp6.600 (dihitung otomatis).
+//   Platform dapat pendapatan lain dari fee penuh tambah waktu (marketing).
+//
 // REVISI (25 September 2026) -- 3 KONFIRMASI Anda (lihat juga migrasi
 // 038_fee_penuh_tambah_waktu_dan_ambang_saldo_13persen.sql):
 //   1. Fee Platform dari tambah waktu dipotong PENUH (dipakai platform utk
@@ -136,7 +149,7 @@ const lesPrivateVariants: ServiceVariant[] = LES_PRIVATE_SUBJECTS.flatMap(({ slu
     // dipakai order_product_tier_label() di database utk deteksi label
     // Fast/PRO dari teks service_type.
     name: `${label} Fast`,
-    price: 75000, // 22 Sep 2026: Rp65.000 -> Rp75.000 (dokumen "Logika Hitung Harga Jual Paket", final)
+    price: 65000, // 25 Sep 2026: Rp75.000 -> Rp65.000 (revisi harga Palu)
     unit: "1x Pertemuan",
     duration: "1 Jam",
     tier: "Fast" as const,
@@ -146,7 +159,7 @@ const lesPrivateVariants: ServiceVariant[] = LES_PRIVATE_SUBJECTS.flatMap(({ slu
     id: `les-${slug}-pro`,
     category: "Les Private",
     name: `${label} PRO`,
-    price: 115000, // 22 Sep 2026: Rp100.000 -> Rp115.000 (dokumen final)
+    price: 90000, // 25 Sep 2026: Rp115.000 -> Rp90.000 (revisi harga Palu)
     unit: "1x Pertemuan",
     duration: "2 Jam",
     tier: "PRO" as const,
@@ -213,13 +226,13 @@ export const services: ServiceVariant[] = [
     id: "setrika-fast",
     category: "Setrika Pakaian",
     name: "Setrika Fast",
-    price: 70000, // 22 Sep 2026: Rp55.000 -> Rp70.000 (dokumen "Logika Hitung Harga Jual Paket", final)
-    unit: "20 Pcs / Paket",
+    price: 60000, // 25 Sep 2026: Rp70.000 -> Rp60.000 (revisi harga Palu)
+    unit: "25 Pcs / Paket", // 25 Sep 2026: 20 -> 25 pcs
     duration: "1 Jam",
     tier: "Fast",
     desc: "Layanan setrika pakaian harian yang dikerjakan dengan waktu singkat dan padat.",
     detilPekerjaan: [
-      "Setrika rapi hingga 20 Pcs pakaian (dewasa & anak)",
+      "Setrika rapi hingga 25 Pcs pakaian (dewasa & anak)",
       "Pakaian disemprot pelembut & pewangi Kispray sebelum disetrika",
       "Pilihan finishing: dilipat rapi atau digantung (hanger)",
     ],
@@ -228,7 +241,7 @@ export const services: ServiceVariant[] = [
     id: "setrika-pro",
     category: "Setrika Pakaian",
     name: "Setrika PRO",
-    price: 100000, // 22 Sep 2026: Rp85.000 -> Rp100.000 (dokumen final)
+    price: 85000, // 25 Sep 2026: Rp100.000 -> Rp85.000 (revisi harga Palu)
     unit: "40 Pcs / Paket",
     duration: "2 Jam",
     tier: "PRO",
@@ -243,7 +256,7 @@ export const services: ServiceVariant[] = [
     id: "cleaning-fast",
     category: "Bersihkan Rumah",
     name: "Cleaning Fast",
-    price: 90000, // 22 Sep 2026: Rp65.000 -> Rp90.000 (dokumen final)
+    price: 80000, // 25 Sep 2026: Rp90.000 -> Rp80.000 (revisi harga Palu)
     unit: "1 Rumah (Tipe 36/40)",
     duration: "1.5 Jam",
     tier: "Fast",
@@ -257,7 +270,7 @@ export const services: ServiceVariant[] = [
     id: "cleaning-pro",
     category: "Bersihkan Rumah",
     name: "Cleaning PRO",
-    price: 135000, // 22 Sep 2026: Rp100.000 -> Rp135.000 (dokumen final)
+    price: 125000, // 25 Sep 2026: Rp135.000 -> Rp125.000 (revisi harga Palu)
     unit: "1 Rumah (Tipe 50/80)",
     duration: "2.5 Jam", // 20 Sep 2026: 2 Jam -> 2,5 Jam sesuai dokumen struktur baru
     tier: "PRO",
@@ -406,10 +419,11 @@ export function getServiceMaterials(serviceType: string): ServiceMaterial[] | nu
 export type MitraLoyaltyTier = "New" | "Reguler" | "Commit" | "Pro";
 
 export const PLATFORM_FEE_TIERS: Record<MitraLoyaltyTier, { fast: number; pro: number }> = {
-  New: { fast: 0.13, pro: 0.1 },
-  Reguler: { fast: 0.12, pro: 0.09 },
-  Commit: { fast: 0.11, pro: 0.08 },
-  Pro: { fast: 0.1, pro: 0.07 },
+  // 25 Sep 2026 (revisi, migrasi 039): turun 2%/0% dari skema 22 Sep.
+  New: { fast: 0.11, pro: 0.1 },
+  Reguler: { fast: 0.1, pro: 0.09 },
+  Commit: { fast: 0.09, pro: 0.08 },
+  Pro: { fast: 0.08, pro: 0.07 },
 };
 
 /** Label Fast/PRO sebuah produk dari teks `service_type`/nama produk --
@@ -443,7 +457,7 @@ export function getPlatformFeePercent(tierName: MitraLoyaltyTier, serviceType: s
 // Dasbor Mitra. TIDAK memotong saldo deposit mitra (yang dipotong wallet
 // HANYA Fee Platform) -- ini murni biaya operasional mitra sendiri dari
 // uang tunai yang diterima dari klien.
-export const TRANSPORT_COST = 25000; // 22 Sep 2026: Rp10.000 -> Rp25.000 flat, SEMUA produk (dokumen final)
+export const TRANSPORT_COST = 20000; // 25 Sep 2026: Rp25.000 -> Rp20.000 flat, SEMUA produk (asumsi mitra punya kendaraan sendiri)
 
 const MATERIAL_COST_BY_CATEGORY_TIER: Record<string, { Fast: number; PRO: number }> = {
   "Setrika Pakaian": { Fast: 1250, PRO: 2500 },
@@ -529,8 +543,8 @@ export function getUpahMitraBersih(tierName: MitraLoyaltyTier, serviceType: stri
 //     60 menit = 2 x HT_30 (Fee ikut 2x).
 //   - Fee di dalam HT dipotong PENUH dari saldo deposit mitra saat order
 //     selesai (disimpan di orders.extra_time_fee, migrasi 038).
-// Contoh Setrika Fast, tier New: Fee Rp9.100 -> +30 menit Rp39.550 (fee
-// Rp9.100), +60 menit Rp79.100 (fee Rp18.200).
+// Contoh Setrika Fast Rp60.000, tier New (11%): Fee Rp6.600 -> +30 menit
+// Rp33.300 (fee Rp6.600), +60 menit Rp66.600 (fee Rp13.200).
 // ----------------------------------------------------------------------------
 
 /** Pilihan durasi tambah waktu -- berlaku untuk label Fast maupun PRO. */
@@ -600,7 +614,8 @@ export function estimateOrderPlatformFee(
 // Ambang Saldo Minimum Mitra -- REVISI (25 September 2026, konfirmasi Anda):
 // "minimal potongan produk terkecil berlabel Fast, persentase awal (tidak
 // berdasarkan tier)". Persentase awal = fee tier New label Fast (13%),
-// produk Fast terkecil = Setrika Fast (Rp70.000) -> Rp9.100, SATU angka flat
+// produk Fast terkecil = Setrika Fast. REVISI 25 Sep 2026: 11% x Rp60.000 =
+// Rp6.600 (dulu 13% x Rp70.000 = Rp9.100), SATU angka flat
 // utk semua jenis order. Sebelumnya 15% = Rp10.500.
 // HARUS sinkron dengan public.mitra_wallet_threshold() (migrasi 038).
 export const WALLET_THRESHOLD_BASE_PERCENT = PLATFORM_FEE_TIERS.New.fast; // 13%
@@ -608,7 +623,7 @@ export const WALLET_THRESHOLD_BASE_PERCENT = PLATFORM_FEE_TIERS.New.fast; // 13%
 export const MITRA_WALLET_MIN_BALANCE = Math.round(
   WALLET_THRESHOLD_BASE_PERCENT *
     Math.min(...services.filter((s) => s.tier === "Fast").map((s) => s.price))
-); // = Rp9.100
+);  // = Rp6.600 sejak 25 Sep 2026 (11% x Rp60.000)
 
 // ============================================================================
 // BARU (22 September 2026) -- fitur "Alarm Waktu Habis" (migrasi 035), diangkat

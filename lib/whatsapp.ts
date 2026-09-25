@@ -693,7 +693,7 @@ export function buildMitraEarningsReply(): string {
   return (
     `*Pendapatan Mitra kerjaku.click* 💵\n\n` +
     `Sistem kami *kemitraan bagi hasil*, bukan gaji bulanan.\n\n` +
-    `• Pendapatan dihitung per jam kerja: kurang lebih *Rp30.000–Rp80.000/jam*\n` +
+    `• Pendapatan dihitung per jam kerja: kurang lebih *Rp30.000–Rp60.000/jam*\n` +
     `• Estimasi per bulan: *Rp2 juta–Rp5 juta*, tergantung jumlah tugas & keaktifan\n` +
     `• Dibayar *langsung oleh klien* setiap selesai kerja\n` +
     `• *Program loyalty:* siapa rajin, dia makin besar pendapatannya\n` +

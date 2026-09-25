@@ -63,7 +63,7 @@ export default async function AdminMitraPage() {
     <div>
       <h1 className="font-display text-2xl font-semibold text-ink">Kelola Mitra</h1>
       <p className="mt-1 text-sm text-ink/60">
-        Ambang saldo minimum mitra sekarang FLAT (15% dari harga Setrika Fast). Pastikan kolom
+        Ambang saldo minimum mitra FLAT (11% fee awal × harga Setrika Fast = Rp6.600). Pastikan kolom
         Gender terisi untuk tiap mitra aktif — mitra yang gender-nya kosong tidak akan muncul untuk
         pesanan dengan preferensi gender spesifik. Kolom Ketersediaan menampilkan status yang mitra
         atur sendiri dari dasbor mereka (istirahat/sakit/kendala lain) — mitra yang sedang tidak
