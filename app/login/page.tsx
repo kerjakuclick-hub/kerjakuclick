@@ -1,11 +1,10 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,8 +38,12 @@ function LoginForm() {
 
     const fallback = profile?.role === "mitra" ? "/mitra" : "/admin";
     const next = searchParams.get("next") || fallback;
-    router.push(next);
-    router.refresh();
+    // PERBAIKAN (25 Sep 2026): pindah halaman PENUH (bukan router.push)
+    // supaya dasbor mitra/admin dimuat ulang dengan manifest aplikasinya
+    // sendiri -- dengan router.push, Chrome HP masih memakai manifest
+    // halaman login (aplikasi pelanggan), jadi tombol "Instal aplikasi"
+    // untuk dasbor mitra tidak pernah muncul.
+    window.location.assign(next);
   }
 
   return (

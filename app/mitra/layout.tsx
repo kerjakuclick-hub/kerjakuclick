@@ -7,6 +7,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import InstallAppCard from "@/components/InstallAppCard";
 import MitraNav from "@/components/mitra/MitraNav";
 
 export const metadata: Metadata = {
@@ -40,7 +41,11 @@ export default async function MitraLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-paper">
       <MitraNav mitraName={profile?.name ?? "Mitra"} walletBalance={profile?.wallet_balance ?? 0} />
-      <main className="mx-auto max-w-4xl px-6 py-8 lg:px-8">{children}</main>
+      <main className="mx-auto max-w-4xl px-6 py-8 lg:px-8">
+        {/* BARU (25 Sep 2026): kartu install aplikasi di HP */}
+        <InstallAppCard appName="Kerjaku Mitra" />
+        {children}
+      </main>
     </div>
   );
 }
