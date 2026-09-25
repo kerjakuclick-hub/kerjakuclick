@@ -1,21 +1,21 @@
 // GANTI ISI components/Hero.tsx Anda dengan file ini.
 //
-// REVISI (25 September 2026) -- desain hero terbaru + aset BRANDKIT:
-//   - Background: gambar resmi BRANDKIT/backgroundkerjaku.png (spotlight
-//     teal + aksen diagonal + logo putih di kanan SUDAH menyatu di gambar).
-//     Dikonversi ke public/hero-bg.webp (desktop, 2560x1440) dan
-//     public/hero-bg-mobile.webp (potongan portrait tanpa logo, 960x1500)
-//     -- lihat class `.hero-brand` di app/globals.css.
-//   - Karena logo sudah ada di background (desktop) dan di header, Hero
-//     tidak lagi memasang <img> logo sendiri.
-//   - Frame bergaris tipis sekarang di KIRI. Isinya: headline KAPITAL font
-//     condensed (Bebas Neue), subheadline kapital kecil ber-tracking lebar
-//     dengan "SEKALI KLIK!" tebal warna cyan, lalu panah + tombol
-//     "Pesan Sekarang" rata kiri di bawah frame.
-//   - Mobile & tablet (< 1024px): frame di tengah layar, background versi
-//     potongan portrait (sama seperti tampilan HP di desain).
-//   - Font Bebas Neue & Montserrat di-load LOKAL di file ini lewat
-//     next/font, jadi app/layout.tsx & tailwind.config.ts tidak berubah.
+// REVISI (25 September 2026, "ikuti secara presisi gambar terlampir"):
+//   - Frame bergaris DIHAPUS. Konten sekarang langsung di atas background,
+//     rata kiri, di tengah secara vertikal.
+//   - Headline 5 baris: SOLUSI / PRAKTIS / BIKIN / HIDUP / BERNILAI
+//     (Bebas Neue, besar). Ukuran font mengikuti lebar & tinggi layar
+//     supaya proporsinya sama dengan desain di desktop maupun HP.
+//   - Subheadline kapital kecil, "SEKALI KLIK!." warna cyan -- ejaan
+//     (termasuk titik setelah tanda seru) persis seperti desain.
+//   - Tombol "Pesan Sekarang" sekarang KOTAK (sudut tidak membulat).
+//   - Background tetap aset BRANDKIT (class `.hero-brand` di globals.css):
+//     desktop dengan logo putih di kanan, HP versi potongan tanpa logo.
+//   - Desktop: konten mulai ~17% dari tepi kiri (desain terbaru); HP 6%.
+//   - Proporsi diukur dari screenshot layar penuh desain: headline jarak
+//     antarbaris rapat (0.78), ukuran ~5.3vw desktop / ~22vw HP (dibatasi
+//     tinggi layar), jarak ke panah lebih lega di desktop.
+//   - Font Bebas Neue & Montserrat di-load LOKAL lewat next/font.
 //   - Tombol tetap link ke /pesan.
 
 import Link from "next/link";
@@ -33,57 +33,59 @@ const heroText = Montserrat({
   display: "swap",
 });
 
-// Tinggi header = h-16 (64px). Hero mengisi sisa layar pertama.
+// Tinggi hero = 1 layar penuh dikurangi header 56px (h-14) -- diatur di
+// class `.hero-brand` (app/globals.css), sama di desktop & HP, jadi saat
+// website dibuka cuma Header + Hero yang terlihat; section berikutnya
+// baru muncul setelah di-scroll.
 export default function Hero() {
   return (
-    <section className="hero-brand relative flex min-h-[calc(100svh-64px)] overflow-hidden">
-      <div className="flex w-full px-3 py-20 sm:px-8 sm:py-24 lg:py-14 lg:pl-[14.5%] lg:pr-0">
-        <div className="flex w-full flex-col border border-white/60 px-4 pb-10 pt-12 sm:px-8 lg:w-[40%] lg:min-w-[380px] lg:max-w-[560px] lg:px-[2.2rem] lg:pb-14 lg:pt-14 xl:w-[36%]">
-          <h1
-            className={`${heroDisplay.className} text-[2.6rem] leading-[0.98] tracking-[0.02em] text-white [-webkit-text-stroke:0.02em_#fff] sm:text-6xl lg:text-[clamp(3rem,3.6vw,4.25rem)]`}
-          >
-            Solusi
-            <br />
-            Praktis
-            <br />
-            Bikin Hidup
-            <br />
-            Bernilai
-          </h1>
+    <section className="hero-brand relative flex items-center overflow-hidden">
+      <div className="w-full px-[6%] py-10 lg:py-12 lg:pl-[17.3%]">
+        <h1
+          className={`${heroDisplay.className} text-[min(22vw,11svh)] leading-[0.78] tracking-[0.05em] text-white [-webkit-text-stroke:0.015em_#fff] lg:text-[min(5.3vw,11.9svh)]`}
+        >
+          Solusi
+          <br />
+          Praktis
+          <br />
+          Bikin
+          <br />
+          Hidup
+          <br />
+          Bernilai
+        </h1>
 
-          <p
-            className={`${heroText.className} mt-6 text-[0.6rem] font-medium uppercase leading-[1.6] tracking-[0.14em] text-white/85 sm:text-xs lg:mt-10 lg:text-[0.72rem]`}
-          >
-            Setrika, bersiin rumah, dan les privat&mdash;
-            <br />
-            diurus dalam{" "}
-            <span className="font-bold text-[#23A3CF]">Sekali Klik!</span>
-          </p>
+        <p
+          className={`${heroText.className} mt-6 text-[9px] font-medium uppercase leading-[1.65] tracking-[0.12em] text-white/85 sm:text-[11px] lg:mt-10`}
+        >
+          Setrika, bersiin rumah, dan les privat&mdash;
+          <br />
+          diurus dalam{" "}
+          <span className="font-bold text-[#23A3CF]">Sekali Klik!.</span>
+        </p>
 
-          <div className="mt-auto flex flex-col items-start pt-12">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 40 50"
-              fill="none"
-              className="mb-4 ml-1.5 h-9 w-7 text-white lg:h-12 lg:w-10"
-            >
-              <path
-                d="M20 1V48M2 30L20 48L38 30"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-              />
-            </svg>
-            <Link
-              href="/pesan"
-              className={`${heroText.className} inline-block rounded-full bg-bridge px-4 py-1.5 text-center text-xs font-bold text-ink shadow-[0_8px_24px_-10px_rgba(245,179,36,0.6)] transition hover:brightness-105 lg:px-5 lg:py-2 lg:text-sm`}
-            >
-              Pesan Sekarang
-            </Link>
-          </div>
-        </div>
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 40 46"
+          fill="none"
+          className="mb-3 ml-0.5 mt-3 h-9 w-8 text-white lg:mb-3.5 lg:mt-12 lg:h-12 lg:w-10"
+        >
+          <path
+            d="M20 1V44M2 26L20 44L38 26"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+
+        <Link
+          href="/pesan"
+          className={`${heroText.className} inline-block bg-bridge px-3.5 py-1.5 text-[10px] font-bold text-ink transition hover:brightness-105 sm:text-xs lg:px-5 lg:py-2 lg:text-[13px]`}
+        >
+          Pesan Sekarang
+        </Link>
       </div>
     </section>
   );

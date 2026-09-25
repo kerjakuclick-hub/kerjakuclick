@@ -85,6 +85,13 @@ body {
    sudut gambar, supaya tidak ada "kedipan" terang sebelum gambar dimuat.
    Class lama `.hero-spotlight` (24 Sep) diganti oleh class ini. */
 .hero-brand {
+  /* Header (56px) + Hero = tepat 1 layar penuh, desktop & HP. 100vh =
+     fallback browser lama; 100svh = tinggi layar HP saat address bar
+     tampil, supaya section berikutnya tidak mengintip saat pertama dibuka.
+     Pakai min-height (bukan height) supaya konten tidak terpotong di layar
+     yang sangat pendek. */
+  min-height: calc(100vh - 56px);
+  min-height: calc(100svh - 56px);
   background-color: #010304;
   background-image: url("/hero-bg-mobile.webp");
   background-size: cover;
@@ -97,4 +104,12 @@ body {
     background-image: url("/hero-bg.webp");
     background-position: 70% center;
   }
+}
+
+/* Anchor menu header (revisi 25 September 2026): "Layanan" -> /#services,
+   "Cara Pesan" -> /#how-it-works. Header sticky setinggi 56px, jadi section
+   tujuan diberi jarak supaya judulnya tidak tertutup header. */
+#services,
+#how-it-works {
+  scroll-margin-top: 56px;
 }
