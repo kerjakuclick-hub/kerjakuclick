@@ -3,6 +3,7 @@ import { Space_Grotesk, Inter, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import FloatingChatLauncher from "@/components/FloatingChatLauncher";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import PublicInstallBanner from "@/components/PublicInstallBanner";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -65,6 +66,9 @@ export default function RootLayout({
         {/* BARU (25 Sep 2026): service worker utk syarat install aplikasi di
             HP Android -- lihat components/ServiceWorkerRegister.tsx. */}
         <ServiceWorkerRegister />
+        {/* BARU (25 Sep 2026): ajakan install aplikasi untuk pelanggan di
+            website publik -- lihat components/PublicInstallBanner.tsx. */}
+        <PublicInstallBanner />
       </body>
     </html>
   );
